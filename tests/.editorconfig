@@ -1,0 +1,5 @@
+root = false
+
+[*.cs]
+# Plan dat ten test theo kieu Ten_co_gach_duoi; CA1707 chi tat trong tests/.
+dotnet_diagnostic.CA1707.severity = none
