@@ -31,6 +31,19 @@ App chỉ can thiệp tên miền Steam, không đụng phần còn lại của 
 
 Chi tiết: [Cài đặt](docs/guide/01-cai-dat.md).
 
+## macOS (thử nghiệm)
+
+Tải `LunaDNS-x.y.z-macos-arm64.dmg` (Mac chip Apple M1–M4) hoặc `…-macos-x64.dmg` (Mac Intel). Xem loại chip ở  → About This Mac. Không cần cài .NET.
+
+1. Mở file `.dmg`, kéo **LunaDNS** vào **Applications**.
+2. Mở LunaDNS. Bản này chưa được Apple công chứng (notarize), nên lần đầu máy báo không mở được: vào **Cài đặt hệ thống → Quyền riêng tư & Bảo mật**, kéo xuống, bấm **Vẫn mở** (Open Anyway), rồi mở lại.
+3. App báo "Dịch vụ nền chưa cài": bấm **Cài dịch vụ nền**, nhập mật khẩu máy.
+4. Bật **Định tuyến DNS**, rồi mở Steam.
+
+Không dùng nữa: biểu tượng LunaDNS trên thanh menu → **Thoát & khôi phục**. Gỡ hẳn: mở Terminal, chạy `sudo /Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns uninstall`, rồi kéo app vào Thùng rác.
+
+Kiểm file tải về: `shasum -a 256 ~/Downloads/LunaDNS-*.dmg`, so với `SHA256SUMS-macos.txt`. Chi tiết: [macOS](docs/guide/09-macos.md).
+
 ## Cài nhanh (từ mã nguồn)
 
 Bấm đúp `Chay-tu-ma-nguon.cmd` ở gốc repo (cần .NET 8 SDK; thiếu thì script chỉ cách cài). Script build bản phát hành vào `artifacts\publish\win-x64\` rồi mở `LunaDNS.exe`. Hoặc chạy tay:
@@ -101,5 +114,5 @@ Mã nguồn: `src/LunaDns.Core` (logic, không phụ thuộc Windows), `src/Luna
 - **Tự cập nhật:** chưa. Nút "Kiểm tra cập nhật" chỉ báo có bản mới và mở trang tải; nâng cấp bằng cách chạy Setup mới.
 - **Báo cáo chẩn đoán** hiện ghi ra **Desktop**. PO đã chốt sẽ chuyển sang `%ProgramData%\LunaDNS\reports\` (giữ 10 báo cáo gần nhất), nhưng chưa code.
 - **PUBG chưa hỗ trợ.**
-- **macOS:** thử nghiệm: dịch vụ nền launchd và lệnh `lunadns` (Định tuyến DNS, Proxy SNI), giao diện chạy từ mã nguồn; chưa có bản đóng gói `.dmg`. Xem [macOS](docs/guide/09-macos.md).
+- **macOS:** thử nghiệm: dịch vụ nền launchd và lệnh `lunadns` (Định tuyến DNS, Proxy SNI), có bản `.dmg` ký ad-hoc, chưa notarize; chưa có Chế độ PUBG. Xem [macOS](docs/guide/09-macos.md).
 - Đăng xuất/tắt máy: chưa có kết quả đo cuối. Nếu app không kịp hoàn tác thì tác vụ dọn dẹp (bản Setup), lần mở app sau hoặc `--cleanup` sẽ hoàn tác.

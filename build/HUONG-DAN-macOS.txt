@@ -10,7 +10,9 @@ CÀI
      cạnh dòng nói về LunaDNS, nhập mật khẩu, rồi mở lại app.
    - Hoặc mở Terminal và chạy:
        xattr -dr com.apple.quarantine /Applications/LunaDNS.app
-   Chỉ làm vậy khi bạn tin nguồn tải (so mã SHA256 với trang Release).
+   Chỉ làm vậy khi bạn tin nguồn tải. Kiểm file .dmg trong Terminal:
+       shasum -a 256 ~/Downloads/LunaDNS-*.dmg
+   rồi so với mã SHA256 người gửi hoặc trang Release đưa.
 3. Lần đầu, app hiện banner "Dịch vụ nền chưa cài": bấm "Cài dịch vụ nền",
    nhập mật khẩu máy. Dịch vụ nền làm phần cần quyền root (sửa
    /etc/resolver, proxy, hosts); sau đó bật/tắt không cần mật khẩu nữa.
@@ -20,10 +22,14 @@ LƯU Ý
 - Biểu tượng LunaDNS nằm trên thanh menu. Nút đỏ chỉ đóng cửa sổ, app vẫn chạy.
 - "Thoát & khôi phục" (hoặc Cmd+Q) tắt hết và hoàn tác thay đổi.
 - Có lệnh Terminal: lunadns on | off | status (xem docs/guide/09-macos.md).
+  Máy chưa có /usr/local/bin (thường gặp ở Mac chip Apple chưa cài Homebrew) thì gọi
+  bằng đường dẫn đầy đủ: /Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns
 - Chưa có Chế độ PUBG và mục Nâng cao trên macOS.
 
 GỠ
-1. Trong Terminal: sudo lunadns uninstall
+1. Trong Terminal:
+       sudo /Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns uninstall
+   (lệnh ngắn "sudo lunadns uninstall" chỉ có khi máy có sẵn /usr/local/bin)
    (tắt, hoàn tác, gỡ dịch vụ nền và dữ liệu trong /Library/Application Support/LunaDNS).
 2. Kéo LunaDNS từ Applications vào Thùng rác. Muốn sạch hẳn thì xoá thêm
    ~/Library/Application Support/LunaDNS.

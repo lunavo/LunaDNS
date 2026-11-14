@@ -14,7 +14,7 @@ Tải trên trang Release: `LunaDNS-<phiên bản>-macos-arm64.dmg` (Apple Silic
    Chỉ làm vậy khi bạn tin nguồn tải.
 3. Bấm **Cài dịch vụ nền** trên banner rồi nhập mật khẩu (xem mục Giao diện). Lệnh cài chỉ chép thư mục `LunaDNS.app/Contents/MacOS/daemon/` vào `/Library/PrivilegedHelperTools/vn.lunavo.lunadns/` và xoá cờ quarantine trên bản chép, để launchd chạy được dịch vụ nền.
 
-Gỡ: `sudo lunadns uninstall`, rồi kéo LunaDNS từ Applications vào Thùng rác.
+Gỡ: `sudo /Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns uninstall` (hoặc `sudo lunadns uninstall` nếu máy có `/usr/local/bin`), rồi kéo LunaDNS từ Applications vào Thùng rác.
 
 ## Cách hoạt động
 
