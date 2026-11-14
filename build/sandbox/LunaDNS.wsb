@@ -1,0 +1,11 @@
+<!-- Mở bằng bấm đúp (cần bật Windows Sandbox). Sửa HostFolder nếu repo không ở D:\Projects\lunadns. -->
+<Configuration>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>D:\Projects\lunadns\artifacts</HostFolder>
+      <SandboxFolder>C:\Users\WDAGUtilityAccount\Desktop\artifacts</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <Networking>Enable</Networking>
+</Configuration>

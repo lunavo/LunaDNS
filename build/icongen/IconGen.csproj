@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Công cụ dựng logo/icon, không thuộc LunaDns.sln. Chạy qua src/LunaDns.App/Assets/make-icon.ps1. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Bản 2.88 khớp SkiaSharp mà Avalonia 11 kéo theo, khỏi tải gói mới. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" />
+  </ItemGroup>
+</Project>

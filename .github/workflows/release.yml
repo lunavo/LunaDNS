@@ -1,0 +1,50 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Kiểm tag, phiên bản và release notes
+        id: version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Tag '$tag' không phải vX.Y.Z." }
+          $version = $Matches[1]
+          $csproj = ([xml](Get-Content src/LunaDns.App/LunaDns.App.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($csproj -ne $version) { throw "Tag $version khác <Version> $csproj trong csproj." }
+          if (-not (Test-Path "docs/release-notes/$tag.md")) { throw "Thiếu docs/release-notes/$tag.md." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$(if ($version.StartsWith('0.')) { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
+
+      - run: dotnet build -c Release -warnaserror
+      - run: dotnet test tests/LunaDns.Core.Tests -c Release --no-build
+      - run: dotnet test tests/LunaDns.Platform.Windows.Tests -c Release --no-build
+      - run: dotnet test tests/LunaDns.App.Tests -c Release --no-build
+
+      - name: Publish
+        shell: pwsh
+        run: ./build/publish.ps1 -Version ${{ steps.version.outputs.version }}
+
+      # Bước ký SignPath thêm vào đây sau khi SignPath duyệt (xem "Việc không thuộc KH7"): ký exe trước Inno, rồi ký Setup.
+
+      - name: Tạo Release nháp
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          $flags = @('--draft', '--title', "LunaDNS $v", '--notes-file', "docs/release-notes/v$v.md")
+          if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $flags += '--prerelease' }
+          gh release create "v$v" @flags "artifacts/LunaDNS-Setup-$v.exe" "artifacts/LunaDNS-$v-portable.zip" artifacts/SHA256SUMS.txt

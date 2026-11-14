@@ -1,0 +1,22 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet build -c Release -warnaserror
+      # Test Admin/mạng thật tự skip vì không đặt LUNADNS_ADMIN_TESTS / LUNADNS_NETWORK_TESTS.
+      - run: dotnet test tests/LunaDns.Core.Tests -c Release --no-build
+      - run: dotnet test tests/LunaDns.Platform.Windows.Tests -c Release --no-build
+      - run: dotnet test tests/LunaDns.App.Tests -c Release --no-build

@@ -1,0 +1,35 @@
+LunaDNS {VERSION} - bản portable (không cần cài .NET)
+=====================================================
+
+CÀI VÀ CHẠY (1 CLICK)
+1. Chuột phải file zip -> Properties -> tích "Unblock" -> OK (nếu có ô này).
+2. Giải nén cả thư mục ra chỗ cố định, ví dụ C:\Tools\LunaDNS\
+   (đừng chạy thẳng trong cửa sổ zip; giữ các file .dll cạnh LunaDNS.exe).
+3. Bấm đúp LunaDNS.exe. Windows hỏi quyền Admin (UAC) -> Yes.
+   App cần Admin vì sửa luật DNS (NRPT), file hosts và cấu hình proxy.
+4. Lần mở đầu app tự chạy Kiểm tra. Bật công tắc "Định tuyến DNS"
+   (và "Proxy SNI" nếu Kiểm tra đề xuất).
+
+Nếu Windows hiện "Windows protected your PC": exe chưa ký số.
+Chỉ khi bạn tin nguồn tải, bấm "More info" -> "Run anyway".
+
+LƯU Ý
+- Không bật "Chế độ PUBG": chưa hỗ trợ, sẽ bị ẩn ở bản sau.
+- Nút X chỉ thu app xuống khay hệ thống; app vẫn chạy.
+- Chỉ một bản chạy cùng lúc; mở lại thì cửa sổ cũ hiện lên.
+- Bản portable không tự chạy cùng Windows.
+- Dữ liệu và log: %ProgramData%\LunaDNS
+
+TẮT VÀ GỠ
+1. Trong app bấm "Tắt hết & khôi phục", hoặc chuột phải biểu tượng khay
+   -> "Thoát & khôi phục". Mọi thay đổi trên máy được hoàn tác.
+2. Xoá thư mục đã giải nén. Muốn sạch hẳn thì xoá thêm %ProgramData%\LunaDNS.
+
+APP BỊ TẮT NGANG (kill, treo, mất điện)
+Thay đổi còn lại sẽ được hoàn tác khi mở lại LunaDNS. Hoặc mở PowerShell
+"Run as administrator" trong thư mục app và chạy:
+    .\LunaDNS.exe --cleanup
+Mã thoát 0 = máy đã sạch. Trong lúc chưa dọn, Steam có thể không phân giải
+được tên miền.
+
+Hướng dẫn đầy đủ: thư mục docs\guide trong mã nguồn LunaDNS.
