@@ -14,6 +14,7 @@ internal sealed class Installer(IProcessRunner runner, Action<string> say)
     public const string PlistPath = "/Library/LaunchDaemons/" + DaemonProtocol.Label + ".plist";
     public const string CommandLink = "/usr/local/bin/lunadns";
     private const string Launchctl = "/bin/launchctl";
+    private const string Xattr = "/usr/bin/xattr";
 
     private const UnixFileMode Exec = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
         | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
@@ -38,6 +39,10 @@ internal sealed class Installer(IProcessRunner runner, Action<string> say)
         Bootout(); // daemon cũ nhận SIGTERM và tự hoàn tác
         if (Directory.Exists(InstallDir)) Directory.Delete(InstallDir, recursive: true);
         Copy(source, InstallDir);
+        // Bản tải về (.dmg) mang com.apple.quarantine, File.Copy giữ nguyên thuộc tính này. Gatekeeper có thể chặn âm thầm binary
+        // ký ad-hoc còn quarantine khi launchd chạy nó (không có hộp thoại "Open Anyway" cho daemon). Mã thoát khác 0 khi không có
+        // thuộc tính nào: bỏ qua.
+        runner.Run(Xattr, ["-dr", "com.apple.quarantine", InstallDir]);
 
         await File.WriteAllTextAsync(PlistPath, Plist()).ConfigureAwait(false);
         File.SetUnixFileMode(PlistPath, Read);

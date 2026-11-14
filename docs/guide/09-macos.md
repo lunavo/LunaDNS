@@ -1,6 +1,20 @@
 # 9. macOS (thử nghiệm)
 
-Bản macOS gồm một **dịch vụ nền** (launchd), **lệnh** `lunadns` và **giao diện** LunaDNS (cùng giao diện Avalonia với bản Windows), dùng chung lõi với bản Windows (DoH, stub DNS, proxy SNI, journal). Chưa có bản đóng gói `.dmg` đã ký, chưa có Chế độ PUBG.
+Bản macOS gồm một **dịch vụ nền** (launchd), **lệnh** `lunadns` và **giao diện** LunaDNS (cùng giao diện Avalonia với bản Windows), dùng chung lõi với bản Windows (DoH, stub DNS, proxy SNI, journal). Có file `.dmg` cho Apple Silicon và Mac Intel, ký ad-hoc, **chưa notarize** (chưa có Apple Developer ID). Chưa có Chế độ PUBG.
+
+## Cài từ file .dmg
+
+Tải trên trang Release: `LunaDNS-<phiên bản>-macos-arm64.dmg` (Apple Silicon, M1 trở lên) hoặc `…-macos-x64.dmg` (Mac Intel), kèm `SHA256SUMS-macos.txt` (kiểm bằng `shasum -a 256 -c SHA256SUMS-macos.txt`). Cần macOS 12 trở lên.
+
+1. Mở `.dmg`, kéo **LunaDNS** vào **Applications**. Đừng chạy thẳng từ cửa sổ `.dmg`: macOS sẽ chạy app ở một đường dẫn tạm chỉ đọc (App Translocation).
+2. Mở LunaDNS trong Applications. Vì chưa notarize, lần đầu macOS báo không mở được. Từ macOS 15, "chuột phải → Mở" không còn bỏ qua được cảnh báo này. Có hai cách:
+   - **System Settings → Privacy & Security**, kéo xuống, bấm **Open Anyway** cạnh dòng nói về LunaDNS, nhập mật khẩu, rồi mở lại app.
+   - Hoặc trong Terminal: `xattr -dr com.apple.quarantine /Applications/LunaDNS.app`
+
+   Chỉ làm vậy khi bạn tin nguồn tải.
+3. Bấm **Cài dịch vụ nền** trên banner rồi nhập mật khẩu (xem mục Giao diện). Lệnh cài chỉ chép thư mục `LunaDNS.app/Contents/MacOS/daemon/` vào `/Library/PrivilegedHelperTools/vn.lunavo.lunadns/` và xoá cờ quarantine trên bản chép, để launchd chạy được dịch vụ nền.
+
+Gỡ: `sudo lunadns uninstall`, rồi kéo LunaDNS từ Applications vào Thùng rác.
 
 ## Cách hoạt động
 
@@ -41,6 +55,8 @@ build/run-macos.sh
 ```
 
 Script dựng `artifacts/run/osx-arm64/LunaDNS.app` (chưa ký, chỉ để chạy trên máy build) rồi mở nó. `--build-only` để chỉ dựng. Bên trong `.app`, lệnh `lunadns` nằm ở `Contents/MacOS/daemon/`.
+
+Biểu tượng trên thanh menu là icon **template** đen trong suốt (macOS tự tô theo thanh menu sáng/tối). Ba trạng thái khác nhau bằng hình: **mờ** = tắt, **đặc** = đang bật, **có chấm tròn** = cần chú ý.
 
 Khác bản Windows:
 
@@ -97,6 +113,21 @@ Phải thấy `nameserver[0] : 127.0.0.1` và `port : 15353`. Lưu ý `dig`/`nsl
 - **Proxy SNI:** chưa kiểm chứng Steam trên macOS có theo PAC hệ thống ở mọi kết nối hay không. Nếu Store vẫn không tải thì nguyên nhân thường là lọc SNI ở kết nối không theo PAC.
 - `networksetup` không có lệnh xoá URL PAC: với service vốn chưa có PAC, khi tắt LunaDNS chỉ **tắt** auto-proxy, URL `http://127.0.0.1:1808x/proxy.pac` còn nằm lại ở trạng thái tắt (vô hại). Service có PAC riêng thì được trả về đúng URL và trạng thái cũ.
 - Network service mới xuất hiện sau khi đã bật Proxy SNI (cắm thêm card) sẽ không có PAC cho tới lần bật sau.
+
+## Đóng gói (.app, .dmg)
+
+```bash
+build/publish-macos.sh
+```
+
+Chạy trên macOS, không cần sudo. Dựng `artifacts/publish/<rid>/LunaDNS.app` cho `osx-arm64` và `osx-x64`, ký ad-hoc, rồi tạo `artifacts/LunaDNS-<v>-macos-arm64.dmg`, `…-macos-x64.dmg` (mỗi file có app, lối tắt Applications, `HUONG-DAN.txt`) và `artifacts/SHA256SUMS-macos.txt`. Tham số: `--version x.y.z` (mặc định `<Version>` trong `LunaDns.App.csproj`), `--rid osx-arm64|osx-x64|all`.
+
+- Bố cục `.app` và hàm ký ở `build/macos-bundle.sh` (dùng chung với `run-macos.sh`). `Info.plist` sinh từ đó.
+- Không có bản universal: bản .NET self-contained có runtime và assembly khác nhau theo kiến trúc, `lipo` không ghép được.
+- Ký ad-hoc ký từng file trong `Contents/MacOS` rồi ký bundle; script kiểm bằng `codesign --verify --deep --strict`. `spctl` vẫn báo `rejected` vì chưa notarize: đúng như mong đợi.
+- Icon: `build/make-icns.sh` sinh `Assets/LunaDNS.icns` và `Assets/tray-{off,on,error}-mac.png` từ cùng nguồn hình với `.ico` (`build/icongen --macos`). Chỉ chạy lại khi đổi hình; các file đã commit.
+- GitHub Actions: khi đẩy tag `v*`, job `release-macos` (macos-latest) build, test, chạy `publish-macos.sh` rồi job Windows đính kèm hai `.dmg` và `SHA256SUMS-macos.txt` vào Release nháp.
+- Khi có Apple Developer ID: thay `codesign -s -` bằng chữ ký Developer ID kèm `--options runtime` và entitlements cho JIT của .NET, rồi `xcrun notarytool submit --wait` và `xcrun stapler staple` cho `.dmg`.
 
 ## Test tích hợp (chạy tay)
 

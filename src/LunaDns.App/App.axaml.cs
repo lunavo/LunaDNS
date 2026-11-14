@@ -90,15 +90,24 @@ internal sealed partial class App : Application, IDisposable
         _trayOn = LoadIcon("tray-on");
         _trayError = LoadIcon("tray-error");
         _tray = new TrayIcon { Menu = menu, IsVisible = true };
+#if MACOS
+        // Icon template (đen + alpha): macOS tự tô theo thanh menu sáng/tối, như icon hệ thống.
+        MacOSProperties.SetIsTemplateIcon(_tray, true);
+#endif
         _tray.Clicked += (_, _) => ShowWindow();
         UpdateTray();
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         TrayIcon.SetIcons(this, [_tray]);
     }
 
+    /// <summary>Windows: .ico màu cho khay. macOS: PNG template 36 px (18 pt @2x, build/make-icns.sh) cho thanh menu.</summary>
     private static WindowIcon LoadIcon(string name)
     {
+#if MACOS
+        using var stream = AssetLoader.Open(new Uri($"avares://LunaDNS/Assets/{name}-mac.png"));
+#else
         using var stream = AssetLoader.Open(new Uri($"avares://LunaDNS/Assets/{name}.ico"));
+#endif
         return new WindowIcon(stream);
     }
 

@@ -45,6 +45,11 @@
     <AvaloniaResource Include="Assets\*.ico" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <!-- Icon template cho thanh menu macOS. LunaDNS.icns không nhúng: build/publish-macos.sh chép vào Contents/Resources. -->
+    <AvaloniaResource Include="Assets\*-mac.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\LunaDns.Core\LunaDns.Core.csproj" />
   </ItemGroup>

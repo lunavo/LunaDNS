@@ -1,0 +1,31 @@
+LunaDNS {VERSION} cho macOS (không cần cài .NET)
+================================================
+
+CÀI
+1. Kéo LunaDNS vào thư mục Applications (biểu tượng bên cạnh trong cửa sổ này).
+   Đừng mở thẳng từ cửa sổ .dmg.
+2. Mở LunaDNS trong Applications. Bản này chưa được Apple công chứng
+   (notarize), nên lần đầu macOS báo không mở được:
+   - Vào System Settings -> Privacy & Security, kéo xuống, bấm "Open Anyway"
+     cạnh dòng nói về LunaDNS, nhập mật khẩu, rồi mở lại app.
+   - Hoặc mở Terminal và chạy:
+       xattr -dr com.apple.quarantine /Applications/LunaDNS.app
+   Chỉ làm vậy khi bạn tin nguồn tải (so mã SHA256 với trang Release).
+3. Lần đầu, app hiện banner "Dịch vụ nền chưa cài": bấm "Cài dịch vụ nền",
+   nhập mật khẩu máy. Dịch vụ nền làm phần cần quyền root (sửa
+   /etc/resolver, proxy, hosts); sau đó bật/tắt không cần mật khẩu nữa.
+4. Bật công tắc "Định tuyến DNS" (và "Proxy SNI" nếu Kiểm tra đề xuất).
+
+LƯU Ý
+- Biểu tượng LunaDNS nằm trên thanh menu. Nút đỏ chỉ đóng cửa sổ, app vẫn chạy.
+- "Thoát & khôi phục" (hoặc Cmd+Q) tắt hết và hoàn tác thay đổi.
+- Có lệnh Terminal: lunadns on | off | status (xem docs/guide/09-macos.md).
+- Chưa có Chế độ PUBG và mục Nâng cao trên macOS.
+
+GỠ
+1. Trong Terminal: sudo lunadns uninstall
+   (tắt, hoàn tác, gỡ dịch vụ nền và dữ liệu trong /Library/Application Support/LunaDNS).
+2. Kéo LunaDNS từ Applications vào Thùng rác. Muốn sạch hẳn thì xoá thêm
+   ~/Library/Application Support/LunaDNS.
+
+Hướng dẫn đầy đủ: docs/guide/09-macos.md trong mã nguồn LunaDNS.

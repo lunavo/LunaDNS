@@ -7,7 +7,41 @@ permissions:
   contents: write
 
 jobs:
+  # Bản macOS dựng song song trên macos-latest (arm64, cross-publish được osx-x64); job Windows đợi rồi đính kèm .dmg vào Release nháp.
+  release-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Kiểm tag
+        id: version
+        run: |
+          tag='${{ github.ref_name }}'
+          [[ "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]] || { echo "Tag '$tag' không phải vX.Y.Z."; exit 1; }
+          echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+
+      - run: dotnet build -c Release -warnaserror
+      - run: dotnet test tests/LunaDns.Core.Tests -c Release --no-build
+      - run: dotnet test tests/LunaDns.Platform.MacOS.Tests -c Release --no-build
+      - run: dotnet test tests/LunaDns.App.Tests -c Release --no-build -f net8.0
+
+      # Ký ad-hoc, chưa notarize (chưa có Apple Developer ID). Có Developer ID thì thêm codesign --options runtime + notarytool ở đây.
+      - name: Publish
+        run: build/publish-macos.sh --version ${{ steps.version.outputs.version }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            artifacts/LunaDNS-*-macos-*.dmg
+            artifacts/SHA256SUMS-macos.txt
+          if-no-files-found: error
+
   release:
+    needs: release-macos
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +73,11 @@ jobs:
 
       # Bước ký SignPath thêm vào đây sau khi SignPath duyệt (xem "Việc không thuộc KH7"): ký exe trước Inno, rồi ký Setup.
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos
+          path: artifacts/macos
+
       - name: Tạo Release nháp
         shell: pwsh
         env:
@@ -47,4 +86,5 @@ jobs:
           $v = '${{ steps.version.outputs.version }}'
           $flags = @('--draft', '--title', "LunaDNS $v", '--notes-file', "docs/release-notes/v$v.md")
           if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $flags += '--prerelease' }
-          gh release create "v$v" @flags "artifacts/LunaDNS-Setup-$v.exe" "artifacts/LunaDNS-$v-portable.zip" artifacts/SHA256SUMS.txt
+          gh release create "v$v" @flags "artifacts/LunaDNS-Setup-$v.exe" "artifacts/LunaDNS-$v-portable.zip" artifacts/SHA256SUMS.txt `
+              (Get-ChildItem artifacts/macos -File | ForEach-Object FullName)

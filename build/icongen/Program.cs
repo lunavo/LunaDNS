@@ -5,9 +5,36 @@
 //   [thư mục xem thử]/*.png                        (tuỳ chọn, để duyệt bằng mắt)
 // Lưới vẽ 256×256. PO chốt 14/11: mọi cỡ dùng chung một hình (SVG Gemini), không vẽ bản giản lược.
 // Cách chạy: dotnet run --project build/icongen -- <thư mục repo> [thư mục xem thử]
+// Bản macOS: dotnet run --project build/icongen -- --macos <thư mục repo> [thư mục iconset]
+//   chỉ ghi Assets/tray-{off,on,error}-mac.png (template đen + alpha cho thanh menu) và thư mục .iconset
+//   để iconutil dựng LunaDNS.icns (build/make-icns.sh). Không đụng .ico đang có.
 using System.Globalization;
 using System.Text;
 using SkiaSharp;
+
+if (args.Length > 0 && args[0] == "--macos")
+{
+    var macRepo = args.Length > 1 ? args[1] : Directory.GetCurrentDirectory();
+    var macAssets = Path.Combine(macRepo, "src", "LunaDns.App", "Assets");
+    foreach (var v in new[] { Variant.Off, Variant.On, Variant.Error })
+    {
+        var file = Path.Combine(macAssets, $"tray-{v.ToString().ToLowerInvariant()}-mac.png");
+        File.WriteAllBytes(file, Art.TemplatePng(36, v));
+        Console.WriteLine($"Đã ghi {file}");
+    }
+    if (args.Length > 2)
+    {
+        var iconset = args[2];
+        Directory.CreateDirectory(iconset);
+        foreach (var pt in new[] { 16, 32, 128, 256, 512 })
+        {
+            File.WriteAllBytes(Path.Combine(iconset, $"icon_{pt}x{pt}.png"), Art.MacAppPng(pt));
+            File.WriteAllBytes(Path.Combine(iconset, $"icon_{pt}x{pt}@2x.png"), Art.MacAppPng(pt * 2));
+        }
+        Console.WriteLine($"Đã ghi {iconset}");
+    }
+    return;
+}
 
 var repo = args.Length > 0 ? args[0] : Directory.GetCurrentDirectory();
 var preview = args.Length > 1 ? args[1] : null;
@@ -204,6 +231,81 @@ internal static class Art
     }
 
     private static SKPath Simplify(SKPath path) => path.Simplify() ?? path;
+
+    /// <summary>Icon .app cho macOS: ô nền thu về khoảng 80% khung (lề chuẩn icon macOS 11+, 824/1024), còn lại như bản App.</summary>
+    public static byte[] MacAppPng(int size)
+    {
+        var info = new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using var surface = SKSurface.Create(info);
+        var canvas = surface.Canvas;
+        canvas.Clear(SKColors.Transparent);
+        canvas.Scale(size / 256f);
+        canvas.Scale(0.855f, 0.855f, 128, 128);
+        Draw(canvas, Compose(Variant.App, size));
+        return Encode(surface);
+    }
+
+    /// <summary>
+    /// Icon template cho thanh menu macOS: chỉ đen + alpha, macOS tự tô theo nền sáng/tối. Ba trạng thái khác nhau bằng hình:
+    /// tắt = hình mờ, bật = hình đặc, lỗi = hình đặc bị khoét một góc đặt chấm tròn. Tam giác "play" trên khiên được khoét trong suốt.
+    /// </summary>
+    public static byte[] TemplatePng(int size, Variant variant)
+    {
+        var info = new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using var surface = SKSurface.Create(info);
+        var canvas = surface.Canvas;
+        canvas.Clear(SKColors.Transparent);
+        canvas.Scale(size / 256f);
+        var parts = Mark();
+        using var ink = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = SKColors.Black };
+        using var hole = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, BlendMode = SKBlendMode.Clear };
+        for (var i = 0; i < parts.Count; i++)
+        {
+            // Phần tử thứ 4 của Mark() là tam giác "play" màu tối trên khiên.
+            canvas.DrawPath(parts[i].Path, i == 3 ? hole : ink);
+        }
+        if (variant == Variant.Error)
+        {
+            canvas.DrawCircle(204, 204, 62, hole);
+            canvas.DrawCircle(204, 204, 44, ink);
+        }
+        if (variant == Variant.Off)
+        {
+            // Giảm alpha toàn hình còn ~45%.
+            using var snapshot = surface.Snapshot();
+            canvas.Clear(SKColors.Transparent);
+            canvas.ResetMatrix();
+            using var fade = new SKPaint { Color = SKColors.Black.WithAlpha(115) };
+            canvas.DrawImage(snapshot, 0, 0, fade);
+        }
+        return Encode(surface);
+    }
+
+    private static void Draw(SKCanvas canvas, List<Part> parts)
+    {
+        foreach (var part in parts)
+        {
+            using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
+            if (part.Colors.Length == 1)
+            {
+                paint.Color = SKColor.Parse(part.Colors[0]);
+            }
+            else
+            {
+                var g = GradOf(part);
+                paint.Shader = SKShader.CreateLinearGradient(
+                    g.From, g.To, part.Colors.Select(SKColor.Parse).ToArray(), g.Offsets, SKShaderTileMode.Clamp);
+            }
+            canvas.DrawPath(part.Path, paint);
+        }
+    }
+
+    private static byte[] Encode(SKSurface surface)
+    {
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
 
     public static byte[] Png(int size, Variant variant)
     {
