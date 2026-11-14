@@ -65,8 +65,16 @@ Phải thấy `nameserver[0] : 127.0.0.1` và `port : 15353`. Lưu ý `dig`/`nsl
 
 Unit test (`dotnet test tests/LunaDns.Platform.MacOS.Tests`) chạy trên thư mục tạm và `networksetup` giả. Test đụng hệ thống thật chỉ chạy khi đặt biến và dùng sudo; mỗi test áp dụng rồi hoàn tác, so trạng thái trước/sau:
 
+Build bằng user thường trước, rồi mới chạy bằng sudo với `--no-build`, để `obj/`, `bin/` và `~/.dotnet` không bị đổi chủ sang root (lần build sau sẽ lỗi quyền):
+
 ```bash
-sudo env PATH="$HOME/.dotnet:$PATH" DOTNET_ROOT="$HOME/.dotnet" LUNADNS_ADMIN_TESTS=1 dotnet test tests/LunaDns.Platform.MacOS.Tests --filter Category=MacAdmin
+dotnet build tests/LunaDns.Platform.MacOS.Tests
 ```
+
+```bash
+sudo env PATH="$HOME/.dotnet:$PATH" DOTNET_ROOT="$HOME/.dotnet" DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 LUNADNS_ADMIN_TESTS=1 dotnet test tests/LunaDns.Platform.MacOS.Tests --no-build --filter Category=MacAdmin
+```
+
+Lỡ chạy bằng sudo mà không có `--no-build` thì trả quyền lại: `sudo chown -R "$USER" ~/.dotnet src tests`.
 
 Gồm: file resolver xuất hiện trong `scutil --dns` rồi biến mất; `/etc/hosts` giống hệt từng byte sau một vòng; auto-proxy của từng service trở về đúng trạng thái bật/tắt (và URL nếu trước đó có).
