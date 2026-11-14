@@ -1,0 +1,193 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Bảng màu nền tối theo logo mới (thay bảng KH6 3.3). Màu nhấn của control Fluent đặt ở App.axaml. -->
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://LunaDNS/Assets/Icons.axaml" />
+        <ResourceInclude Source="avares://LunaDNS/Assets/Logo.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <!-- Chỉ nền tối (PO chốt 14/11), bảng màu theo bộ asset logo mới. Tương phản trên thẻ #111C33:
+             chữ phụ #8B9BB4 6,0:1; Info #38BDF8 7,9:1; Good #34D399 8,8:1; Warning #F59E0B 7,9:1; Error #F87171 6,1:1. -->
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="Brush.Window" Color="#0A1120" />
+          <SolidColorBrush x:Key="Brush.Card" Color="#111C33" />
+          <SolidColorBrush x:Key="Brush.CardBorder" Color="#2638BDF8" />
+          <SolidColorBrush x:Key="Brush.CardActiveBorder" Color="#8000E5FF" />
+          <SolidColorBrush x:Key="Brush.TextSecondary" Color="#8B9BB4" />
+          <SolidColorBrush x:Key="Brush.Info" Color="#38BDF8" />
+          <SolidColorBrush x:Key="Brush.Good" Color="#34D399" />
+          <SolidColorBrush x:Key="Brush.Warning" Color="#F59E0B" />
+          <SolidColorBrush x:Key="Brush.Error" Color="#F87171" />
+          <SolidColorBrush x:Key="Brush.Neutral" Color="#8B9BB4" />
+          <SolidColorBrush x:Key="Brush.InfoSoft" Color="#1A38BDF8" />
+          <SolidColorBrush x:Key="Brush.GoodSoft" Color="#1A10B981" />
+          <SolidColorBrush x:Key="Brush.WarningSoft" Color="#1AF59E0B" />
+          <SolidColorBrush x:Key="Brush.ErrorSoft" Color="#1AF87171" />
+          <!-- Nâng cao: Fluent tô header bằng ExpanderHeader*, không theo Background của Expander; cho cùng màu thẻ (U11) -->
+          <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#111C33" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackgroundPointerOver" Color="#16233F" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackgroundPressed" Color="#16233F" />
+          <SolidColorBrush x:Key="ExpanderHeaderBorderBrush" Color="#2638BDF8" />
+          <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPointerOver" Color="#2638BDF8" />
+          <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPressed" Color="#2638BDF8" />
+          <SolidColorBrush x:Key="ExpanderContentBackground" Color="#111C33" />
+          <SolidColorBrush x:Key="ExpanderContentBorderBrush" Color="#2638BDF8" />
+          <!-- Nút nhấn (Kiểm tra): dải cyan → xanh, chữ tối -->
+          <LinearGradientBrush x:Key="AccentButtonBackground" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#00E5FF" Offset="0" />
+            <GradientStop Color="#2979FF" Offset="1" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="AccentButtonBackgroundPointerOver" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#5CF0FF" Offset="0" />
+            <GradientStop Color="#4D8FFF" Offset="1" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="AccentButtonBackgroundPressed" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#00D2EA" Offset="0" />
+            <GradientStop Color="#3A84FF" Offset="1" />
+          </LinearGradientBrush>
+          <SolidColorBrush x:Key="AccentButtonForeground" Color="#050B14" />
+          <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#050B14" />
+          <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#050B14" />
+          <!-- Công tắc bật: nền cyan, núm tối (núm trắng mặc định gần như mất trên cyan) -->
+          <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#00E5FF" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#5CF0FF" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#00C4DB" />
+          <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#050B14" />
+          <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="#050B14" />
+          <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="#050B14" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <!-- Thẻ: nền riêng, bo góc. Dải màu bên trái (Border.strip) đổi theo Tone. -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="16" />
+  </Style>
+  <!-- Thẻ tính năng đang bật: viền cyan + quầng sáng nhẹ -->
+  <Style Selector="Border.card.on">
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.CardActiveBorder}" />
+    <Setter Property="BoxShadow" Value="0 0 16 0 #2200E5FF" />
+  </Style>
+  <Style Selector="Border.strip">
+    <Setter Property="Background" Value="{DynamicResource Brush.Neutral}" />
+    <Setter Property="CornerRadius" Value="12,0,0,12" />
+  </Style>
+  <Style Selector="Border.strip.good"><Setter Property="Background" Value="{DynamicResource Brush.Good}" /></Style>
+  <Style Selector="Border.strip.busy"><Setter Property="Background" Value="{DynamicResource Brush.Info}" /></Style>
+  <Style Selector="Border.strip.error"><Setter Property="Background" Value="{DynamicResource Brush.Error}" /></Style>
+
+  <!-- Huy hiệu trạng thái tổng ở header -->
+  <Style Selector="Border.pill">
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Neutral}" />
+  </Style>
+  <Style Selector="Border.pill.good">
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Good}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.GoodSoft}" />
+  </Style>
+  <Style Selector="Border.pill.busy">
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Info}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.InfoSoft}" />
+  </Style>
+  <Style Selector="Border.pill.error">
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Error}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.ErrorSoft}" />
+  </Style>
+
+  <!-- Thanh thông báo theo mức (U7) -->
+  <Style Selector="Border.banner">
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Info}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.InfoSoft}" />
+  </Style>
+  <Style Selector="Border.banner.good">
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Good}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.GoodSoft}" />
+  </Style>
+  <Style Selector="Border.banner.warning">
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Warning}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.WarningSoft}" />
+  </Style>
+  <Style Selector="Border.banner.error">
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Error}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.ErrorSoft}" />
+  </Style>
+
+  <!-- Chữ -->
+  <Style Selector="TextBlock.secondary"><Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" /></Style>
+  <Style Selector="TextBlock.section">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+  </Style>
+  <Style Selector="TextBlock.tone"><Setter Property="Foreground" Value="{DynamicResource Brush.Neutral}" /></Style>
+  <Style Selector="TextBlock.tone.info"><Setter Property="Foreground" Value="{DynamicResource Brush.Info}" /></Style>
+  <Style Selector="TextBlock.tone.good"><Setter Property="Foreground" Value="{DynamicResource Brush.Good}" /></Style>
+  <Style Selector="TextBlock.tone.warning"><Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" /></Style>
+  <Style Selector="TextBlock.tone.error"><Setter Property="Foreground" Value="{DynamicResource Brush.Error}" /></Style>
+  <Style Selector="TextBlock.tone.busy"><Setter Property="Foreground" Value="{DynamicResource Brush.Info}" /></Style>
+
+  <!-- Icon trạng thái: mỗi mức một hình (✓ ! ✕ ○), không chỉ khác màu -->
+  <Style Selector="PathIcon.tone">
+    <Setter Property="Width" Value="16" />
+    <Setter Property="Height" Value="16" />
+    <Setter Property="Data" Value="{DynamicResource Icon.Neutral}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Neutral}" />
+  </Style>
+  <Style Selector="PathIcon.tone.info">
+    <Setter Property="Data" Value="{DynamicResource Icon.Info}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Info}" />
+  </Style>
+  <Style Selector="PathIcon.tone.good">
+    <Setter Property="Data" Value="{DynamicResource Icon.Good}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Good}" />
+  </Style>
+  <Style Selector="PathIcon.tone.warning">
+    <Setter Property="Data" Value="{DynamicResource Icon.Warning}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" />
+  </Style>
+  <Style Selector="PathIcon.tone.error">
+    <Setter Property="Data" Value="{DynamicResource Icon.Error}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Error}" />
+  </Style>
+  <Style Selector="PathIcon.tone.busy">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Info}" />
+  </Style>
+
+  <!-- Nút Kiểm tra: quầng sáng cùng tông dải màu -->
+  <Style Selector="Button.accent /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BoxShadow" Value="0 0 12 0 #3300E5FF" />
+  </Style>
+
+  <!-- Icon trong nút -->
+  <Style Selector="PathIcon.button">
+    <Setter Property="Width" Value="16" />
+    <Setter Property="Height" Value="16" />
+  </Style>
+
+  <!-- Huy hiệu tròn 36 px của thẻ tính năng (lấy ý từ infographic) -->
+  <Style Selector="Border.badge">
+    <Setter Property="Width" Value="36" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="Background" Value="{DynamicResource Brush.InfoSoft}" />
+  </Style>
+  <Style Selector="PathIcon.feature">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="20" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Info}" />
+    <Setter Property="Data" Value="{DynamicResource Icon.Proxy}" />
+  </Style>
+  <Style Selector="PathIcon.feature.dns"><Setter Property="Data" Value="{DynamicResource Icon.Dns}" /></Style>
+</Styles>

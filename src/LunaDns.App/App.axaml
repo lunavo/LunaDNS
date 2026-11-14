@@ -1,0 +1,16 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="LunaDns.App.App"
+             x:ClassModifier="internal"
+             RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <!-- PO chốt 14/11: chỉ nền tối theo bộ asset logo mới (thay KH6 D3 "theo Windows").
+         Màu nhấn #2979FF; nút nhấn dùng chữ tối #050B14 (4,9:1), chữ trắng chỉ đạt 4,0:1. Chỉnh thêm ở Styles/Theme.axaml. -->
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark" Accent="#FF2979FF" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://LunaDNS/Styles/Theme.axaml" />
+  </Application.Styles>
+</Application>

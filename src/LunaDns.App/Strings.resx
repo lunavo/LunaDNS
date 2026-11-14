@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <!-- 50 chuỗi tĩnh (mỗi mục có một thuộc tính trong Strings.cs) -->
+  <data name="AppTitle" xml:space="preserve"><value>LunaDNS</value></data>
+  <data name="HeaderSubtitle" xml:space="preserve"><value>Sửa lỗi vào Steam khi nhà mạng chặn DNS hoặc lọc SNI.</value></data>
+  <data name="CheckButton" xml:space="preserve"><value>Kiểm tra</value></data>
+  <data name="CheckingStatus" xml:space="preserve"><value>Đang kiểm tra…</value></data>
+  <data name="NotCheckedYet" xml:space="preserve"><value>Chưa kiểm tra. Bấm "Kiểm tra" để xem Steam có bị chặn không.</value></data>
+  <data name="CheckedAtFormat" xml:space="preserve"><value>Kiểm tra lúc {0:HH:mm:ss}.</value></data>
+  <data name="CheckFailed" xml:space="preserve"><value>Không chạy được kiểm tra. Hãy thử lại; chi tiết nằm trong log.</value></data>
+  <data name="CheckSectionTitle" xml:space="preserve"><value>KIỂM TRA MẠNG</value></data>
+  <data name="ProbeDetailFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProbeCoveredFormat" xml:space="preserve"><value>đang né bằng {0}</value></data>
+  <data name="ProbeMissingFormat" xml:space="preserve"><value>còn thiếu {0}</value></data>
+  <data name="AllOk" xml:space="preserve"><value>Không thấy bị chặn. Không cần bật gì.</value></data>
+  <data name="UnreachableHint" xml:space="preserve"><value>Một số máy chủ không vào được kể cả khi né chặn. Có thể mạng đang lỗi hoặc máy chủ đang bảo trì.</value></data>
+  <data name="ApplyRecommendedButton" xml:space="preserve"><value>Áp dụng đề xuất</value></data>
+  <data name="NothingToApply" xml:space="preserve"><value>Các biện pháp đề xuất cho Steam đều đang bật.</value></data>
+  <data name="StatusOff" xml:space="preserve"><value>Đang tắt</value></data>
+  <data name="StatusOn" xml:space="preserve"><value>Đang bật</value></data>
+  <data name="StatusProxyFormat" xml:space="preserve"><value>Đang bật · cổng {0} · {1} kết nối</value></data>
+  <data name="OverallOff" xml:space="preserve"><value>Đang tắt</value></data>
+  <data name="OverallOnFormat" xml:space="preserve"><value>Đang bật {0}/{1}</value></data>
+  <data name="OverallBusy" xml:space="preserve"><value>Đang xử lý…</value></data>
+  <data name="OverallAttention" xml:space="preserve"><value>Cần xử lý</value></data>
+  <data name="FeatureBusy" xml:space="preserve"><value>Đang xử lý…</value></data>
+  <data name="FeatureStoppedShort" xml:space="preserve"><value>Đã tự tắt vì lỗi. Xem thông báo phía trên.</value></data>
+  <data name="DismissMessage" xml:space="preserve"><value>Đóng thông báo</value></data>
+  <data name="DiagnosticsButton" xml:space="preserve"><value>Chẩn đoán</value></data>
+  <data name="CheckUpdateButton" xml:space="preserve"><value>Kiểm tra cập nhật</value></data>
+  <data name="UpdateAvailableTitle" xml:space="preserve"><value>Có bản mới</value></data>
+  <data name="UpdateAvailableFormat" xml:space="preserve"><value>Đã có LunaDNS {0} (bạn đang dùng {1}). Mở trang tải?</value></data>
+  <data name="UpToDateTitle" xml:space="preserve"><value>Đang dùng bản mới nhất</value></data>
+  <data name="UpToDateFormat" xml:space="preserve"><value>Bạn đang dùng LunaDNS {0}, bản mới nhất.</value></data>
+  <data name="UpdateCheckFailed" xml:space="preserve"><value>Không kiểm tra được cập nhật. Thử lại sau, hoặc mở trang Releases của LunaDNS trên GitHub.</value></data>
+  <data name="UninstallButton" xml:space="preserve"><value>Gỡ khỏi máy</value></data>
+  <data name="UninstallConfirmTitle" xml:space="preserve"><value>Gỡ LunaDNS</value></data>
+  <data name="UninstallConfirmMessage" xml:space="preserve"><value>LunaDNS sẽ tắt mọi tính năng, khôi phục cấu hình mạng rồi mở trình gỡ cài đặt. Tiếp tục?</value></data>
+  <data name="DiagnosticsRunning" xml:space="preserve"><value>Đang ghi báo cáo…</value></data>
+  <data name="ReportSavedFormat" xml:space="preserve"><value>Đã lưu báo cáo: {0}</value></data>
+  <data name="ReportFailedFormat" xml:space="preserve"><value>Không ghi được báo cáo: {0}</value></data>
+  <data name="DisableAllButton" xml:space="preserve"><value>Tắt hết &amp; khôi phục</value></data>
+  <data name="DisableAllDone" xml:space="preserve"><value>Đã tắt hết và trả lại cấu hình mạng như trước.</value></data>
+  <data name="AdvancedHeader" xml:space="preserve"><value>Nâng cao</value></data>
+  <data name="AdvancedHint" xml:space="preserve"><value>Thay đổi có hiệu lực ở lần bật tính năng kế tiếp.</value></data>
+  <data name="SplitModeLabel" xml:space="preserve"><value>Điểm cắt gói</value></data>
+  <data name="SplitModeFirstByte" xml:space="preserve"><value>Sau byte đầu tiên (mặc định)</value></data>
+  <data name="SplitModeMidSni" xml:space="preserve"><value>Giữa tên miền (SNI)</value></data>
+  <data name="SplitDelayLabel" xml:space="preserve"><value>Độ trễ giữa hai phần (ms, 0–20)</value></data>
+  <data name="DohLabel" xml:space="preserve"><value>Máy chủ DoH</value></data>
+  <data name="DohCloudflareFirst" xml:space="preserve"><value>Cloudflare trước, Google dự phòng</value></data>
+  <data name="DohGoogleFirst" xml:space="preserve"><value>Google trước, Cloudflare dự phòng</value></data>
+  <data name="TrayTooltipOff" xml:space="preserve"><value>LunaDNS: đang tắt</value></data>
+  <data name="TrayTooltipOnFormat" xml:space="preserve"><value>LunaDNS: đang bật {0}</value></data>
+  <data name="TrayTooltipBusy" xml:space="preserve"><value>LunaDNS: đang xử lý…</value></data>
+  <data name="TrayTooltipAttention" xml:space="preserve"><value>LunaDNS: cần xử lý, mở để xem</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Mở LunaDNS</value></data>
+  <data name="TrayQuit" xml:space="preserve"><value>Thoát &amp; khôi phục</value></data>
+  <data name="ConfirmYes" xml:space="preserve"><value>Đồng ý</value></data>
+  <data name="ConfirmNo" xml:space="preserve"><value>Huỷ</value></data>
+  <data name="ProxyOverrideTitle" xml:space="preserve"><value>Thay cấu hình proxy hiện có?</value></data>
+  <data name="ProxyOverrideText" xml:space="preserve"><value>Máy đang dùng cấu hình proxy riêng (file PAC hoặc proxy thủ công). Bật Proxy SNI sẽ thay cấu hình đó cho tới khi bạn tắt Proxy SNI hoặc thoát LunaDNS. Khi đó cấu hình cũ được trả lại.</value></data>
+  <data name="FeatureFailedFormat" xml:space="preserve"><value>Không bật/tắt được {0}: {1}</value></data>
+  <data name="ChangesLeftBehind" xml:space="preserve"><value>Một số thay đổi chưa hoàn tác được. LunaDNS sẽ thử lại khi bạn tắt lại, khi thoát, hoặc khi mở lại.</value></data>
+  <data name="FeatureStoppedFormat" xml:space="preserve"><value>{0} gặp lỗi lặp lại nên đã được tắt.</value></data>
+  <data name="FeatureStoppedLeftBehindFormat" xml:space="preserve"><value>{0} gặp lỗi lặp lại nên đã dừng, nhưng chưa hoàn tác hết thay đổi. Hãy mở lại LunaDNS hoặc chạy LunaDNS.exe --cleanup.</value></data>
+  <data name="RestoreFailed" xml:space="preserve"><value>Chưa hoàn tác hết thay đổi. Hãy mở lại LunaDNS hoặc chạy LunaDNS.exe --cleanup.</value></data>
+  <data name="StartupRestoredFormat" xml:space="preserve"><value>Đã hoàn tác {0} thay đổi còn sót từ lần chạy trước.</value></data>
+  <data name="StartupRestoreFailed" xml:space="preserve"><value>Còn thay đổi từ lần chạy trước chưa hoàn tác được. Bấm "Chẩn đoán" để ghi báo cáo.</value></data>
+  <data name="UnexpectedError" xml:space="preserve"><value>Có lỗi không mong muốn. Chi tiết nằm trong log.</value></data>
+
+  <!-- Theo enum: tra bằng "Tiền tố_" + tên giá trị -->
+  <data name="Verdict_Ok" xml:space="preserve"><value>Bình thường</value></data>
+  <data name="Verdict_DnsPoisoned" xml:space="preserve"><value>DNS bị chặn</value></data>
+  <data name="Verdict_SniFiltered" xml:space="preserve"><value>Bị lọc SNI</value></data>
+  <data name="Verdict_Unreachable" xml:space="preserve"><value>Không vào được</value></data>
+  <data name="Feature_DnsRouting" xml:space="preserve"><value>Định tuyến DNS</value></data>
+  <data name="Feature_SniProxy" xml:space="preserve"><value>Proxy SNI</value></data>
+  <data name="Feature_PubgMode" xml:space="preserve"><value>Chế độ PUBG</value></data>
+  <data name="FeatureDesc_DnsRouting" xml:space="preserve"><value>Giúp đăng nhập Steam: hỏi tên miền Steam qua DNS mã hoá (DoH) thay cho DNS của nhà mạng.</value></data>
+  <data name="FeatureDesc_SniProxy" xml:space="preserve"><value>Giúp mở Store và Community: cắt gói mở kết nối để qua được bộ lọc SNI.</value></data>
+  <data name="FeatureDesc_PubgMode" xml:space="preserve"><value>Chuyển tiếp kết nối lobby PUBG qua máy này để né lọc SNI.</value></data>
+  <data name="Group_Steam" xml:space="preserve"><value>Steam</value></data>
+  <data name="Error_DnsPortBusy" xml:space="preserve"><value>Cổng DNS 53 trên 127.0.0.1 đang bị chương trình khác dùng.</value></data>
+  <data name="Error_ProxyPortsBusy" xml:space="preserve"><value>Không còn cổng trống cho Proxy SNI.</value></data>
+  <data name="Error_PubgPortBusy" xml:space="preserve"><value>Cổng 443 trên 127.0.0.1 đang bị chương trình khác dùng (thường là web server hoặc phần mềm VPN).</value></data>
+  <data name="Error_ListenerFailed" xml:space="preserve"><value>Không mở được dịch vụ nội bộ.</value></data>
+  <data name="Error_AccessDenied" xml:space="preserve"><value>Không có quyền sửa cấu hình mạng. Hãy chạy LunaDNS bằng quyền Admin.</value></data>
+  <data name="Error_DnsRouteConflict" xml:space="preserve"><value>Một phần mềm khác (VPN, Tailscale…) đang định tuyến DNS cho chính các tên miền này.</value></data>
+  <data name="Error_ExistingProxyConfig" xml:space="preserve"><value>Máy đang dùng cấu hình proxy riêng.</value></data>
+  <data name="Error_UserHiveNotLoaded" xml:space="preserve"><value>Không đọc được cấu hình của người dùng đang đăng nhập.</value></data>
+  <data name="Error_UnexpectedProxyValue" xml:space="preserve"><value>Cấu hình proxy hiện có ở dạng lạ nên LunaDNS không ghi đè.</value></data>
+  <data name="Error_HostsUnsupportedEncoding" xml:space="preserve"><value>File hosts dùng bảng mã mà LunaDNS không sửa an toàn được.</value></data>
+  <data name="Error_NrptFailed" xml:space="preserve"><value>Windows từ chối thêm luật định tuyến DNS.</value></data>
+  <data name="Error_RollbackFailed" xml:space="preserve"><value>Chưa hoàn tác được thay đổi.</value></data>
+  <data name="Error_Other" xml:space="preserve"><value>Lỗi không xác định; chi tiết nằm trong log.</value></data>
+</root>

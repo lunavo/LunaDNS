@@ -1,0 +1,385 @@
+using System.Collections.ObjectModel;
+using Avalonia.Threading;
+using LunaDns.App.Updates;
+using LunaDns.Core.Features;
+using LunaDns.Core.Probing;
+using LunaDns.Core.Settings;
+using LunaDns.Core.Tls;
+using LunaDns.Platform.Windows.Diagnostics;
+using Microsoft.Extensions.Logging;
+
+namespace LunaDns.App.ViewModels;
+
+/// <summary>
+/// Màn hình chính (spec 4.8, KH6 3.1). Mọi lệnh gọi FeatureSet qua Task.Run vì Configurator chặn luồng.
+/// FeatureStopped (luồng nền của watchdog) được chuyển về luồng UI bằng Dispatcher.UIThread.Post.
+/// Overall (huy hiệu header, icon khay) tính lại mỗi khi trạng thái, việc đang chạy hoặc thông báo đổi.
+/// </summary>
+internal sealed partial class MainViewModel : ObservableObject
+{
+    private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(30);
+    private static readonly HttpClient UpdateHttp = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly TimeSpan StatusInterval = TimeSpan.FromSeconds(2);
+
+    private readonly AppServices _services;
+    private readonly IUserPrompts _prompts;
+    private readonly Maintenance _maintenance;
+    private readonly Func<Task> _quit;
+    private readonly ILogger _logger;
+    private readonly DispatcherTimer _timer;
+    private ProbeSummary? _summary;
+    private string _probeStatus = Strings.NotCheckedYet;
+    private string _probeHint = string.Empty;
+    private string _message = string.Empty;
+    private Tone _messageTone;
+    private bool _canApplyRecommended;
+    private bool _anyOn;
+    private int _busyCount;
+    private OverallState _overall;
+
+    public MainViewModel(AppServices services, IUserPrompts prompts, ISystemShell shell, Func<Task> quit)
+    {
+        _services = services;
+        _prompts = prompts;
+        _maintenance = new Maintenance(prompts, shell);
+        _quit = quit;
+        _logger = services.LoggerFactory.CreateLogger<MainViewModel>();
+        // KH6 U0: PUBG ra khỏi v1, giao diện chỉ còn hai công tắc.
+        Features =
+        [
+            new FeatureViewModel(Feature.DnsRouting, ToggleAsync, OnError),
+            new FeatureViewModel(Feature.SniProxy, ToggleAsync, OnError),
+        ];
+        CheckCommand = new AsyncCommand(CheckAsync, OnError);
+        ApplyRecommendedCommand = new AsyncCommand(ApplyRecommendedAsync, OnError);
+        DisableAllCommand = new AsyncCommand(DisableAllAsync, OnError, () => _anyOn || HasAttention);
+        DiagnosticsCommand = new AsyncCommand(DiagnosticsAsync, OnError);
+        CheckUpdateCommand = new AsyncCommand(CheckUpdateAsync, OnError);
+        UninstallAppCommand = new AsyncCommand(UninstallAppAsync, OnError);
+        DismissMessageCommand = new AsyncCommand(DismissMessageAsync, OnError);
+        QuitCommand = new AsyncCommand(quit, OnError);
+        _services.Features.FeatureStopped += OnFeatureStopped;
+        _timer = new DispatcherTimer(StatusInterval, DispatcherPriority.Background, (_, _) => RefreshStatusText());
+        _overall = OverallState.From(_services.Features.GetStatus(), busy: false, attention: false);
+        Refresh();
+    }
+
+    public IReadOnlyList<FeatureViewModel> Features { get; }
+
+    public ObservableCollection<ProbeLineViewModel> ProbeLines { get; } = [];
+
+    public AsyncCommand CheckCommand { get; }
+
+    public AsyncCommand ApplyRecommendedCommand { get; }
+
+    public AsyncCommand DisableAllCommand { get; }
+
+    public AsyncCommand DiagnosticsCommand { get; }
+
+    public AsyncCommand CheckUpdateCommand { get; }
+
+    public AsyncCommand UninstallAppCommand { get; }
+
+    public AsyncCommand DismissMessageCommand { get; }
+
+    public AsyncCommand QuitCommand { get; }
+
+    /// <summary>Chỉ bản do Setup cài có nút gỡ; bản portable gỡ theo guide.</summary>
+    public bool CanUninstall { get; } = InstallLocation.IsInstalled(Environment.ProcessPath ?? string.Empty, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
+
+    public string ProbeStatus
+    {
+        get => _probeStatus;
+        private set => SetProperty(ref _probeStatus, value);
+    }
+
+    /// <summary>Một câu dưới các dòng kết quả: "không thấy bị chặn" hoặc gợi ý khi có máy chủ không vào được.</summary>
+    public string ProbeHint
+    {
+        get => _probeHint;
+        private set
+        {
+            if (SetProperty(ref _probeHint, value)) OnPropertyChanged(nameof(HasProbeHint));
+        }
+    }
+
+    public bool HasProbeHint => _probeHint.Length > 0;
+
+    public bool CanApplyRecommended
+    {
+        get => _canApplyRecommended;
+        private set => SetProperty(ref _canApplyRecommended, value);
+    }
+
+    public string Message => _message;
+
+    public Tone MessageTone => _messageTone;
+
+    public bool HasMessage => _message.Length > 0;
+
+    public OverallState Overall
+    {
+        get => _overall;
+        private set => SetProperty(ref _overall, value);
+    }
+
+    // Mục Nâng cao: ghi settings.json ngay; dịch vụ đang chạy giữ cấu hình cũ tới lần bật sau.
+    public int SplitModeIndex
+    {
+        get => _services.Settings.SplitMode == SplitMode.MidSni ? 1 : 0;
+        set => SaveSettings(s => s with { SplitMode = value == 1 ? SplitMode.MidSni : SplitMode.FirstByte });
+    }
+
+    public decimal? SplitDelayMs
+    {
+        get => _services.Settings.SplitDelayMs;
+        set => SaveSettings(s => s with { SplitDelayMs = (int)Math.Clamp(value ?? 0, 0, AppSettings.MaxSplitDelayMs) });
+    }
+
+    public int DohIndex
+    {
+        get => _services.Settings.PreferGoogleDoh ? 1 : 0;
+        set => SaveSettings(s => s with { PreferGoogleDoh = value == 1 });
+    }
+
+    private bool HasAttention => _messageTone == Tone.Error || Features.Any(f => f.HasError);
+
+    /// <summary>Gọi sau khi cửa sổ hiện: báo kết quả hoàn tác lúc khởi động, bật timer, tự chạy "Kiểm tra" (spec 5).</summary>
+    public void Start()
+    {
+        var startup = _services.StartupRollback;
+        if (!startup.Success) ShowMessage(Strings.StartupRestoreFailed, Tone.Error);
+        else if (startup.Reverted > 0) ShowMessage(Strings.Format(nameof(Strings.StartupRestoredFormat), startup.Reverted), Tone.Info);
+        _timer.Start();
+        CheckCommand.Execute(null);
+    }
+
+    public void ShowUnexpectedError()
+    {
+        ShowMessage(Strings.UnexpectedError, Tone.Error);
+        Refresh();
+    }
+
+    /// <summary>Gọi khi thoát: dừng timer, bỏ đăng ký FeatureStopped.</summary>
+    public void Stop()
+    {
+        _timer.Stop();
+        _services.Features.FeatureStopped -= OnFeatureStopped;
+    }
+
+    private Task ToggleAsync(FeatureViewModel item) => RunBusyAsync([item], async () =>
+    {
+        item.SetError(string.Empty);
+        var feature = item.Feature;
+        var result = _services.Features.IsEnabled(feature)
+            ? await Task.Run(() => _services.Features.DisableAsync(feature))
+            : await EnableAsync(feature);
+        ShowFailures([Failure(result)]);
+    });
+
+    /// <summary>NeedsProxyOverride: hỏi người dùng rồi bật lại với allowProxyOverride. Bấm Huỷ thì coi như Unchanged.</summary>
+    private async Task<FeatureResult> EnableAsync(Feature feature)
+    {
+        var result = await Task.Run(() => _services.Features.EnableAsync(feature));
+        if (result.Outcome != FeatureOutcome.NeedsProxyOverride) return result;
+        if (!await _prompts.ConfirmAsync(Strings.ProxyOverrideTitle, Strings.ProxyOverrideText))
+            return result with { Outcome = FeatureOutcome.Unchanged };
+        return await Task.Run(() => _services.Features.EnableAsync(feature, allowProxyOverride: true));
+    }
+
+    private Task CheckAsync() => RunBusyAsync([], async () =>
+    {
+        ProbeStatus = Strings.CheckingStatus;
+        ProbeLines.Clear();
+        ProbeHint = string.Empty;
+        CanApplyRecommended = false;
+        _summary = null;
+        using var timeout = new CancellationTokenSource(ProbeTimeout);
+        try
+        {
+            _summary = await Task.Run(() => _services.ProbeAsync(timeout.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            ProbeStatus = Strings.CheckFailed;
+        }
+    });
+
+    private void ShowSummary()
+    {
+        if (_summary is null) return;
+        var status = _services.Features.GetStatus();
+        ProbeStatus = Strings.Format(nameof(Strings.CheckedAtFormat), _summary.CheckedAt);
+        ProbeLines.Clear();
+        foreach (var group in _summary.Groups) ProbeLines.Add(ProbeLineViewModel.From(group, status));
+        ProbeHint = _summary.AnyUnreachable ? Strings.UnreachableHint
+            : _summary.Groups.All(g => g.Worst == ProbeVerdict.Ok) ? Strings.AllOk
+            : string.Empty;
+        CanApplyRecommended = _summary.PendingSteamRemedies(status) != ProbeRemedies.None;
+    }
+
+    /// <summary>Chỉ bật biện pháp cho Steam. DNS trước, proxy sau.</summary>
+    private Task ApplyRecommendedAsync() => RunBusyAsync(Features, async () =>
+    {
+        if (_summary is null) return;
+        var pending = _summary.PendingSteamRemedies(_services.Features.GetStatus());
+        if (pending == ProbeRemedies.None)
+        {
+            ShowMessage(Strings.NothingToApply, Tone.Info);
+            return;
+        }
+        foreach (var card in Features) card.SetError(string.Empty);
+        var failures = new List<string?>();
+        if (pending.HasFlag(ProbeRemedies.DnsRouting)) failures.Add(Failure(await EnableAsync(Feature.DnsRouting)));
+        if (pending.HasFlag(ProbeRemedies.SniProxy)) failures.Add(Failure(await EnableAsync(Feature.SniProxy)));
+        ShowFailures(failures);
+    });
+
+    /// <summary>"Tắt hết &amp; khôi phục" (spec 4.8): tắt mọi tính năng, app vẫn chạy.</summary>
+    private Task DisableAllAsync() => RunBusyAsync(Features, async () =>
+    {
+        var result = await Task.Run(_services.Features.DisableAllAsync);
+        if (!result.Success)
+        {
+            ShowMessage(Strings.RestoreFailed, Tone.Error);
+            return;
+        }
+        foreach (var card in Features) card.SetError(string.Empty);
+        ShowMessage(Strings.DisableAllDone, Tone.Good);
+    });
+
+    private async Task DiagnosticsAsync()
+    {
+        ShowMessage(Strings.DiagnosticsRunning, Tone.Info);
+        try
+        {
+            var path = await Task.Run(() => ReportWriter.Write(_services.Paths, _services.LastProbe, WindowsDiagnostics.CreateDefault()));
+            ShowMessage(Strings.Format(nameof(Strings.ReportSavedFormat), path), Tone.Info);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogReportFailed(_logger, ex);
+            ShowMessage(Strings.Format(nameof(Strings.ReportFailedFormat), ex.Message), Tone.Error);
+        }
+    }
+
+    private Task CheckUpdateAsync() =>
+        _maintenance.CheckForUpdateAsync(ct => new UpdateChecker(UpdateHttp, AppInfo.Repository, AppInfo.Version).CheckAsync(ct), AppInfo.Version, CancellationToken.None);
+
+    private async Task UninstallAppAsync()
+    {
+        var uninstaller = Path.Combine(AppContext.BaseDirectory, "unins000.exe");
+        if (await _maintenance.UninstallAsync(uninstaller).ConfigureAwait(true)) await _quit().ConfigureAwait(true);
+    }
+
+    private Task DismissMessageAsync()
+    {
+        ShowMessage(string.Empty, Tone.Neutral);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Khoá thẻ liên quan và đặt Overall = Đang xử lý trong lúc chạy; xong thì làm mới thẻ và kết quả Kiểm tra.</summary>
+    private async Task RunBusyAsync(IReadOnlyList<FeatureViewModel> cards, Func<Task> work)
+    {
+        _busyCount++;
+        foreach (var card in cards) card.IsBusy = true;
+        UpdateOverall();
+        try
+        {
+            await work();
+        }
+        finally
+        {
+            foreach (var card in cards) card.IsBusy = false;
+            _busyCount--;
+            Refresh();
+            ShowSummary();
+        }
+    }
+
+    /// <summary>Câu lỗi cho thanh thông báo (null nếu không lỗi); đồng thời ghi lý do ngắn lên thẻ của tính năng.</summary>
+    private string? Failure(FeatureResult result)
+    {
+        var message = ErrorMessages.For(result);
+        if (message is not null) Card(result.Feature)?.SetError(Strings.Error(result.Error));
+        return message;
+    }
+
+    /// <summary>Không có lỗi thì xoá thông báo cũ (như trước KH6); có thì gộp thành một thông báo mức Lỗi.</summary>
+    private void ShowFailures(IEnumerable<string?> failures) =>
+        ShowMessage(string.Join(" ", failures.OfType<string>()), Tone.Error);
+
+    private FeatureViewModel? Card(Feature feature) => Features.FirstOrDefault(f => f.Feature == feature);
+
+    /// <summary>Chuỗi rỗng luôn hạ mức về Neutral (ẩn thanh thông báo, hết Cần xử lý).</summary>
+    private void ShowMessage(string text, Tone tone)
+    {
+        _message = text;
+        _messageTone = text.Length == 0 ? Tone.Neutral : tone;
+        OnPropertyChanged(nameof(Message));
+        OnPropertyChanged(nameof(MessageTone));
+        OnPropertyChanged(nameof(HasMessage));
+        UpdateOverall();
+    }
+
+    private void SaveSettings(Func<AppSettings, AppSettings> change)
+    {
+        try
+        {
+            _services.Settings = change(_services.Settings);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Setter của binding: Avalonia nuốt exception, nên ranh giới phải nằm ở đây.
+            LogSettingsSaveFailed(_logger, ex);
+            ShowMessage(Strings.UnexpectedError, Tone.Error);
+        }
+        OnPropertyChanged(nameof(SplitModeIndex));
+        OnPropertyChanged(nameof(SplitDelayMs));
+        OnPropertyChanged(nameof(DohIndex));
+    }
+
+    private void OnFeatureStopped(object? sender, FeatureStoppedEventArgs e) =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            Card(e.Feature)?.SetError(Strings.FeatureStoppedShort);
+            ShowMessage(ErrorMessages.Stopped(e), Tone.Error);
+            Refresh();
+            ShowSummary();
+        });
+
+    private void OnError(Exception ex)
+    {
+        LogCommandFailed(_logger, ex);
+        ShowUnexpectedError();
+    }
+
+    private void Refresh()
+    {
+        var status = _services.Features.GetStatus();
+        foreach (var feature in Features) feature.Update(status);
+        _anyOn = status.DnsRouting || status.SniProxy || status.PubgMode;
+        UpdateOverall(status);
+    }
+
+    private void UpdateOverall(FeatureStatus? status = null)
+    {
+        Overall = OverallState.From(status ?? _services.Features.GetStatus(), _busyCount > 0, HasAttention);
+        DisableAllCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RefreshStatusText()
+    {
+        var status = _services.Features.GetStatus();
+        foreach (var feature in Features) feature.UpdateStatusText(status);
+    }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Lệnh trên giao diện lỗi.")]
+    private static partial void LogCommandFailed(ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Không ghi được báo cáo chẩn đoán.")]
+    private static partial void LogReportFailed(ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Không lưu được settings.json.")]
+    private static partial void LogSettingsSaveFailed(ILogger logger, Exception error);
+}
