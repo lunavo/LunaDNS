@@ -1,52 +1,98 @@
-<p align="center"><img src="docs/assets/lunadns-mark.svg" width="96" alt="Logo LunaDNS" /></p>
+<p align="center"><img src="docs/assets/lunadns-mark.svg" width="96" alt="LunaDNS logo" /></p>
 
 # LunaDNS
 
-LunaDNS là ứng dụng Windows giúp vào **Steam** khi nhà mạng chặn DNS hoặc lọc SNI. Giao diện tiếng Việt, chạy ở khay hệ thống, mọi thay đổi vào hệ thống đều được ghi lại để hoàn tác.
+<p align="center"><b>English</b> · <a href="README.vi.md">Tiếng Việt</a></p>
 
-> **Không phải dev?** Tải `LunaDNS-Setup-x.y.z.exe` ở [Releases](../../releases), bấm đúp, xong. Không cần cài .NET.
+LunaDNS is a Windows and macOS app that gets you into **Steam** when your ISP poisons DNS or filters TLS by SNI. It runs in the system tray / menu bar, and every change it makes to the system is journaled so it can be undone.
 
-> **Trạng thái: bản thử 0.9.x (prerelease).** Exe chưa ký số nên Windows có thể cảnh báo ở lần chạy đầu, xem [Cài đặt](docs/guide/01-cai-dat.md). Xem thêm [Những gì chưa có](#những-gì-chưa-có).
+> **Note:** the app's interface and the detailed guides in `docs/guide/` are in **Vietnamese** (the app is built for players in Vietnam). This README is the English overview.
 
-## Hai tính năng
+> **Not a developer?** Download `LunaDNS-Setup-x.y.z.exe` (Windows) or `LunaDNS-x.y.z-macos-*.dmg` (macOS) from [Releases](../../releases). No .NET install needed.
 
-| Công tắc | Việc làm | Khi nào cần |
+> **Status: preview (prerelease).** Builds are not code-signed yet, so Windows SmartScreen and macOS Gatekeeper warn on first launch. See [What's missing](#whats-missing).
+
+## Two features
+
+| Switch | What it does | When you need it |
 |---|---|---|
-| **Định tuyến DNS** | Thêm một luật NRPT để tên miền Steam được hỏi qua DNS mã hoá (DoH, Cloudflare hoặc Google) thay cho DNS nhà mạng. Có dịch vụ DoH nội bộ ở `127.0.0.1:53`. | Đăng nhập Steam lỗi, tên miền Steam phân giải sai (DNS bị đầu độc). |
-| **Proxy SNI** | Bật proxy nội bộ ở `127.0.0.1:18080` (nếu bận thì thử đến `18090`) và trỏ Windows tới `http://127.0.0.1:18080/proxy.pac`. Proxy cắt gói mở kết nối TLS để qua bộ lọc SNI. | Store, Community của Steam không tải được dù DNS đã đúng. |
+| **DNS routing** | Sends only Steam domains to a local DNS-over-HTTPS stub (Cloudflare, Google as fallback) instead of the ISP resolver. Windows: an NRPT rule → `127.0.0.1:53`. macOS: one `/etc/resolver/<domain>` file per Steam domain → `127.0.0.1:15353`. | Steam login fails, Steam domains resolve to wrong IPs (DNS poisoning). |
+| **SNI proxy** | Starts a local proxy on `127.0.0.1:18080` (tries up to `18090` if busy) and points the system PAC at `http://127.0.0.1:18080/proxy.pac`. The proxy splits the TLS ClientHello so SNI filters miss it. Never decrypts TLS, installs no certificates. | Steam Store / Community still won't load even though DNS is correct. |
 
-App chỉ can thiệp tên miền Steam, không đụng phần còn lại của mạng.
+Only Steam domains are touched. Adapter DNS settings, LAN, other sites and game UDP traffic stay as they are. The proxy refuses non-Steam hosts, so it is never an open proxy.
 
-## Yêu cầu
+## Requirements
 
-- Windows 10 1809 trở lên hoặc Windows 11, 64-bit (đã thử trên Windows 10 Pro 19045).
-- Quyền **Administrator**: exe tự đòi nâng quyền (UAC).
-- Bản Setup và bản portable đã kèm sẵn .NET, không cần cài thêm. Chỉ khi build từ mã nguồn mới cần **.NET 8 SDK**.
+- **Windows:** Windows 10 1809+ or Windows 11, 64-bit. Needs **Administrator** (the exe asks via UAC).
+- **macOS:** Apple Silicon or Intel. Needs your admin password **once** to install the background service.
+- Release builds bundle .NET. Only building from source needs the **.NET 8 SDK**.
 
-## Cài đặt
+## Install on Windows
 
-- **Setup (khuyên dùng):** `LunaDNS-Setup-x.y.z.exe` cài vào `C:\Program Files\LunaDNS`, có tác vụ tự dọn lúc khởi động máy, gỡ được ở Settings → Apps.
-- **Portable:** `LunaDNS-x.y.z-portable.zip`, giải nén rồi bấm đúp `LunaDNS.exe`. Không có tác vụ tự dọn.
-- Mỗi bản phát hành có `SHA256SUMS.txt` để kiểm file tải về.
+- **Setup (recommended):** `LunaDNS-Setup-x.y.z.exe` installs to `C:\Program Files\LunaDNS`, registers a boot-time cleanup task, and can be removed from Settings → Apps.
+- **Portable:** `LunaDNS-x.y.z-portable.zip`: unzip and double-click `LunaDNS.exe`. No cleanup task.
+- Each release ships `SHA256SUMS.txt` to verify downloads.
 
-Chi tiết: [Cài đặt](docs/guide/01-cai-dat.md).
+## Install on macOS (preview)
 
-## macOS (thử nghiệm)
+Download `LunaDNS-x.y.z-macos-arm64.dmg` (Apple Silicon, M1–M4) or `…-macos-x64.dmg` (Intel). Check your chip under  → About This Mac.
 
-Tải `LunaDNS-x.y.z-macos-arm64.dmg` (Mac chip Apple M1–M4) hoặc `…-macos-x64.dmg` (Mac Intel). Xem loại chip ở  → About This Mac. Không cần cài .NET.
+1. Open the `.dmg` and drag **LunaDNS** into **Applications**.
+2. Open LunaDNS. The build is not notarized yet, so macOS refuses the first time: go to **System Settings → Privacy & Security**, scroll down, click **Open Anyway**, then open the app again.
+3. When the app says the background service is not installed, click **Cài dịch vụ nền** (Install background service) and enter your Mac password.
+4. Turn on **Định tuyến DNS** (DNS routing), then open Steam.
 
-1. Mở file `.dmg`, kéo **LunaDNS** vào **Applications**.
-2. Mở LunaDNS. Bản này chưa được Apple công chứng (notarize), nên lần đầu máy báo không mở được: vào **Cài đặt hệ thống → Quyền riêng tư & Bảo mật**, kéo xuống, bấm **Vẫn mở** (Open Anyway), rồi mở lại.
-3. App báo "Dịch vụ nền chưa cài": bấm **Cài dịch vụ nền**, nhập mật khẩu máy.
-4. Bật **Định tuyến DNS**, rồi mở Steam.
+To stop: menu bar icon → **Thoát & khôi phục** (Quit & restore). To uninstall completely, run this in Terminal, then drag the app to the Trash:
 
-Không dùng nữa: biểu tượng LunaDNS trên thanh menu → **Thoát & khôi phục**. Gỡ hẳn: mở Terminal, chạy `sudo /Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns uninstall`, rồi kéo app vào Thùng rác.
+```bash
+sudo /Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns uninstall
+```
 
-Kiểm file tải về: `shasum -a 256 ~/Downloads/LunaDNS-*.dmg`, so với `SHA256SUMS-macos.txt`. Chi tiết: [macOS](docs/guide/09-macos.md).
+Verify the download with `shasum -a 256 ~/Downloads/LunaDNS-*.dmg` against `SHA256SUMS-macos.txt`.
 
-## Cài nhanh (từ mã nguồn)
+How it works on macOS: a launchd daemon (`vn.lunavo.lunadns`, root) owns the DNS stub, proxy and journal; the app and the `lunadns` command talk to it over `/var/run/lunadns.sock`. Only root and the user at the console may control it (UID checked with `getpeereid`). On every start the daemon rolls back anything left in the journal, so a crash or power loss never leaves Steam DNS stuck. Details (Vietnamese): [docs/guide/09-macos.md](docs/guide/09-macos.md).
 
-Bấm đúp `Chay-tu-ma-nguon.cmd` ở gốc repo (cần .NET 8 SDK; thiếu thì script chỉ cách cài). Script build bản phát hành vào `artifacts\publish\win-x64\` rồi mở `LunaDNS.exe`. Hoặc chạy tay:
+## Command line
+
+**Windows** (`LunaDNS.exe`, run elevated):
+
+| Command | Effect |
+|---|---|
+| `LunaDNS.exe` | Open the UI. Single instance; a second launch brings the window forward. |
+| `--cleanup` | Undo everything left in the journal, then exit. Use after a crash. |
+| `--report` | Write a diagnostics report (personal info redacted), then exit. |
+| `--install-system` | Called by Setup: locks down the data folder ACL and registers the cleanup task. Only runs from Program Files. |
+| `--uninstall` | Called by the uninstaller: undo all changes, remove the cleanup task and data folder. |
+
+Exit codes: `0` done · `1` something left undone, see log · `2` bad arguments · `3` `--install-system` outside Program Files · `4` `--uninstall` while LunaDNS is running.
+
+**macOS** (`lunadns`):
+
+| Command | Effect |
+|---|---|
+| `lunadns on [--proxy] [--allow-proxy-override]` | Turn on DNS routing (and the SNI proxy) through the daemon. No sudo. |
+| `lunadns off` | Turn everything off and restore. |
+| `lunadns status` | Show what LunaDNS has changed. |
+| `sudo lunadns install` / `uninstall` | Install or remove the background service. |
+| `sudo lunadns run [--proxy]` | Run in the foreground without the daemon; Ctrl+C restores. |
+| `sudo lunadns cleanup` | Undo everything left in the journal. |
+
+If `/usr/local/bin` does not exist (common on Apple Silicon without Homebrew), call it as `/Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns`.
+
+## Data and logs
+
+| | Windows | macOS |
+|---|---|---|
+| Folder | `%ProgramData%\LunaDNS` | `/Library/Application Support/LunaDNS` |
+| Journal | `journal.json`: system changes currently applied, for rollback | same |
+| Logs | `logs\lunadns.log`, 1 MB per file, 5 files | `logs/lunadns.log`, `logs/daemon.out` |
+| Protection | ACL: only SYSTEM and Administrators can write | owned by root, mode `700` |
+
+The folder is locked down because the privileged cleanup reads `journal.json`: whoever can write the journal could steer what SYSTEM/root changes. A pre-existing folder that others can write to is quarantined and recreated.
+
+## Build from source
+
+Windows: double-click `Chay-tu-ma-nguon.cmd`, or:
 
 ```powershell
 git clone https://github.com/lunavo/LunaDNS.git lunadns
@@ -54,65 +100,49 @@ cd lunadns
 pwsh build/publish.ps1
 ```
 
-`build/publish.ps1` sinh vào `artifacts\` thư mục chạy được, zip portable, Setup (cần Inno Setup 6) và `SHA256SUMS.txt`.
+macOS:
 
-## Các lệnh
-
-| Lệnh | Tác dụng |
-|---|---|
-| `LunaDNS.exe` | Mở giao diện. Chỉ một bản chạy cùng lúc; mở lần hai thì cửa sổ cũ hiện lên. |
-| `LunaDNS.exe --cleanup` | Hoàn tác mọi thay đổi còn trong journal rồi thoát. Dùng khi app chết giữa chừng. |
-| `LunaDNS.exe --report` | Ghi báo cáo chẩn đoán (đã che thông tin cá nhân) rồi thoát. |
-| `LunaDNS.exe --install-system` | Setup gọi sau khi cài: khoá quyền thư mục dữ liệu, đăng ký tác vụ dọn dẹp. Chỉ chạy khi exe nằm trong Program Files. |
-| `LunaDNS.exe --uninstall` | Trình gỡ gọi (bản portable thì chạy tay): hoàn tác mọi thay đổi, xoá tác vụ dọn dẹp và thư mục dữ liệu. |
-
-| Mã thoát | Nghĩa |
-|---|---|
-| `0` | Xong |
-| `1` | Còn việc chưa xong, xem log |
-| `2` | Tham số sai |
-| `3` | `--install-system` khi exe không nằm trong Program Files (không đổi gì) |
-| `4` | `--uninstall` khi LunaDNS đang chạy |
-
-Chi tiết: [Dòng lệnh](docs/guide/06-dong-lenh.md).
-
-## Hướng dẫn
-
-1. [Cài đặt](docs/guide/01-cai-dat.md)
-2. [Chạy bằng quyền Admin, khay hệ thống](docs/guide/02-chay-va-quyen-admin.md)
-3. [Các công tắc](docs/guide/03-ba-cong-tac.md)
-4. [Kiểm tra và Áp dụng đề xuất](docs/guide/04-kiem-tra-va-de-xuat.md)
-5. [Mục Nâng cao](docs/guide/05-nang-cao.md)
-6. [Dòng lệnh](docs/guide/06-dong-lenh.md)
-7. [Gỡ và dọn khi app chết](docs/guide/07-go-va-don-dep.md)
-8. [Xử lý sự cố](docs/guide/08-su-co.md)
-
-## Dữ liệu và log
-
-Thư mục `%ProgramData%\LunaDNS` (thường `C:\ProgramData\LunaDNS`):
-
-- `journal.json`: các thay đổi hệ thống đang áp dụng, để hoàn tác.
-- `settings.json`: lựa chọn ở mục Nâng cao.
-- `logs\lunadns.log`: log xoay vòng, 1 MB mỗi file, giữ 5 file.
-
-Mỗi lần chạy, app khoá quyền thư mục này: chỉ SYSTEM và Administrators ghi được, Users chỉ đọc. Lý do: tác vụ dọn dẹp chạy bằng SYSTEM đọc `journal.json`, nên ai ghi được journal là điều khiển được việc SYSTEM sửa hệ thống.
-
-## Phát triển
-
-```powershell
-dotnet build -warnaserror
-dotnet test tests/LunaDns.Core.Tests
-dotnet test tests/LunaDns.Platform.Windows.Tests
-dotnet test tests/LunaDns.App.Tests -f net8.0-windows
+```bash
+build/publish-macos.sh
 ```
 
-Mã nguồn: `src/LunaDns.Core` (logic, không phụ thuộc Windows), `src/LunaDns.Platform.Windows` (NRPT, hosts, proxy hệ thống, ACL, tác vụ dọn dẹp), `src/LunaDns.Platform.MacOS` và `src/LunaDns.MacCli` (bản macOS), `src/LunaDns.App` (giao diện Avalonia; đích `net8.0-windows` cho Windows, `net8.0` cho macOS). Đóng gói: `build/` (script publish, Inno Setup, Windows Sandbox). CI: `.github/workflows/`. Kế hoạch và quyết định thiết kế: `docs/superpowers/plans/`.
+This produces `artifacts/LunaDNS-<version>-macos-{arm64,x64}.dmg` (ad-hoc signed) and `SHA256SUMS-macos.txt`.
 
-## Những gì chưa có
+Tests:
 
-- **Ký số exe:** chưa. Windows SmartScreen có thể cảnh báo; Smart App Control trên Windows 11 có thể chặn hẳn.
-- **Tự cập nhật:** chưa. Nút "Kiểm tra cập nhật" chỉ báo có bản mới và mở trang tải; nâng cấp bằng cách chạy Setup mới.
-- **Báo cáo chẩn đoán** hiện ghi ra **Desktop**. PO đã chốt sẽ chuyển sang `%ProgramData%\LunaDNS\reports\` (giữ 10 báo cáo gần nhất), nhưng chưa code.
-- **PUBG chưa hỗ trợ.**
-- **macOS:** thử nghiệm: dịch vụ nền launchd và lệnh `lunadns` (Định tuyến DNS, Proxy SNI), có bản `.dmg` ký ad-hoc, chưa notarize; chưa có Chế độ PUBG. Xem [macOS](docs/guide/09-macos.md).
-- Đăng xuất/tắt máy: chưa có kết quả đo cuối. Nếu app không kịp hoàn tác thì tác vụ dọn dẹp (bản Setup), lần mở app sau hoặc `--cleanup` sẽ hoàn tác.
+```bash
+dotnet build -warnaserror
+dotnet test tests/LunaDns.Core.Tests
+dotnet test tests/LunaDns.App.Tests
+dotnet test tests/LunaDns.Platform.Windows.Tests   # Windows
+dotnet test tests/LunaDns.Platform.MacOS.Tests     # macOS
+```
+
+Tests that change the real system are skipped unless `LUNADNS_ADMIN_TESTS=1` is set and run elevated. See the guides for how to run them by hand.
+
+Layout: `src/LunaDns.Core` (platform-independent logic: probing, DoH stub, SNI proxy, journal, features), `src/LunaDns.Platform.Windows` (NRPT, hosts, WinINet proxy, ACL, cleanup task), `src/LunaDns.Platform.MacOS` (`/etc/resolver`, `networksetup`, `/etc/hosts`, daemon protocol), `src/LunaDns.MacCli` (`lunadns` command and daemon), `src/LunaDns.App` (Avalonia UI; `net8.0-windows` on Windows, `net8.0` on macOS). Packaging in `build/`, CI in `.github/workflows/`, design notes in `docs/superpowers/`.
+
+## What's missing
+
+- **Code signing:** Windows exe is not Authenticode-signed; macOS builds are ad-hoc signed and not notarized.
+- **Auto-update:** not yet. "Check for updates" only reports a new version and opens the download page.
+- **PUBG mode:** not supported.
+- **Diagnostics report** is written to the Desktop for now.
+- **macOS:** no PUBG mode or Advanced section yet. Not yet confirmed whether every Steam connection on macOS honours the system PAC.
+- Sign-out/shutdown timing is not fully measured. If the app cannot restore in time, the cleanup task (Windows Setup) or daemon (macOS), the next launch, or `--cleanup` will.
+
+## Guides (Vietnamese)
+
+1. [Install](docs/guide/01-cai-dat.md)
+2. [Running as admin, system tray](docs/guide/02-chay-va-quyen-admin.md)
+3. [The switches](docs/guide/03-ba-cong-tac.md)
+4. [Check and apply suggestions](docs/guide/04-kiem-tra-va-de-xuat.md)
+5. [Advanced](docs/guide/05-nang-cao.md)
+6. [Command line](docs/guide/06-dong-lenh.md)
+7. [Uninstall and cleanup after a crash](docs/guide/07-go-va-don-dep.md)
+8. [Troubleshooting](docs/guide/08-su-co.md)
+9. [macOS](docs/guide/09-macos.md)
+
+## License
+
+[MIT](LICENSE). Third-party notices: [docs/THIRD-PARTY-NOTICES.md](docs/THIRD-PARTY-NOTICES.md).
