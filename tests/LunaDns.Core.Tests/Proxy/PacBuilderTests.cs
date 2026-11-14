@@ -43,4 +43,20 @@ public class PacBuilderTests
     [InlineData(65536)]
     public void Rejects_invalid_port(int port) =>
         Assert.Throws<ArgumentOutOfRangeException>(() => PacBuilder.Build(port, ["a.com"]));
+
+    [Fact]
+    public void Sends_only_https_and_wss_through_proxy()
+    {
+        var pac = PacBuilder.Build(18080, ["steampowered.com"]);
+
+        Assert.Contains("if (url.substring(0, 6) != \"https:\" && url.substring(0, 4) != \"wss:\") return \"DIRECT\";", pac);
+    }
+
+    [Fact]
+    public void Checks_scheme_before_matching_domains()
+    {
+        var pac = PacBuilder.Build(18080, ["steampowered.com"]);
+
+        Assert.True(pac.IndexOf("url.substring(0, 6)", StringComparison.Ordinal) < pac.IndexOf("var d = [", StringComparison.Ordinal));
+    }
 }
