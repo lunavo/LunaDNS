@@ -101,4 +101,5 @@ Mã nguồn: `src/LunaDns.Core` (logic, không phụ thuộc Windows), `src/Luna
 - **Tự cập nhật:** chưa. Nút "Kiểm tra cập nhật" chỉ báo có bản mới và mở trang tải; nâng cấp bằng cách chạy Setup mới.
 - **Báo cáo chẩn đoán** hiện ghi ra **Desktop**. PO đã chốt sẽ chuyển sang `%ProgramData%\LunaDNS\reports\` (giữ 10 báo cáo gần nhất), nhưng chưa code.
 - **PUBG chưa hỗ trợ.**
+- **macOS:** mới có bản dòng lệnh thử nghiệm `lunadns` (Định tuyến DNS, Proxy SNI), chưa có giao diện và bản đóng gói. Xem [macOS](docs/guide/09-macos.md).
 - Đăng xuất/tắt máy: chưa có kết quả đo cuối. Nếu app không kịp hoàn tác thì tác vụ dọn dẹp (bản Setup), lần mở app sau hoặc `--cleanup` sẽ hoàn tác.

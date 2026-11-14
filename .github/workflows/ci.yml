@@ -20,3 +20,15 @@ jobs:
       - run: dotnet test tests/LunaDns.Core.Tests -c Release --no-build
       - run: dotnet test tests/LunaDns.Platform.Windows.Tests -c Release --no-build
       - run: dotnet test tests/LunaDns.App.Tests -c Release --no-build
+
+  build-test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet build -c Release -warnaserror
+      # Test MacAdmin (đụng /etc thật) tự skip vì không đặt LUNADNS_ADMIN_TESTS.
+      - run: dotnet test tests/LunaDns.Core.Tests -c Release --no-build
+      - run: dotnet test tests/LunaDns.Platform.MacOS.Tests -c Release --no-build
