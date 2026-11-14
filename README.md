@@ -90,10 +90,10 @@ Mỗi lần chạy, app khoá quyền thư mục này: chỉ SYSTEM và Administ
 dotnet build -warnaserror
 dotnet test tests/LunaDns.Core.Tests
 dotnet test tests/LunaDns.Platform.Windows.Tests
-dotnet test tests/LunaDns.App.Tests
+dotnet test tests/LunaDns.App.Tests -f net8.0-windows
 ```
 
-Mã nguồn: `src/LunaDns.Core` (logic, không phụ thuộc Windows), `src/LunaDns.Platform.Windows` (NRPT, hosts, proxy hệ thống, ACL, tác vụ dọn dẹp), `src/LunaDns.App` (giao diện Avalonia). Đóng gói: `build/` (script publish, Inno Setup, Windows Sandbox). CI: `.github/workflows/`. Kế hoạch và quyết định thiết kế: `docs/superpowers/plans/`.
+Mã nguồn: `src/LunaDns.Core` (logic, không phụ thuộc Windows), `src/LunaDns.Platform.Windows` (NRPT, hosts, proxy hệ thống, ACL, tác vụ dọn dẹp), `src/LunaDns.Platform.MacOS` và `src/LunaDns.MacCli` (bản macOS), `src/LunaDns.App` (giao diện Avalonia; đích `net8.0-windows` cho Windows, `net8.0` cho macOS). Đóng gói: `build/` (script publish, Inno Setup, Windows Sandbox). CI: `.github/workflows/`. Kế hoạch và quyết định thiết kế: `docs/superpowers/plans/`.
 
 ## Những gì chưa có
 
@@ -101,5 +101,5 @@ Mã nguồn: `src/LunaDns.Core` (logic, không phụ thuộc Windows), `src/Luna
 - **Tự cập nhật:** chưa. Nút "Kiểm tra cập nhật" chỉ báo có bản mới và mở trang tải; nâng cấp bằng cách chạy Setup mới.
 - **Báo cáo chẩn đoán** hiện ghi ra **Desktop**. PO đã chốt sẽ chuyển sang `%ProgramData%\LunaDNS\reports\` (giữ 10 báo cáo gần nhất), nhưng chưa code.
 - **PUBG chưa hỗ trợ.**
-- **macOS:** mới có bản dòng lệnh thử nghiệm `lunadns` kèm dịch vụ nền launchd (Định tuyến DNS, Proxy SNI), chưa có giao diện và bản đóng gói. Xem [macOS](docs/guide/09-macos.md).
+- **macOS:** thử nghiệm: dịch vụ nền launchd và lệnh `lunadns` (Định tuyến DNS, Proxy SNI), giao diện chạy từ mã nguồn; chưa có bản đóng gói `.dmg`. Xem [macOS](docs/guide/09-macos.md).
 - Đăng xuất/tắt máy: chưa có kết quả đo cuối. Nếu app không kịp hoàn tác thì tác vụ dọn dẹp (bản Setup), lần mở app sau hoặc `--cleanup` sẽ hoàn tác.

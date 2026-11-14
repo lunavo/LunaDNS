@@ -60,7 +60,7 @@ Kiểm tra bản build:
 dotnet build -warnaserror
 dotnet test tests/LunaDns.Core.Tests
 dotnet test tests/LunaDns.Platform.Windows.Tests
-dotnet test tests/LunaDns.App.Tests
+dotnet test tests/LunaDns.App.Tests -f net8.0-windows
 ```
 
 Một số test chạm mạng thật hoặc cần Admin được đánh dấu riêng và tự bỏ qua.

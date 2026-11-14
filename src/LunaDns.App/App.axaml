@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="LunaDns.App.App"
              x:ClassModifier="internal"
+             Name="LunaDNS"
              RequestedThemeVariant="Dark">
   <Application.Styles>
     <!-- PO chốt 14/11: chỉ nền tối theo bộ asset logo mới (thay KH6 D3 "theo Windows").

@@ -1,18 +1,40 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Hai đích: net8.0-windows = bản Windows (UAC, NRPT, Setup); net8.0 = bản macOS (mọi thay đổi hệ thống đi qua
+    dịch vụ nền launchd). File trong Windows/ chỉ build cho net8.0-windows, file trong MacOS/ chỉ cho net8.0.
+  -->
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net8.0-windows;net8.0</TargetFrameworks>
     <AssemblyName>LunaDNS</AssemblyName>
     <RootNamespace>LunaDns.App</RootNamespace>
     <Version>0.5.0</Version>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\lunadns.ico</ApplicationIcon>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- Giữ chỗ cho tới khi T0 đặt giá trị thật (Directory.Build.props); giá trị có sẵn thì giữ nguyên. -->
     <LunaDnsRepository Condition="'$(LunaDnsRepository)' == ''">lunavo/LunaDNS</LunaDnsRepository>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <OutputType>WinExe</OutputType>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\lunadns.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <OutputType>Exe</OutputType>
+    <DefineConstants>$(DefineConstants);MACOS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <Compile Remove="MacOS\**" />
+    <ProjectReference Include="..\LunaDns.Platform.Windows\LunaDns.Platform.Windows.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <Compile Remove="Windows\**" />
+    <ProjectReference Include="..\LunaDns.Platform.MacOS\LunaDns.Platform.MacOS.csproj" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="LunaDns.App.Tests" />
@@ -25,7 +47,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LunaDns.Core\LunaDns.Core.csproj" />
-    <ProjectReference Include="..\LunaDns.Platform.Windows\LunaDns.Platform.Windows.csproj" />
   </ItemGroup>
 
   <ItemGroup>

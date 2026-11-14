@@ -5,7 +5,7 @@ namespace LunaDns.App;
 /// Dùng cờ createdNew chứ không dùng WaitOne(0), vì mutex .NET cho cùng một luồng lấy lại nhiều lần.
 /// Có thread affinity: luồng nào gọi TryAcquire thì luồng đó phải Dispose.
 /// </summary>
-internal sealed class SingleInstance : IDisposable
+internal sealed class SingleInstance : IAppInstance
 {
     public const string DefaultName = @"Global\LunaDNS";
 

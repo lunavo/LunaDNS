@@ -1,6 +1,6 @@
 # 9. macOS (thử nghiệm)
 
-Bản macOS hiện là **công cụ dòng lệnh** `lunadns` kèm một **dịch vụ nền** (launchd), dùng chung lõi với bản Windows (DoH, stub DNS, proxy SNI, journal). Chưa có giao diện, chưa có bản đóng gói `.app`/`.dmg`, chưa có Chế độ PUBG.
+Bản macOS gồm một **dịch vụ nền** (launchd), **lệnh** `lunadns` và **giao diện** LunaDNS (cùng giao diện Avalonia với bản Windows), dùng chung lõi với bản Windows (DoH, stub DNS, proxy SNI, journal). Chưa có bản đóng gói `.dmg` đã ký, chưa có Chế độ PUBG.
 
 ## Cách hoạt động
 
@@ -33,6 +33,25 @@ dotnet publish src/LunaDns.MacCli -c Release -r osx-arm64 --self-contained -o ar
 ```
 
 (Mac Intel thì đổi `osx-arm64` thành `osx-x64`.)
+
+## Giao diện
+
+```bash
+build/run-macos.sh
+```
+
+Script dựng `artifacts/run/osx-arm64/LunaDNS.app` (chưa ký, chỉ để chạy trên máy build) rồi mở nó. `--build-only` để chỉ dựng. Bên trong `.app`, lệnh `lunadns` nằm ở `Contents/MacOS/daemon/`.
+
+Khác bản Windows:
+
+- **Giao diện chạy quyền user, không tự đổi cấu hình hệ thống.** Mọi bật/tắt và trạng thái đều đi qua dịch vụ nền (socket `/var/run/lunadns.sock`). Kiểm tra (probe) vẫn chạy trong giao diện.
+- **Dịch vụ nền chưa cài:** giao diện hiện banner kèm nút **Cài dịch vụ nền**. Nút này mở hộp thoại mật khẩu của macOS (`osascript … with administrator privileges`) rồi chạy `lunadns install` đi kèm `.app`. Đã cài mà không trả lời thì nút thành **Cài lại dịch vụ nền**. Hai công tắc xám tới khi dịch vụ nền trả lời.
+- Giao diện hỏi lại dịch vụ nền mỗi 2 giây, nên bật/tắt bằng `lunadns on|off` trong Terminal cũng hiện lên giao diện.
+- **Thoát & khôi phục** (menu bar, hoặc Cmd+Q, hoặc đăng xuất) gửi lệnh tắt hết cho dịch vụ nền, giống nghĩa nút trên Windows. Kể cả khi tính năng được bật bằng `lunadns on`. Muốn để LunaDNS tiếp tục chạy thì chỉ đóng cửa sổ (nút đỏ): app vẫn ở biểu tượng trên thanh menu.
+- Chưa có mục **Nâng cao** (kiểu cắt gói, độ trễ, DoH): dịch vụ nền đang dùng cài đặt mặc định.
+- Không có nút **Gỡ khỏi máy**: gỡ bằng `sudo lunadns uninstall`.
+- Settings và log của giao diện ở `~/Library/Application Support/LunaDNS` (kèm `gui.lock`, `gui.sock` để chỉ một bản giao diện chạy; mở lần hai thì cửa sổ đang chạy hiện lên).
+- **Chẩn đoán** ghi báo cáo ra Desktop: file `/etc/resolver` của LunaDNS, service đang dùng PAC LunaDNS, dòng hosts, phiên bản dịch vụ nền và số mục journal (journal của dịch vụ nền thuộc root, giao diện không đọc được nội dung).
 
 ## Dịch vụ nền (khuyên dùng)
 
@@ -81,7 +100,19 @@ Phải thấy `nameserver[0] : 127.0.0.1` và `port : 15353`. Lưu ý `dig`/`nsl
 
 ## Test tích hợp (chạy tay)
 
-Unit test (`dotnet test tests/LunaDns.Platform.MacOS.Tests`) chạy trên thư mục tạm và `networksetup` giả. Test đụng hệ thống thật chỉ chạy khi đặt biến và dùng sudo; mỗi test áp dụng rồi hoàn tác, so trạng thái trước/sau:
+Unit test chạy trên thư mục tạm, `networksetup` giả và dịch vụ nền giả:
+
+```bash
+dotnet test tests/LunaDns.Platform.MacOS.Tests
+```
+
+```bash
+dotnet test tests/LunaDns.App.Tests -f net8.0
+```
+
+(`LunaDns.App.Tests` có hai đích: `net8.0` là bản macOS, `net8.0-windows` là bản Windows và chỉ chạy được trên Windows.)
+
+Test đụng hệ thống thật chỉ chạy khi đặt biến và dùng sudo; mỗi test áp dụng rồi hoàn tác, so trạng thái trước/sau:
 
 Build bằng user thường trước, rồi mới chạy bằng sudo với `--no-build`, để `obj/`, `bin/` và `~/.dotnet` không bị đổi chủ sang root (lần build sau sẽ lỗi quyền):
 

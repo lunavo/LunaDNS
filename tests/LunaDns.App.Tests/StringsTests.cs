@@ -18,7 +18,7 @@ public sealed class StringsTests
             .Where(p => p.PropertyType == typeof(string))
             .ToList();
 
-        Assert.Equal(67, properties.Count);
+        Assert.Equal(74, properties.Count);
         foreach (var property in properties) AssertResolved((string)property.GetValue(null)!);
     }
 
@@ -27,6 +27,28 @@ public sealed class StringsTests
     {
         foreach (var error in Enum.GetValues<FeatureError>().Where(e => e != FeatureError.None))
             AssertResolved(Strings.Error(error));
+    }
+
+    /// <summary>Câu riêng macOS ("X_Mac") phải có câu chung tương ứng, và chỉ được dùng khi chạy trên macOS.</summary>
+    [Fact]
+    public void Mac_overrides_have_base_key_and_apply_only_on_mac()
+    {
+        var keys = new System.Resources.ResourceManager("LunaDns.App.Strings", typeof(Strings).Assembly)
+            .GetResourceSet(CultureInfo.InvariantCulture, createIfNotExists: true, tryParents: true)!
+            .Cast<System.Collections.DictionaryEntry>()
+            .Select(e => (string)e.Key)
+            .ToList();
+        var overrides = keys.Where(k => k.EndsWith(Strings.MacSuffix, StringComparison.Ordinal)).ToList();
+
+        Assert.NotEmpty(overrides);
+        foreach (var key in overrides)
+        {
+            var baseKey = key[..^Strings.MacSuffix.Length];
+            Assert.Contains(baseKey, keys);
+            Assert.NotEqual(Strings.Lookup(baseKey, macOS: false), Strings.Lookup(baseKey, macOS: true));
+        }
+        Assert.Contains("15353", Strings.Lookup("Error_DnsPortBusy", macOS: true), StringComparison.Ordinal);
+        Assert.Contains(" 53 ", Strings.Lookup("Error_DnsPortBusy", macOS: false), StringComparison.Ordinal);
     }
 
     [Fact]

@@ -6,6 +6,7 @@ namespace LunaDns.Core.Diagnostics;
 /// <summary>
 /// Dữ liệu cho báo cáo (spec 4.9). Probe = null nếu chưa kiểm tra. AutoConfig là dòng đã mô tả sẵn
 /// (<see cref="DiagnosticReport.DescribeAutoConfig"/> hoặc thông báo lỗi đọc).
+/// Labels: tên các mục theo nền tảng; mặc định là nhãn của bản Windows.
 /// </summary>
 public sealed record DiagnosticInput(
     string AppVersion,
@@ -16,4 +17,8 @@ public sealed record DiagnosticInput(
     IReadOnlyList<string> NrptRules,
     string AutoConfig,
     IReadOnlyList<string> HostsLines,
-    IReadOnlyList<string> LogTail);
+    IReadOnlyList<string> LogTail,
+    DiagnosticLabels? Labels = null);
+
+/// <summary>Nhãn dòng hệ điều hành và hai mục cấu hình mạng. macOS: "/etc/resolver của LunaDNS", "PAC (networksetup)".</summary>
+public sealed record DiagnosticLabels(string Os = "Windows", string DnsRoutes = "Luật NRPT của LunaDNS", string Proxy = "AutoConfigURL");

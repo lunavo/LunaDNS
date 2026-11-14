@@ -20,5 +20,7 @@ public enum FeatureError
     HostsUnsupportedEncoding,
     NrptFailed,
     RollbackFailed,
+    /// <summary>macOS: giao diện không nói chuyện được với dịch vụ nền (chưa cài, chưa chạy, hoặc từ chối kết nối).</summary>
+    ServiceUnavailable,
     Other,
 }

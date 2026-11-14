@@ -1,18 +1,19 @@
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
+using LunaDns.App.Features;
 using LunaDns.App.Updates;
 using LunaDns.Core.Features;
 using LunaDns.Core.Probing;
 using LunaDns.Core.Settings;
 using LunaDns.Core.Tls;
-using LunaDns.Platform.Windows.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace LunaDns.App.ViewModels;
 
 /// <summary>
-/// Màn hình chính (spec 4.8, KH6 3.1). Mọi lệnh gọi FeatureSet qua Task.Run vì Configurator chặn luồng.
+/// Màn hình chính (spec 4.8, KH6 3.1). Mọi lệnh gọi IFeatureController qua Task.Run vì Configurator (Windows) chặn luồng.
 /// FeatureStopped (luồng nền của watchdog) được chuyển về luồng UI bằng Dispatcher.UIThread.Post.
+/// Timer 2 giây hỏi lại trạng thái (macOS: hỏi dịch vụ nền, nên bắt được cả "lunadns on/off" từ Terminal).
 /// Overall (huy hiệu header, icon khay) tính lại mỗi khi trạng thái, việc đang chạy hoặc thông báo đổi.
 /// </summary>
 internal sealed partial class MainViewModel : ObservableObject
@@ -27,6 +28,9 @@ internal sealed partial class MainViewModel : ObservableObject
     private readonly Func<Task> _quit;
     private readonly ILogger _logger;
     private readonly DispatcherTimer _timer;
+    private readonly Func<Task<ServiceInstallResult>>? _installService;
+    private (bool Dns, bool Proxy, ControllerAvailability Availability) _shown;
+    private bool _polling;
     private ProbeSummary? _summary;
     private string _probeStatus = Strings.NotCheckedYet;
     private string _probeHint = string.Empty;
@@ -37,8 +41,11 @@ internal sealed partial class MainViewModel : ObservableObject
     private int _busyCount;
     private OverallState _overall;
 
-    public MainViewModel(AppServices services, IUserPrompts prompts, ISystemShell shell, Func<Task> quit)
+    /// <param name="installService">macOS: cài dịch vụ nền (osascript). null trên Windows.</param>
+    public MainViewModel(AppServices services, IUserPrompts prompts, ISystemShell shell, Func<Task> quit,
+        Func<Task<ServiceInstallResult>>? installService = null)
     {
+        _installService = installService;
         _services = services;
         _prompts = prompts;
         _maintenance = new Maintenance(prompts, shell);
@@ -58,9 +65,10 @@ internal sealed partial class MainViewModel : ObservableObject
         UninstallAppCommand = new AsyncCommand(UninstallAppAsync, OnError);
         DismissMessageCommand = new AsyncCommand(DismissMessageAsync, OnError);
         QuitCommand = new AsyncCommand(quit, OnError);
+        InstallServiceCommand = new AsyncCommand(InstallServiceAsync, OnError);
         _services.Features.FeatureStopped += OnFeatureStopped;
-        _timer = new DispatcherTimer(StatusInterval, DispatcherPriority.Background, (_, _) => RefreshStatusText());
-        _overall = OverallState.From(_services.Features.GetStatus(), busy: false, attention: false);
+        _timer = new DispatcherTimer(StatusInterval, DispatcherPriority.Background, async (_, _) => await PollAsync());
+        _overall = OverallState.From(_services.Features.Status, busy: false, attention: false);
         Refresh();
     }
 
@@ -84,8 +92,24 @@ internal sealed partial class MainViewModel : ObservableObject
 
     public AsyncCommand QuitCommand { get; }
 
-    /// <summary>Chỉ bản do Setup cài có nút gỡ; bản portable gỡ theo guide.</summary>
-    public bool CanUninstall { get; } = InstallLocation.IsInstalled(Environment.ProcessPath ?? string.Empty, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
+    public AsyncCommand InstallServiceCommand { get; }
+
+    /// <summary>Chỉ bản Windows do Setup cài có nút gỡ; bản portable và macOS gỡ theo guide.</summary>
+    public bool CanUninstall { get; } = PlatformInfo.CanUninstall();
+
+    /// <summary>macOS ẩn mục Nâng cao: dịch vụ nền chưa nhận settings từ giao diện.</summary>
+    public bool HasAdvancedSettings { get; } = PlatformInfo.HasAdvancedSettings();
+
+    /// <summary>macOS: banner "dịch vụ nền chưa cài / không trả lời" kèm nút cài.</summary>
+    public bool ShowServiceSetup => _services.Features.Availability is ControllerAvailability.DaemonNotInstalled or ControllerAvailability.DaemonNotResponding;
+
+    public string ServiceSetupText => _services.Features.Availability == ControllerAvailability.DaemonNotResponding
+        ? Strings.ServiceNotResponding
+        : Strings.ServiceNotInstalled;
+
+    public string InstallServiceText => _services.Features.Availability == ControllerAvailability.DaemonNotResponding
+        ? Strings.ReinstallServiceButton
+        : Strings.InstallServiceButton;
 
     public string ProbeStatus
     {
@@ -151,6 +175,7 @@ internal sealed partial class MainViewModel : ObservableObject
         if (!startup.Success) ShowMessage(Strings.StartupRestoreFailed, Tone.Error);
         else if (startup.Reverted > 0) ShowMessage(Strings.Format(nameof(Strings.StartupRestoredFormat), startup.Reverted), Tone.Info);
         _timer.Start();
+        _ = PollAsync();
         CheckCommand.Execute(null);
     }
 
@@ -171,7 +196,7 @@ internal sealed partial class MainViewModel : ObservableObject
     {
         item.SetError(string.Empty);
         var feature = item.Feature;
-        var result = _services.Features.IsEnabled(feature)
+        var result = IsEnabled(_services.Features.Status, feature)
             ? await Task.Run(() => _services.Features.DisableAsync(feature))
             : await EnableAsync(feature);
         ShowFailures([Failure(result)]);
@@ -208,7 +233,7 @@ internal sealed partial class MainViewModel : ObservableObject
     private void ShowSummary()
     {
         if (_summary is null) return;
-        var status = _services.Features.GetStatus();
+        var status = _services.Features.Status;
         ProbeStatus = Strings.Format(nameof(Strings.CheckedAtFormat), _summary.CheckedAt);
         ProbeLines.Clear();
         foreach (var group in _summary.Groups) ProbeLines.Add(ProbeLineViewModel.From(group, status));
@@ -222,7 +247,7 @@ internal sealed partial class MainViewModel : ObservableObject
     private Task ApplyRecommendedAsync() => RunBusyAsync(Features, async () =>
     {
         if (_summary is null) return;
-        var pending = _summary.PendingSteamRemedies(_services.Features.GetStatus());
+        var pending = _summary.PendingSteamRemedies(_services.Features.Status);
         if (pending == ProbeRemedies.None)
         {
             ShowMessage(Strings.NothingToApply, Tone.Info);
@@ -253,7 +278,7 @@ internal sealed partial class MainViewModel : ObservableObject
         ShowMessage(Strings.DiagnosticsRunning, Tone.Info);
         try
         {
-            var path = await Task.Run(() => ReportWriter.Write(_services.Paths, _services.LastProbe, WindowsDiagnostics.CreateDefault()));
+            var path = await Task.Run(() => ReportWriter.Write(_services.Paths, _services.LastProbe, PlatformInfo.CreateDiagnostics(_services)));
             ShowMessage(Strings.Format(nameof(Strings.ReportSavedFormat), path), Tone.Info);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -262,6 +287,16 @@ internal sealed partial class MainViewModel : ObservableObject
             ShowMessage(Strings.Format(nameof(Strings.ReportFailedFormat), ex.Message), Tone.Error);
         }
     }
+
+    /// <summary>macOS: hộp thoại mật khẩu của hệ thống, rồi hỏi lại dịch vụ nền. Bấm Huỷ thì im lặng.</summary>
+    private Task InstallServiceAsync() => RunBusyAsync(Features, async () =>
+    {
+        if (_installService is null) return;
+        var result = await _installService();
+        if (result.Success) ShowMessage(Strings.ServiceInstalled, Tone.Good);
+        else if (!result.Cancelled) ShowMessage(Strings.Format(nameof(Strings.ServiceInstallFailedFormat), result.Output), Tone.Error);
+        await Task.Run(() => _services.Features.RefreshAsync());
+    });
 
     private Task CheckUpdateAsync() =>
         _maintenance.CheckForUpdateAsync(ct => new UpdateChecker(UpdateHttp, AppInfo.Repository, AppInfo.Version).CheckAsync(ct), AppInfo.Version, CancellationToken.None);
@@ -356,21 +391,74 @@ internal sealed partial class MainViewModel : ObservableObject
 
     private void Refresh()
     {
-        var status = _services.Features.GetStatus();
-        foreach (var feature in Features) feature.Update(status);
+        var status = _services.Features.Status;
+        var availability = _services.Features.Availability;
+        var available = availability is ControllerAvailability.Local or ControllerAvailability.DaemonRunning;
+        foreach (var feature in Features)
+        {
+            feature.IsAvailable = available;
+            feature.Update(status);
+        }
         _anyOn = status.DnsRouting || status.SniProxy || status.PubgMode;
+        if (_shown.Availability != availability || _shown == default)
+        {
+            OnPropertyChanged(nameof(ShowServiceSetup));
+            OnPropertyChanged(nameof(ServiceSetupText));
+            OnPropertyChanged(nameof(InstallServiceText));
+        }
+        _shown = (status.DnsRouting, status.SniProxy, availability);
         UpdateOverall(status);
     }
 
+    /// <summary>
+    /// Timer: hỏi lại trạng thái (bản Windows không tốn gì). Bật/tắt từ ngoài giao diện (macOS: "lunadns on/off") thì làm mới cả thẻ;
+    /// không đổi gì thì chỉ đổi dòng trạng thái như trước. Thẻ đang bật/tắt thì chờ (ToggleSwitch đang chờ kết quả);
+    /// "Kiểm tra" đang chạy thì không chờ, để banner dịch vụ nền hiện ngay lúc mở app.
+    /// </summary>
+    private async Task PollAsync()
+    {
+        if (_polling) return;
+        _polling = true;
+        try
+        {
+            await Task.Run(() => _services.Features.RefreshAsync());
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or ObjectDisposedException)
+        {
+            LogPollFailed(_logger, ex);
+        }
+        finally
+        {
+            _polling = false;
+        }
+        var status = _services.Features.Status;
+        if (!Features.Any(f => f.IsBusy) && (status.DnsRouting, status.SniProxy, _services.Features.Availability) != _shown)
+        {
+            Refresh();
+            ShowSummary();
+        }
+        else
+        {
+            RefreshStatusText();
+        }
+    }
+
+    private static bool IsEnabled(FeatureStatus status, Feature feature) => feature switch
+    {
+        Feature.DnsRouting => status.DnsRouting,
+        Feature.SniProxy => status.SniProxy,
+        _ => status.PubgMode,
+    };
+
     private void UpdateOverall(FeatureStatus? status = null)
     {
-        Overall = OverallState.From(status ?? _services.Features.GetStatus(), _busyCount > 0, HasAttention);
+        Overall = OverallState.From(status ?? _services.Features.Status, _busyCount > 0, HasAttention);
         DisableAllCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshStatusText()
     {
-        var status = _services.Features.GetStatus();
+        var status = _services.Features.Status;
         foreach (var feature in Features) feature.UpdateStatusText(status);
     }
 
@@ -379,6 +467,9 @@ internal sealed partial class MainViewModel : ObservableObject
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Không ghi được báo cáo chẩn đoán.")]
     private static partial void LogReportFailed(ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Không hỏi được trạng thái.")]
+    private static partial void LogPollFailed(ILogger logger, Exception error);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Không lưu được settings.json.")]
     private static partial void LogSettingsSaveFailed(ILogger logger, Exception error);

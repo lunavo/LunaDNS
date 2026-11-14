@@ -1,0 +1,73 @@
+using LunaDns.Core.Features;
+using LunaDns.Core.Journal;
+using LunaDns.Core.Platform;
+using LunaDns.Core.Settings;
+using Microsoft.Extensions.Logging;
+
+namespace LunaDns.App.Features;
+
+/// <summary>
+/// Giao diện tự giữ FeatureSet và Journal (bản Windows, chạy bằng quyền Admin). Ctor hoàn tác Journal còn sót từ lần chạy trước
+/// (spec 4.5); bên gọi phải giữ khoá một-bản-chạy trước. Hành vi y như AppServices trước Bước 3 của macOS.
+/// </summary>
+internal sealed partial class LocalFeatureController : IFeatureController
+{
+    private readonly ILogger _logger;
+
+    public LocalFeatureController(AppPaths paths, INetworkConfigurator configurator, Func<AppSettings> settings,
+        ILoggerFactory loggerFactory, TimeProvider? time = null)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(configurator);
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+        var clock = time ?? TimeProvider.System;
+        _logger = loggerFactory.CreateLogger<LocalFeatureController>();
+
+        Journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile), SystemChanges.Reverters(configurator), clock);
+        StartupRollback = Journal.RollbackAll();
+        if (StartupRollback.Reverted > 0) LogStartupReverted(_logger, StartupRollback.Reverted);
+        if (!StartupRollback.Success) LogStartupLeftovers(_logger, StartupRollback.Failed.Count);
+
+        var services = new CoreFeatureServices(() => settings().DohServers(), loggerFactory);
+        Features = new FeatureSet(Journal, new SystemChanges(Journal, configurator), services,
+            () => settings().Tuning(), clock, loggerFactory.CreateLogger<FeatureSet>());
+    }
+
+    public event EventHandler<FeatureStoppedEventArgs>? FeatureStopped
+    {
+        add => Features.FeatureStopped += value;
+        remove => Features.FeatureStopped -= value;
+    }
+
+    public ChangeJournal Journal { get; }
+
+    public FeatureSet Features { get; }
+
+    public ControllerAvailability Availability => ControllerAvailability.Local;
+
+    public FeatureStatus Status => Features.GetStatus();
+
+    public RollbackResult StartupRollback { get; }
+
+    public int? JournalEntries => Journal.Entries.Count;
+
+    public Task RefreshAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public Task<FeatureResult> EnableAsync(Feature feature, bool allowProxyOverride = false) =>
+        Features.EnableAsync(feature, allowProxyOverride);
+
+    public Task<FeatureResult> DisableAsync(Feature feature) => Features.DisableAsync(feature);
+
+    public Task<DisableAllResult> DisableAllAsync() => Features.DisableAllAsync();
+
+    public async Task<int> ShutdownAsync() => (await Features.ShutdownAsync().ConfigureAwait(false)).Failed.Count;
+
+    public ValueTask DisposeAsync() => Features.DisposeAsync();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Đã hoàn tác {Count} thay đổi còn sót từ lần chạy trước.")]
+    private static partial void LogStartupReverted(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Còn {Count} thay đổi từ lần chạy trước chưa hoàn tác được; giữ trong journal.")]
+    private static partial void LogStartupLeftovers(ILogger logger, int count);
+}

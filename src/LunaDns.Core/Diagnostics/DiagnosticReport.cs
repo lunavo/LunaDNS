@@ -13,11 +13,12 @@ public static class DiagnosticReport
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(redactor);
+        var labels = input.Labels ?? new DiagnosticLabels();
         var sb = new StringBuilder();
         sb.AppendLine("LunaDNS — báo cáo chẩn đoán");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Thời điểm: {input.GeneratedAt:yyyy-MM-dd HH:mm:ss zzz}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Phiên bản LunaDNS: {input.AppVersion}");
-        sb.AppendLine(CultureInfo.InvariantCulture, $"Windows: {input.WindowsVersion}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"{labels.Os}: {input.WindowsVersion}");
 
         Section(sb, "Kết quả kiểm tra");
         if (input.Probe is null)
@@ -39,9 +40,9 @@ public static class DiagnosticReport
         foreach (var e in input.Journal)
             sb.AppendLine(CultureInfo.InvariantCulture, $"{e.AppliedAt:O} {e.Feature} {e.Op} {e.Id} {e.Snapshot.GetRawText()}");
 
-        Section(sb, "Luật NRPT của LunaDNS");
+        Section(sb, labels.DnsRoutes);
         Lines(sb, input.NrptRules);
-        Section(sb, "AutoConfigURL");
+        Section(sb, labels.Proxy);
         sb.AppendLine(input.AutoConfig);
         Section(sb, "Dòng hosts có # LunaDNS");
         Lines(sb, input.HostsLines);

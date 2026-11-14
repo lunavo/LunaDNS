@@ -34,7 +34,7 @@ internal sealed partial class App : Application, IDisposable
 
     public AppServices? Services { get; init; }
 
-    public SingleInstance? Instance { get; init; }
+    public IAppInstance? Instance { get; init; }
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -47,7 +47,7 @@ internal sealed partial class App : Application, IDisposable
             Dispatcher.UIThread.UnhandledException += OnUnhandledException;
 
             var prompts = new DialogPrompts(() => ShowWindow());
-            _viewModel = new MainViewModel(Services, prompts, new SystemShell(), QuitAsync);
+            _viewModel = new MainViewModel(Services, prompts, new SystemShell(), QuitAsync, ServiceInstaller());
             _window = new MainWindow { DataContext = _viewModel };
             desktop.MainWindow = _window;
             desktop.ShutdownRequested += OnShutdownRequested;
@@ -58,6 +58,18 @@ internal sealed partial class App : Application, IDisposable
             _viewModel.Start();
         }
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>macOS: nút "Cài dịch vụ nền" chạy lunadns đi kèm app qua osascript. Không thấy file thì báo lệnh gõ tay.</summary>
+    private static Func<Task<Features.ServiceInstallResult>>? ServiceInstaller()
+    {
+#if MACOS
+        return async () => MacOS.DaemonSetup.FindCli(AppContext.BaseDirectory) is { } cli
+            ? await new MacOS.DaemonSetup().InstallAsync(cli).ConfigureAwait(true)
+            : new Features.ServiceInstallResult(false, false, Strings.ServiceCliMissing);
+#else
+        return null;
+#endif
     }
 
     private void CreateTray()
@@ -124,7 +136,7 @@ internal sealed partial class App : Application, IDisposable
     {
         if (Interlocked.Exchange(ref _shuttingDown, 1) == 1) return;
         var result = await Task.Run(Services!.ShutdownAsync);
-        if (!result.Success) await new DialogPrompts(() => ShowWindow()).InformAsync(Strings.AppTitle, Strings.RestoreFailed);
+        if (result > 0) await new DialogPrompts(() => ShowWindow()).InformAsync(Strings.AppTitle, Strings.RestoreFailed);
         CloseTray();
         _desktop!.Shutdown();
     }
@@ -142,7 +154,7 @@ internal sealed partial class App : Application, IDisposable
         {
             var shutdown = Task.Run(Services!.ShutdownAsync);
             if (!shutdown.Wait(SessionEndBudget)) LogSessionEndTimedOut(_logger);
-            else if (!shutdown.Result.Success) LogSessionEndLeftovers(_logger, shutdown.Result.Failed.Count);
+            else if (shutdown.Result > 0) LogSessionEndLeftovers(_logger, shutdown.Result);
             else LogSessionEndDone(_logger, watch.ElapsedMilliseconds);
         }
         catch (AggregateException ex)

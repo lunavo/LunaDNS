@@ -37,6 +37,20 @@ public sealed class DiagnosticReportTests
     }
 
     [Fact]
+    public void Platform_labels_replace_windows_section_titles()
+    {
+        var report = DiagnosticReport.Build(
+            Input() with { WindowsVersion = "macOS 26.0", Labels = new DiagnosticLabels("Hệ điều hành", "File /etc/resolver của LunaDNS", "PAC (networksetup)") },
+            Redactor);
+
+        Assert.Contains("Hệ điều hành: macOS 26.0", report, StringComparison.Ordinal);
+        Assert.Contains("== File /etc/resolver của LunaDNS ==", report, StringComparison.Ordinal);
+        Assert.Contains("== PAC (networksetup) ==", report, StringComparison.Ordinal);
+        Assert.DoesNotContain("NRPT", report, StringComparison.Ordinal);
+        Assert.DoesNotContain("Windows:", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Missing_probe_says_not_run() =>
         Assert.Contains("(chưa chạy)", DiagnosticReport.Build(Input(), Redactor), StringComparison.Ordinal);
 

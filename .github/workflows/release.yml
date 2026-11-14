@@ -31,7 +31,7 @@ jobs:
       - run: dotnet build -c Release -warnaserror
       - run: dotnet test tests/LunaDns.Core.Tests -c Release --no-build
       - run: dotnet test tests/LunaDns.Platform.Windows.Tests -c Release --no-build
-      - run: dotnet test tests/LunaDns.App.Tests -c Release --no-build
+      - run: dotnet test tests/LunaDns.App.Tests -c Release --no-build -f net8.0-windows
 
       - name: Publish
         shell: pwsh

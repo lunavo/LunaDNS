@@ -11,6 +11,7 @@ internal sealed class FeatureViewModel : ObservableObject
 {
     private bool _isOn;
     private bool _isBusy;
+    private bool _isAvailable = true;
     private string _statusText = Strings.StatusOff;
     private string _errorText = string.Empty;
 
@@ -48,7 +49,17 @@ internal sealed class FeatureViewModel : ObservableObject
         }
     }
 
-    public bool CanToggle => !_isBusy;
+    /// <summary>macOS: false khi dịch vụ nền chưa cài hoặc không trả lời (toggle xám, banner giải thích).</summary>
+    public bool IsAvailable
+    {
+        get => _isAvailable;
+        set
+        {
+            if (SetProperty(ref _isAvailable, value)) OnPropertyChanged(nameof(CanToggle));
+        }
+    }
+
+    public bool CanToggle => !_isBusy && _isAvailable;
 
     public string StatusText => _isBusy ? Strings.FeatureBusy : _statusText;
 

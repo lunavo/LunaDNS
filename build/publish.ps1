@@ -26,7 +26,7 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version phải dạng x.y.z, 
 
 if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
 # DebugType truyền toàn cục: trong pubxml nó chỉ áp cho App, Core/Platform vẫn ra .pdb rời.
-dotnet publish $project -p:PublishProfile=win-x64 -p:Version=$Version -p:DebugType=embedded -o $publishDir
+dotnet publish $project -f net8.0-windows -p:PublishProfile=win-x64 -p:Version=$Version -p:DebugType=embedded -o $publishDir
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish lỗi ($LASTEXITCODE)." }
 
 # Kiểm hình dạng bản build: exe single-file, không còn DLL managed của LunaDNS, không .pdb (DebugType=embedded).

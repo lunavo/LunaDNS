@@ -1,0 +1,50 @@
+using LunaDns.Core.Features;
+using LunaDns.Core.Journal;
+
+namespace LunaDns.App.Features;
+
+/// <summary>Ai đang giữ các tính năng: chính giao diện (Windows) hay dịch vụ nền (macOS), và dịch vụ nền có trả lời không.</summary>
+internal enum ControllerAvailability
+{
+    /// <summary>Giao diện tự chạy FeatureSet (Windows, quyền Admin sau UAC).</summary>
+    Local,
+    /// <summary>Chưa hỏi được daemon lần nào (vừa mở app): công tắc xám, chưa hiện banner.</summary>
+    DaemonConnecting,
+    DaemonRunning,
+    /// <summary>Chưa có plist của launchd: giao diện đề nghị cài.</summary>
+    DaemonNotInstalled,
+    /// <summary>Đã cài nhưng socket không trả lời (daemon chết, đang khởi động lại, hoặc bị từ chối).</summary>
+    DaemonNotResponding,
+}
+
+/// <summary>
+/// Lớp giữa MainViewModel và nơi thật sự bật/tắt tính năng. Windows: <see cref="LocalFeatureController"/> bọc FeatureSet.
+/// macOS: DaemonFeatureController gửi lệnh qua Unix socket tới daemon chạy bằng root.
+/// <see cref="Status"/> là ảnh chụp gần nhất, đọc được trên luồng UI mà không chặn; <see cref="RefreshAsync"/> cập nhật nó.
+/// </summary>
+internal interface IFeatureController : IAsyncDisposable
+{
+    /// <summary>Watchdog đã tắt một tính năng. Bản daemon không phát (không phân biệt được với "lunadns off" từ Terminal).</summary>
+    event EventHandler<FeatureStoppedEventArgs>? FeatureStopped;
+
+    ControllerAvailability Availability { get; }
+
+    FeatureStatus Status { get; }
+
+    /// <summary>Kết quả hoàn tác journal còn sót lúc mở app. Bản daemon luôn rỗng: daemon tự hoàn tác khi khởi động.</summary>
+    RollbackResult StartupRollback { get; }
+
+    /// <summary>Số mục journal còn lại (cho báo cáo). null nếu không biết.</summary>
+    int? JournalEntries { get; }
+
+    Task RefreshAsync(CancellationToken cancellationToken = default);
+
+    Task<FeatureResult> EnableAsync(Feature feature, bool allowProxyOverride = false);
+
+    Task<FeatureResult> DisableAsync(Feature feature);
+
+    Task<DisableAllResult> DisableAllAsync();
+
+    /// <summary>"Thoát &amp; khôi phục" và đăng xuất. Trả số thay đổi chưa hoàn tác được (0 = sạch).</summary>
+    Task<int> ShutdownAsync();
+}

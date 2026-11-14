@@ -84,8 +84,25 @@ internal static class Strings
     public static string StartupRestoreFailed => Get(nameof(StartupRestoreFailed));
     public static string UnexpectedError => Get(nameof(UnexpectedError));
 
-    public static string Get(string key) =>
-        Resources.GetString(key, CultureInfo.CurrentUICulture) is { Length: > 0 } value ? value : $"[{key}]";
+    public static string ServiceNotInstalled => Get(nameof(ServiceNotInstalled));
+    public static string ServiceNotResponding => Get(nameof(ServiceNotResponding));
+    public static string InstallServiceButton => Get(nameof(InstallServiceButton));
+    public static string ReinstallServiceButton => Get(nameof(ReinstallServiceButton));
+    public static string ServiceInstalled => Get(nameof(ServiceInstalled));
+    public static string ServiceInstallFailedFormat => Get(nameof(ServiceInstallFailedFormat));
+    public static string ServiceCliMissing => Get(nameof(ServiceCliMissing));
+
+    /// <summary>Hậu tố khoá cho câu riêng của macOS (vd. "RestoreFailed_Mac"): có thì dùng thay câu chung.</summary>
+    public const string MacSuffix = "_Mac";
+
+    public static string Get(string key) => Lookup(key, OperatingSystem.IsMacOS());
+
+    /// <summary>Tách ra để test kiểm cả câu Windows lẫn câu macOS trên một máy.</summary>
+    internal static string Lookup(string key, bool macOS) =>
+        (macOS ? Find(key + MacSuffix) : null) ?? Find(key) ?? $"[{key}]";
+
+    private static string? Find(string key) =>
+        Resources.GetString(key, CultureInfo.CurrentUICulture) is { Length: > 0 } value ? value : null;
 
     public static string Format(string key, params object?[] args) =>
         string.Format(CultureInfo.CurrentCulture, Get(key), args);

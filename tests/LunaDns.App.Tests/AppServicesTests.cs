@@ -18,7 +18,7 @@ public sealed class AppServicesTests : IDisposable
 
         Assert.Equal(1, services.StartupRollback.Reverted);
         Assert.True(services.StartupRollback.Success);
-        Assert.Empty(services.Journal.Entries);
+        Assert.Empty(((LunaDns.App.Features.LocalFeatureController)services.Features).Journal.Entries);
         Assert.Equal(1, _app.Configurator.Reverts);
     }
 
