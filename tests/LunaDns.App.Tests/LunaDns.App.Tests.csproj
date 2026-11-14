@@ -3,6 +3,8 @@
   <PropertyGroup>
     <!-- Khớp hai đích của LunaDns.App. Test trong Windows/ chỉ chạy cho net8.0-windows, trong MacOS/ chỉ cho net8.0. -->
     <TargetFrameworks>net8.0-windows;net8.0</TargetFrameworks>
+    <!-- Directory.Build.props đặt TargetFramework=net8.0; để nguyên thì nó đè TargetFrameworks và chỉ build net8.0. -->
+    <TargetFramework></TargetFramework>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
