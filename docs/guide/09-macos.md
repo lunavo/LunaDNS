@@ -1,6 +1,6 @@
 # 9. macOS (thử nghiệm)
 
-Bản macOS hiện là **công cụ dòng lệnh** `lunadns`, dùng chung lõi với bản Windows (DoH, stub DNS, proxy SNI, journal). Chưa có giao diện, chưa có bản đóng gói `.app`/`.dmg`, chưa tự dọn lúc khởi động máy; các phần đó làm ở các bước sau.
+Bản macOS hiện là **công cụ dòng lệnh** `lunadns` kèm một **dịch vụ nền** (launchd), dùng chung lõi với bản Windows (DoH, stub DNS, proxy SNI, journal). Chưa có giao diện, chưa có bản đóng gói `.app`/`.dmg`, chưa có Chế độ PUBG.
 
 ## Cách hoạt động
 
@@ -34,16 +34,34 @@ dotnet publish src/LunaDns.MacCli -c Release -r osx-arm64 --self-contained -o ar
 
 (Mac Intel thì đổi `osx-arm64` thành `osx-x64`.)
 
+## Dịch vụ nền (khuyên dùng)
+
+Trên Windows, app chạy bằng quyền Admin sau UAC. Trên macOS, phần cần root tách thành **dịch vụ nền** (launchd daemon `vn.lunavo.lunadns`); lệnh `lunadns` của người dùng nói chuyện với nó qua Unix socket `/var/run/lunadns.sock`, nên sau khi cài **không cần sudo** để bật/tắt.
+
+```bash
+sudo artifacts/publish/osx-arm64/lunadns install
+```
+
+Lệnh này chép bản chạy được vào `/Library/PrivilegedHelperTools/vn.lunavo.lunadns/` (chỉ root ghi được), tạo `/Library/LaunchDaemons/vn.lunavo.lunadns.plist`, nạp daemon và tạo lệnh tắt `/usr/local/bin/lunadns` (nếu thư mục đó có sẵn).
+
+- Mỗi lần daemon khởi động (kể cả sau khi khởi động lại máy hoặc daemon chết) nó **hoàn tác journal còn sót** rồi chờ lệnh. Không tự bật tính năng nào.
+- Tắt máy hoặc gỡ daemon: launchd gửi SIGTERM, daemon tắt hết và hoàn tác.
+- Chỉ **root** và **người đang ngồi trước máy** (chủ của `/dev/console`) điều khiển được daemon; kết nối từ tài khoản khác (SSH, user khác) bị từ chối. UID lấy từ kernel (`getpeereid`), không giả được.
+- Dữ liệu, journal, log: `/Library/Application Support/LunaDNS` (root, quyền 700); log của daemon ở `logs/daemon.out` và `logs/lunadns.log`.
+
 ## Các lệnh
 
 | Lệnh | Tác dụng |
 |---|---|
-| `sudo ./lunadns run` | Bật Định tuyến DNS. Giữ cửa sổ Terminal mở; **Ctrl+C** để tắt và khôi phục. |
-| `sudo ./lunadns run --proxy` | Bật thêm Proxy SNI. Máy đã có PAC/proxy thủ công đang bật thì từ chối; thêm `--allow-proxy-override` để thay tạm. |
-| `sudo ./lunadns cleanup` | Hoàn tác mọi thay đổi còn trong journal (khi lần trước bị tắt ngang, mất điện). |
-| `./lunadns status` | Xem đang có file resolver, PAC, dòng hosts nào của LunaDNS. Không cần sudo. |
+| `lunadns on` | Bật Định tuyến DNS (qua dịch vụ nền). |
+| `lunadns on --proxy` | Bật thêm Proxy SNI. Máy đã có PAC/proxy thủ công đang bật thì từ chối; thêm `--allow-proxy-override` để thay tạm. |
+| `lunadns off` | Tắt hết và khôi phục. |
+| `lunadns status` | Trạng thái. Không có dịch vụ nền thì tự đọc file resolver, PAC, dòng hosts của LunaDNS. |
+| `sudo lunadns uninstall` | Tắt, khôi phục, gỡ dịch vụ nền, lệnh tắt và thư mục dữ liệu. |
+| `sudo lunadns run [--proxy]` | Không cài dịch vụ nền: chạy tiền cảnh, **Ctrl+C** để tắt và khôi phục. Không chạy được khi dịch vụ nền đang chạy. |
+| `sudo lunadns cleanup` | Hoàn tác mọi thay đổi còn trong journal. Không chạy khi dịch vụ nền hoặc `run` đang giữ khoá. |
 
-Mã thoát: `0` xong · `1` còn việc chưa xong (xem `/Library/Application Support/LunaDNS/logs`) · `2` tham số sai hoặc thiếu sudo.
+Mã thoát: `0` xong · `1` còn việc chưa xong, hoặc dịch vụ nền chưa chạy (xem `/Library/Application Support/LunaDNS/logs`) · `2` tham số sai hoặc thiếu sudo.
 
 Kiểm tra sau khi bật:
 
