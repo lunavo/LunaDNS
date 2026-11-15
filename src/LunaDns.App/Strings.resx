@@ -38,6 +38,9 @@
   <data name="UpToDateTitle" xml:space="preserve"><value>Đang dùng bản mới nhất</value></data>
   <data name="UpToDateFormat" xml:space="preserve"><value>Bạn đang dùng LunaDNS {0}, bản mới nhất.</value></data>
   <data name="UpdateCheckFailed" xml:space="preserve"><value>Không kiểm tra được cập nhật. Thử lại sau, hoặc mở trang Releases của LunaDNS trên GitHub.</value></data>
+  <data name="UpdateBannerFormat" xml:space="preserve"><value>Đã có LunaDNS {0} (bạn đang dùng {1}).</value></data>
+  <data name="UpdateDownloadButton" xml:space="preserve"><value>Tải</value></data>
+  <data name="UpdateDismissTooltip" xml:space="preserve"><value>Ẩn đến lần mở app sau</value></data>
   <data name="UninstallButton" xml:space="preserve"><value>Gỡ khỏi máy</value></data>
   <data name="UninstallConfirmTitle" xml:space="preserve"><value>Gỡ LunaDNS</value></data>
   <data name="UninstallConfirmMessage" xml:space="preserve"><value>LunaDNS sẽ tắt mọi tính năng, khôi phục cấu hình mạng rồi mở trình gỡ cài đặt. Tiếp tục?</value></data>

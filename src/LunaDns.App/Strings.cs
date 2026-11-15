@@ -48,6 +48,9 @@ internal static class Strings
     public static string UpToDateTitle => Get(nameof(UpToDateTitle));
     public static string UpToDateFormat => Get(nameof(UpToDateFormat));
     public static string UpdateCheckFailed => Get(nameof(UpdateCheckFailed));
+    public static string UpdateBannerFormat => Get(nameof(UpdateBannerFormat));
+    public static string UpdateDownloadButton => Get(nameof(UpdateDownloadButton));
+    public static string UpdateDismissTooltip => Get(nameof(UpdateDismissTooltip));
     public static string UninstallButton => Get(nameof(UninstallButton));
     public static string UninstallConfirmTitle => Get(nameof(UninstallConfirmTitle));
     public static string UninstallConfirmMessage => Get(nameof(UninstallConfirmMessage));
