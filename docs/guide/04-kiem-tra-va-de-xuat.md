@@ -6,8 +6,6 @@ Nút **Kiểm tra** (cũng tự chạy khi mở app) thử các host mẫu bằn
 
 - Steam: `store.steampowered.com`, `steamcommunity.com`, `api.steampowered.com`, `cdn.akamai.steamstatic.com`
 
-(Ô "Kiểm tra cả PUBG" chưa hỗ trợ; để trống.)
-
 Mỗi host nhận một kết luận:
 
 | Kết luận | Nghĩa | Biện pháp đề xuất |
@@ -25,6 +23,5 @@ Kết quả hiện theo nhóm (`Steam: …`) kèm giờ kiểm tra. Lỗi thì c
 
 Nút **Áp dụng đề xuất** chỉ hiện khi còn biện pháp **cho Steam** chưa bật. Bấm thì app bật các công tắc còn thiếu (Định tuyến DNS và/hoặc Proxy SNI). Hết việc thì báo *"Các biện pháp đề xuất cho Steam đều đang bật."*
 
-- Nút này không bao giờ bật Chế độ PUBG (chưa hỗ trợ).
 - Nếu máy đang có proxy riêng, hộp hỏi thay cấu hình proxy vẫn hiện như khi bật tay.
 - Không thấy bị chặn: *"Không thấy bị chặn. Không cần bật gì."*

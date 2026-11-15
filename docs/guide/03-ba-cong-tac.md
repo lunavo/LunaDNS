@@ -1,6 +1,6 @@
 # 3. Các công tắc
 
-Có hai công tắc dùng được (Định tuyến DNS, Proxy SNI); công tắc thứ ba, Chế độ PUBG, chưa hỗ trợ (xem cuối trang). Mỗi công tắc bật/tắt độc lập. Công tắc hiện *"Đang tắt"* hoặc *"Đang bật"* (Proxy SNI hiện thêm cổng và số kết nối: *"Đang bật · cổng 18080 · 33 kết nối"*).
+Có hai công tắc: Định tuyến DNS và Proxy SNI. Mỗi công tắc bật/tắt độc lập. Công tắc hiện *"Đang tắt"* hoặc *"Đang bật"* (Proxy SNI hiện thêm cổng và số kết nối: *"Đang bật · cổng 18080 · 33 kết nối"*).
 
 Mọi thay đổi hệ thống được **ghi vào journal trước khi làm**, và hoàn tác theo thứ tự ngược (LIFO). App chỉ động tới thứ do chính nó tạo.
 
@@ -22,7 +22,7 @@ Mọi thay đổi hệ thống được **ghi vào journal trước khi làm**, 
 
 ## Chế độ PUBG: chưa hỗ trợ
 
-PO chốt (13/11/2026): LunaDNS hiện **không hỗ trợ PUBG**. Bản build hiện tại vẫn còn công tắc thứ ba "Chế độ PUBG" và ô "Kiểm tra cả PUBG", nhưng giao diện sau này sẽ ẩn chúng. **Đừng bật**: nó sửa file hosts và mở listener `127.0.0.1:443`, và chưa được xác nhận với game thật hay anti-cheat. Nếu lỡ bật, tắt công tắc hoặc dùng "Tắt hết & khôi phục" / `--cleanup` để hoàn tác dòng hosts `# LunaDNS`.
+LunaDNS hiện **không hỗ trợ PUBG**; giao diện không có công tắc hay ô kiểm tra nào cho PUBG. Nếu file hosts còn dòng `# LunaDNS` từ bản thử nghiệm cũ, "Tắt hết & khôi phục" hoặc `--cleanup` sẽ hoàn tác.
 
 ## Tắt
 
