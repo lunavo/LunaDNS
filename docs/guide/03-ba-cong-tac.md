@@ -1,5 +1,7 @@
 # 3. Các công tắc
 
+<sub>[English](en/03-switches.md)</sub>
+
 Có hai công tắc: Định tuyến DNS và Proxy SNI. Mỗi công tắc bật/tắt độc lập. Công tắc hiện *"Đang tắt"* hoặc *"Đang bật"* (Proxy SNI hiện thêm cổng và số kết nối: *"Đang bật · cổng 18080 · 33 kết nối"*).
 
 Mọi thay đổi hệ thống được **ghi vào journal trước khi làm**, và hoàn tác theo thứ tự ngược (LIFO). App chỉ động tới thứ do chính nó tạo.

@@ -1,5 +1,7 @@
 # 5. Mục Nâng cao
 
+<sub>[English](en/05-advanced.md)</sub>
+
 Mở rộng mục **Nâng cao**. Thay đổi **có hiệu lực ở lần bật tính năng kế tiếp** (tắt rồi bật lại công tắc). Lựa chọn lưu ở `%ProgramData%\LunaDNS\settings.json`.
 
 | Tuỳ chọn | Giá trị | Ghi chú |
@@ -10,7 +12,7 @@ Mở rộng mục **Nâng cao**. Thay đổi **có hiệu lực ở lần bật 
 
 Dưới hàng **Tắt hết & khôi phục** / **Chẩn đoán** (xem [Dòng lệnh](06-dong-lenh.md#báo-cáo)) có thêm hai nút:
 
-- **Kiểm tra cập nhật:** hỏi GitHub Releases xem có bản mới không; có thì hỏi mở trang tải. App không tự tải hay tự cài, cũng không tự kiểm lúc mở.
+- **Kiểm tra cập nhật:** hỏi GitHub Releases xem có bản mới không; có thì hỏi mở trang tải. Ngoài ra app **tự kiểm một lần, khoảng 10 giây sau khi mở**, không hiện hộp thoại: có bản mới thì hiện dải *"Đã có LunaDNS x.y.z (bạn đang dùng a.b.c)."* kèm nút **Tải**. App không tự tải hay tự cài.
 - **Gỡ khỏi máy:** chỉ hiện ở bản Setup. Xem [Gỡ và dọn](07-go-va-don-dep.md#gỡ-bản-setup).
 
 Muốn đặt lại mặc định: thoát app (tắt hết) rồi xoá `settings.json`. File hỏng được tự đổi tên `settings.json.corrupt-<thời gian>` và app dùng mặc định.

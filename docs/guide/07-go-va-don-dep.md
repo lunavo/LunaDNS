@@ -1,5 +1,7 @@
 # 7. Gỡ và dọn khi app chết
 
+<sub>[English](en/07-uninstall-and-cleanup.md)</sub>
+
 ## Gỡ bản Setup
 
 Chọn một:

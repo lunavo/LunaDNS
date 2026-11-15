@@ -1,5 +1,7 @@
 # 8. Xử lý sự cố
 
+<sub>[English](en/08-troubleshooting.md)</sub>
+
 Log ở `C:\ProgramData\LunaDNS\logs\lunadns.log` (UTF-8 không BOM). Cần gửi người khác thì tạo báo cáo ([Dòng lệnh](06-dong-lenh.md#báo-cáo)).
 
 | Hiện tượng | Nguyên nhân thường gặp | Cách xử lý |
@@ -32,6 +34,6 @@ Log ở `C:\ProgramData\LunaDNS\logs\lunadns.log` (UTF-8 không BOM). Cần gử
 - MidSni không qua được trên mạng đã thử; FirstByte là mặc định.
 - PUBG chưa hỗ trợ.
 - Đăng xuất/tắt máy: hoàn tác trong 4 giây, chưa đo chắc (bản Setup có tác vụ dọn dẹp bù).
-- Exe chưa ký số; chưa tự cập nhật.
+- Exe chưa ký số. App tự báo có bản mới nhưng chưa tự tải và cài.
 
 Báo lỗi: đính kèm báo cáo `--report` và mô tả bước tái hiện.
