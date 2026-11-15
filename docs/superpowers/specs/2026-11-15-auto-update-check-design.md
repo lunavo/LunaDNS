@@ -17,13 +17,13 @@ Người dùng biết có bản mới mà không phải tự bấm nút. Không 
 ## Hành vi
 
 1. `MainViewModel.Start()` gọi thêm `_ = CheckUpdateSilentlyAsync()`. Hàm này đợi `UpdateStartupDelay` (10 giây) rồi mới kiểm một lần. Mỗi lần mở app kiểm đúng một lần, không lưu gì xuống đĩa.
-2. Nếu có bản mới hơn (`UpdateStatus.NewerAvailable`), đặt `AvailableUpdate` thì dải báo hiện lên.
-3. Nếu `UpToDate`, `Failed`, hay có ngoại lệ bất kỳ thì im lặng: không hộp thoại, không `ShowMessage`. Chỉ ghi log mức Debug khi `Failed`.
+2. Nếu có bản mới hơn (`UpdateStatus.NewerAvailable`), dải báo hiện lên.
+3. Nếu `UpToDate`, `Failed`, hay có ngoại lệ bất kỳ thì im lặng: không hộp thoại, không `ShowMessage`. Không ghi log (`UpdateChecker` không trả lý do lỗi).
 4. Dải báo nằm ở đầu nội dung cửa sổ chính, trên các thẻ tính năng:
    - Chữ: `UpdateBannerFormat` = "Đã có LunaDNS {0} (bạn đang dùng {1})."
-   - Nút **Tải** (`UpdateDownloadButton`): gọi `shell.OpenUrl(AvailableUpdate.Url)`. Dải báo vẫn còn sau khi bấm.
-   - Nút **✕**, có tooltip `UpdateDismissTooltip` = "Ẩn đến lần mở app sau": đặt `AvailableUpdate = null`.
-5. Nút "Kiểm tra cập nhật" thủ công giữ nguyên hộp thoại như cũ. Ngoài ra, nếu kết quả là `NewerAvailable` thì cũng đặt `AvailableUpdate`, kể cả khi trước đó dải báo đã bị ẩn.
+   - Nút **Tải** (`UpdateDownloadButton`): gọi `shell.OpenUrl` với URL của Release. Dải báo vẫn còn sau khi bấm.
+   - Nút **✕**, có tooltip `UpdateDismissTooltip` = "Ẩn đến lần mở app sau": ẩn dải báo.
+5. Nút "Kiểm tra cập nhật" thủ công giữ nguyên hộp thoại như cũ. Ngoài ra, nếu kết quả là `NewerAvailable` thì cũng hiện dải báo, kể cả khi trước đó dải báo đã bị ẩn.
 6. URL mở ra vẫn phải qua bộ lọc hiện có của `UpdateChecker`, tức chỉ nhận `https://github.com/<repo>/releases/...`.
 
 ## Sửa lỗi kèm theo
@@ -36,9 +36,10 @@ Lỗi HTTP, JSON hỏng, timeout và URL lạ vẫn trả `Failed` như cũ. Nh�
 | File | Thay đổi |
 |---|---|
 | `src/LunaDns.App/Updates/UpdateChecker.cs` | Nhánh "không có ứng viên" trả `UpToDate`; cập nhật summary. |
-| `src/LunaDns.App/Maintenance.cs` | Thêm `CheckSilentlyAsync(check, ct)`: trả `UpdateCheckResult?`, khác null chỉ khi `NewerAvailable`; nuốt mọi ngoại lệ trừ huỷ do người gọi; không đụng `prompts`. `CheckForUpdateAsync` trả về `UpdateCheckResult` để VM đặt dải báo. |
-| `src/LunaDns.App/ViewModels/MainViewModel.cs` | `AvailableUpdate` (`UpdateCheckResult?`, có notify), `HasAvailableUpdate`, `UpdateBannerText`, `OpenUpdateCommand`, `DismissUpdateCommand`, `CheckUpdateSilentlyAsync()` (internal, để test), `UpdateStartupDelay` (internal static, test đặt về 0). |
-| `src/LunaDns.App/Views/MainWindow.axaml` | `Border` dải báo, `IsVisible="{Binding HasAvailableUpdate}"`, dùng màu/biểu tượng có sẵn trong `Styles` (theme chỉ-tối). |
+| `src/LunaDns.App/Maintenance.cs` | Thêm `CheckSilentlyAsync(check, ct)`: trả `UpdateCheckResult?`, khác null chỉ khi `NewerAvailable`; nuốt mọi ngoại lệ trừ huỷ do người gọi; không đụng `prompts`. `CheckForUpdateAsync` trả về `UpdateCheckResult` để VM đặt dải báo. `CheckSilentlyAsync` là `static` (CA1822). |
+| `src/LunaDns.App/ViewModels/UpdateBannerViewModel.cs` (mới) | Trạng thái dải báo, test được không cần Dispatcher: `IsVisible`, `Text`, `OpenCommand`, `DismissCommand`, `Show(UpdateCheckResult)`. |
+| `src/LunaDns.App/ViewModels/MainViewModel.cs` | `UpdateBanner`; tự kiểm sau 10 giây trong `Start()`; nút thủ công đẩy kết quả vào banner. |
+| `src/LunaDns.App/Views/MainWindow.axaml` | `Border` dải báo, `IsVisible="{Binding UpdateBanner.IsVisible}"`, dùng màu/biểu tượng có sẵn trong `Styles` (theme chỉ-tối). |
 | `src/LunaDns.App/Strings.resx`, `Strings.cs` | `UpdateBannerFormat`, `UpdateDownloadButton`, `UpdateDismissTooltip`. |
 
 Không đụng Core, Platform hay `AppSettings`.
@@ -50,10 +51,7 @@ Không đụng Core, Platform hay `AppSettings`.
   - `CheckSilentlyAsync` với `NewerAvailable` → trả kết quả.
   - Với `UpToDate`, `Failed`, hay `check` ném `HttpRequestException` → trả null, prompts không bị gọi.
   - `CheckForUpdateAsync` trả về đúng kết quả của `check`.
-- VM (nếu `TestApp` dựng được `MainViewModel`; không thì dồn hết logic vào `Maintenance`):
-  - Có bản mới thì `HasAvailableUpdate` là true và chữ đúng định dạng.
-  - `DismissUpdateCommand` ẩn dải báo.
-  - `OpenUpdateCommand` gọi `OpenUrl` với đúng URL.
+- `UpdateBannerViewModelTests`: ẩn lúc đầu; có bản mới thì hiện đúng chữ; UpToDate/Failed không đổi; Tải gọi `OpenUrl` đúng URL và giữ banner; ✕ ẩn, kiểm lại thì hiện lại.
 - `StringsTests`: 3 khoá mới có giá trị.
 
 Lệnh verify: `dotnet test tests/LunaDns.App.Tests -f net8.0-windows` (và `-f net8.0`), `dotnet build -c Release -warnaserror`.
