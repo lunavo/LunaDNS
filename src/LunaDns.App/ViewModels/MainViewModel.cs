@@ -298,7 +298,7 @@ internal sealed partial class MainViewModel : ObservableObject
         await Task.Run(() => _services.Features.RefreshAsync());
     });
 
-    private Task CheckUpdateAsync() =>
+    private Task<UpdateCheckResult> CheckUpdateAsync() =>
         _maintenance.CheckForUpdateAsync(ct => new UpdateChecker(UpdateHttp, AppInfo.Repository, AppInfo.Version).CheckAsync(ct), AppInfo.Version, CancellationToken.None);
 
     private async Task UninstallAppAsync()

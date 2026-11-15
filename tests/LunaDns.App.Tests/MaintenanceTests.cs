@@ -59,6 +59,51 @@ public sealed class MaintenanceTests
     }
 
     [Fact]
+    public async Task Manual_check_returns_result()
+    {
+        _prompts.Answer = false;
+        var result = new UpdateCheckResult(UpdateStatus.NewerAvailable, new Version(0, 9, 1), Url);
+
+        Assert.Same(result, await Create().CheckForUpdateAsync(Returns(result), new Version(0, 9, 0), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Silent_check_returns_newer_without_prompting()
+    {
+        var result = new UpdateCheckResult(UpdateStatus.NewerAvailable, new Version(0, 9, 1), Url);
+
+        Assert.Same(result, await Maintenance.CheckSilentlyAsync(Returns(result), CancellationToken.None));
+        Assert.Empty(_prompts.Confirms);
+        Assert.Empty(_prompts.InformTitles);
+        Assert.Empty(_shell.Urls);
+    }
+
+    [Fact]
+    public async Task Silent_check_ignores_up_to_date_and_failure()
+    {
+        Assert.Null(await Maintenance.CheckSilentlyAsync(Returns(new UpdateCheckResult(UpdateStatus.UpToDate, null, null)), CancellationToken.None));
+        Assert.Null(await Maintenance.CheckSilentlyAsync(Returns(UpdateCheckResult.Failed), CancellationToken.None));
+        Assert.Empty(_prompts.InformTitles);
+    }
+
+    [Fact]
+    public async Task Silent_check_swallows_exceptions()
+    {
+        Assert.Null(await Maintenance.CheckSilentlyAsync(_ => throw new HttpRequestException("x"), CancellationToken.None));
+        Assert.Empty(_prompts.InformTitles);
+    }
+
+    [Fact]
+    public async Task Silent_check_lets_caller_cancellation_through()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            Maintenance.CheckSilentlyAsync(ct => Task.FromCanceled<UpdateCheckResult>(ct), cts.Token));
+    }
+
+    [Fact]
     public async Task Uninstall_confirmed_starts_uninstaller()
     {
         _prompts.Answer = true;
