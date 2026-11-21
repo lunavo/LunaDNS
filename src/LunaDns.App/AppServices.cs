@@ -109,27 +109,96 @@ internal sealed partial class AppServices : IAsyncDisposable
     public async Task<DohMeasurement> MeasureDohAsync(TimeSpan timeout, CancellationToken cancellationToken)
     {
         var started = _time.GetTimestamp();
-        var custom = Settings.CustomDoh;
-        CustomDoh? resolved = null;
-        if (custom is not null && CustomDohParser.TryParseEndpoint(custom.Endpoint, out _))
-        {
-            using var resolveTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            resolveTimeout.CancelAfter(timeout);
-            try
-            {
-                resolved = await ResolveCustomDohAsync(custom, resolveTimeout.Token).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is DohException
-                                       || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
-            {
-                // Giữ IP cũ; kết quả đo của Tự nhập sẽ cho người dùng thấy máy đó có dùng được không.
-            }
-        }
+        var resolved = await RefreshCustomDohAsync(timeout, cancellationToken).ConfigureAwait(false);
         var remaining = timeout - _time.GetElapsedTime(started);
         var results = await DohLatencyMeter.Create(LoggerFactory)
-            .MeasureAsync(DohCatalog.Choices(resolved ?? custom), remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, cancellationToken)
+            .MeasureAsync(DohCatalog.Choices(resolved ?? Settings.CustomDoh), remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, cancellationToken)
             .ConfigureAwait(false);
         return new DohMeasurement(results, resolved);
+    }
+
+    /// <summary>Phân giải lại host Tự nhập (D2). Lỗi hoặc không có Tự nhập thì null; người gọi dùng IP cũ.</summary>
+    private async Task<CustomDoh?> RefreshCustomDohAsync(TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var custom = Settings.CustomDoh;
+        if (custom is null || !CustomDohParser.TryParseEndpoint(custom.Endpoint, out _)) return null;
+        using var resolveTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        resolveTimeout.CancelAfter(timeout);
+        try
+        {
+            return await ResolveCustomDohAsync(custom, resolveTimeout.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is DohException
+                                   || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+        {
+            return null; // giữ IP cũ; kết quả đo cho thấy máy đó có dùng được không
+        }
+    }
+
+    /// <summary>Thời gian đo DoH trong một lượt dò D3 (cả lượt tối đa 60 giây, do giao diện giữ).</summary>
+    internal static readonly TimeSpan TuneDohTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// "Tìm cấu hình hợp mạng" (D3) trên 4 host Steam. Không ghi Settings (chạy ở luồng nền): trả TuneRun để giao diện áp ở
+    /// luồng UI. Tổ hợp "đang dùng" lấy từ nơi giữ thật (macOS: daemon); hỏi không được thì dùng mặc định.
+    /// </summary>
+    public async Task<TuneRun> TuneAsync(IProgress<TuneProgress>? progress, CancellationToken cancellationToken)
+    {
+        var current = await Features.GetTuningAsync().ConfigureAwait(false);
+        var resolved = await RefreshCustomDohAsync(TuneDohTimeout, cancellationToken).ConfigureAwait(false);
+        var choices = DohCatalog.Choices(resolved ?? Settings.CustomDoh);
+        var meter = DohLatencyMeter.Create(LoggerFactory);
+        var clients = new List<DohClient>();
+        try
+        {
+            var tuner = new NetworkTuner(
+                (c, token) => meter.MeasureAsync(c, TuneDohTimeout, token),
+                new SystemHostResolver(LoggerFactory.CreateLogger<SystemHostResolver>()),
+                server =>
+                {
+                    var client = DohClient.Create([server], LoggerFactory.CreateLogger<DohClient>());
+                    lock (clients) clients.Add(client);
+                    return new DohHostResolver(client);
+                },
+                candidate => new TlsProbe(candidate.Split, candidate.Delay, LoggerFactory.CreateLogger<TlsProbe>()),
+                loggers: LoggerFactory);
+            var result = await tuner
+                .RunAsync(ProbeTargets.Steam, choices, current?.Candidate ?? TuneCandidate.Default, progress, cancellationToken)
+                .ConfigureAwait(false);
+            ProbeSummary? summary = null;
+            if (result.Probe.Count > 0)
+            {
+                LastProbe = result.Probe;
+                summary = ProbeSummary.Create(result.Probe, _time.GetLocalNow(), _ => DomainGroup.Steam);
+            }
+            return new TuneRun(result, current, resolved, summary);
+        }
+        finally
+        {
+            foreach (var client in clients) client.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Windows: lưu trước (FeatureSet đọc settings lúc khởi động lại); lỗi thì lưu lại bản cũ và chạy lại lần nữa.
+    /// macOS: daemon tự áp và lưu; xong mới chép vào settings.json của app để Kiểm tra dùng cùng cấu hình.
+    /// </summary>
+    public async Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        if (Features.Availability != ControllerAvailability.Local)
+        {
+            var remote = await Features.ApplyTuningAsync(doh, candidate).ConfigureAwait(false);
+            if (remote.Success) Settings = Settings.WithTuning(doh, candidate);
+            return remote;
+        }
+        var previous = Settings;
+        Settings = previous.WithTuning(doh, candidate);
+        var result = await Features.ApplyTuningAsync(doh, candidate).ConfigureAwait(false);
+        if (result.Success) return result;
+        Settings = previous;
+        var back = await Features.ApplyTuningAsync(previous.EffectiveDoh(), previous.CurrentCandidate()).ConfigureAwait(false);
+        return back.Success ? result : result with { Message = $"{result.Message} {Strings.ChangesLeftBehind}" };
     }
 
     public async Task<ProbeSummary> ProbeAsync(CancellationToken cancellationToken)
@@ -160,3 +229,8 @@ internal sealed partial class AppServices : IAsyncDisposable
 
 /// <summary>Kết quả nút "Đo": số đo từng máy và CustomDoh vừa phân giải lại (null nếu không có/không phân giải được).</summary>
 public sealed record DohMeasurement(IReadOnlyList<DohLatency> Results, CustomDoh? Resolved);
+
+/// <param name="Current">Cấu hình trước khi dò; null nếu không hỏi được nơi giữ thật.</param>
+/// <param name="ResolvedCustom">Tự nhập đã phân giải lại, để giao diện lưu ở luồng UI (như nút Đo).</param>
+/// <param name="Summary">Kết quả phân loại nhóm Steam cho khối Kiểm tra; null khi không máy DoH nào trả lời.</param>
+public sealed record TuneRun(TuneResult Result, TuningState? Current, CustomDoh? ResolvedCustom, ProbeSummary? Summary);

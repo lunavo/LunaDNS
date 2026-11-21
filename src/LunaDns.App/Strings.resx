@@ -126,6 +126,7 @@
   <data name="ServiceInstalled" xml:space="preserve"><value>Đã cài dịch vụ nền LunaDNS.</value></data>
   <data name="ServiceInstallFailedFormat" xml:space="preserve"><value>Cài dịch vụ nền lỗi: {0}</value></data>
   <data name="ServiceCliMissing" xml:space="preserve"><value>Không thấy file lunadns đi kèm app. Cài bằng Terminal: sudo lunadns install (xem docs/guide/09-macos.md).</value></data>
+  <data name="DaemonNeedsUpdateTuning" xml:space="preserve"><value>Dịch vụ nền cần được cài lại để áp cấu hình mới. Bấm Cài dịch vụ nền.</value></data>
   <data name="DaemonNeedsUpdate" xml:space="preserve"><value>Dịch vụ nền cần được cài lại để dùng danh sách tên miền. Bấm Cài dịch vụ nền.</value></data>
   <data name="RestoreFailed_Mac" xml:space="preserve"><value>Chưa hoàn tác hết thay đổi. Chạy trong Terminal: sudo lunadns cleanup</value></data>
   <data name="FeatureStoppedLeftBehindFormat_Mac" xml:space="preserve"><value>{0} gặp lỗi lặp lại nên đã dừng, nhưng chưa hoàn tác hết thay đổi. Chạy trong Terminal: sudo lunadns cleanup</value></data>

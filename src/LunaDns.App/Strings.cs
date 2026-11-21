@@ -129,6 +129,7 @@ internal static class Strings
     public static string ServiceInstallFailedFormat => Get(nameof(ServiceInstallFailedFormat));
     public static string ServiceCliMissing => Get(nameof(ServiceCliMissing));
     public static string DaemonNeedsUpdate => Get(nameof(DaemonNeedsUpdate));
+    public static string DaemonNeedsUpdateTuning => Get(nameof(DaemonNeedsUpdateTuning));
 
     public static string DomainsSectionTitle => Get(nameof(DomainsSectionTitle));
     public static string GroupSteam => Get(nameof(GroupSteam));

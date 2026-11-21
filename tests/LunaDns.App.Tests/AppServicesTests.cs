@@ -1,6 +1,9 @@
 using LunaDns.App.Features;
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
+using LunaDns.Core.Probing;
+using LunaDns.Core.Tls;
 using LunaDns.Core.Settings;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -95,6 +98,20 @@ public sealed class AppServicesTests : IDisposable
         Assert.True((await services.ProbeSelectionAsync()).SameAs(services.Settings.Domains));
     }
 
+    [Fact]
+    public async Task Apply_tuning_locally_saves_settings_and_reports_current_tuning()
+    {
+        await using var services = new AppServices(_app.Paths, _app.Configurator, NullLoggerFactory.Instance);
+        var candidate = new TuneCandidate(new HelloSplit(SplitMode.MidSni, true), 10);
+
+        var result = await services.ApplyTuningAsync(DohProvider.Quad9, candidate);
+
+        Assert.True(result.Success);
+        Assert.Equal(DohProvider.Quad9, services.Settings.EffectiveDoh());
+        Assert.Equal(candidate, services.Settings.CurrentCandidate());
+        Assert.Equal(new TuningState(DohProvider.Quad9, candidate), await services.Features.GetTuningAsync());
+    }
+
     /// <summary>Chỉ trả lựa chọn tên miền; các lệnh khác không dùng tới trong test này.</summary>
     private sealed class SelectionOnlyController : IFeatureController
     {
@@ -113,6 +130,10 @@ public sealed class AppServicesTests : IDisposable
         public Task<DomainSelection?> GetDomainsAsync() => Task.FromResult(Selection);
 
         public Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection) => throw new NotSupportedException();
+
+        public Task<TuningState?> GetTuningAsync() => Task.FromResult<TuningState?>(null);
+
+        public Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate) => throw new NotSupportedException();
 
         public Task RefreshAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 

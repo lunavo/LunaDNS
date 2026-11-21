@@ -1,6 +1,8 @@
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
+using LunaDns.Core.Probing;
 
 namespace LunaDns.App.Features;
 
@@ -51,6 +53,15 @@ internal interface IFeatureController : IAsyncDisposable
 
     /// <summary>Áp danh sách mới cho DNS/SNI đang chạy. Bản daemon tự lưu; bản Local để AppServices lưu settings.json.</summary>
     Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection);
+
+    /// <summary>Máy DoH và tổ hợp cắt gói nơi giữ thật đang dùng (D3). null nếu không hỏi được (daemon cũ hoặc không trả lời).</summary>
+    Task<TuningState?> GetTuningAsync();
+
+    /// <summary>
+    /// Áp cấu hình D3 cho tính năng đang chạy. Bản daemon tự kiểm, áp và lưu. Bản Local chạy lại FeatureSet,
+    /// vì AppServices đã lưu settings mới trước khi gọi.
+    /// </summary>
+    Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate);
 
     /// <summary>"Thoát &amp; khôi phục" và đăng xuất. Trả số thay đổi chưa hoàn tác được (0 = sạch).</summary>
     Task<int> ShutdownAsync();

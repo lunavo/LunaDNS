@@ -1,7 +1,10 @@
 using LunaDns.App.Features;
 using LunaDns.App.MacOS;
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
+using LunaDns.Core.Probing;
+using LunaDns.Core.Tls;
 using LunaDns.Platform.MacOS.Daemon;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -250,6 +253,46 @@ public sealed class DaemonFeatureControllerTests
     }
 
     /// <summary>Daemon giả giữ trạng thái như DaemonCommands: journal có một mục khi có tính năng bật.</summary>
+    [Fact]
+    public async Task Get_tuning_reads_daemon_and_is_null_for_old_daemon()
+    {
+        var tuning = new DaemonTuning(DohProvider.Quad9, SplitMode.MidSni, true, 10);
+        _daemon.Reply = r => r.Command == DaemonProtocol.GetTuning ? new DaemonResponse(true, Tuning: tuning) : null;
+        await using var controller = Create();
+
+        Assert.Equal(new TuningState(DohProvider.Quad9, tuning.ToCandidate()), await controller.GetTuningAsync());
+
+        _daemon.Reply = r => new DaemonResponse(false, $"Lệnh lạ: {r.Command}");
+        Assert.Null(await controller.GetTuningAsync());
+    }
+
+    [Fact]
+    public async Task Apply_tuning_sends_set_tuning_and_maps_old_daemon_reply()
+    {
+        _daemon.Reply = r => new DaemonResponse(false, $"Lệnh lạ: {r.Command}");
+        await using var controller = Create();
+        var candidate = new TuneCandidate(new HelloSplit(SplitMode.MidSni, true), 0);
+
+        var result = await controller.ApplyTuningAsync(DohProvider.Quad9, candidate);
+
+        Assert.Equal(DaemonProtocol.SetTuning, _daemon.LastRequest!.Command);
+        Assert.Equal(DaemonTuning.From(DohProvider.Quad9, candidate), _daemon.LastRequest.Tuning);
+        Assert.False(result.Success);
+        Assert.Equal(Strings.DaemonNeedsUpdateTuning, result.Message);
+    }
+
+    [Fact]
+    public async Task Apply_tuning_succeeds_or_reports_service_unavailable()
+    {
+        await using var controller = Create();
+        Assert.True((await controller.ApplyTuningAsync(DohProvider.Google, TuneCandidate.Default)).Success);
+
+        _daemon.Down = true;
+        var down = await controller.ApplyTuningAsync(DohProvider.Google, TuneCandidate.Default);
+        Assert.False(down.Success);
+        Assert.Equal(ErrorMessages.For(FeatureError.ServiceUnavailable), down.Message);
+    }
+
     private sealed class FakeDaemon : IDaemonTransport
     {
         public bool Down { get; set; }

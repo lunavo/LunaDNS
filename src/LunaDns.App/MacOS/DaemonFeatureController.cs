@@ -1,8 +1,10 @@
 using System.Net.Sockets;
 using LunaDns.App.Features;
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
+using LunaDns.Core.Probing;
 using LunaDns.Platform.MacOS.Daemon;
 using Microsoft.Extensions.Logging;
 
@@ -100,6 +102,22 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         if (response is null) return new(false, ErrorMessages.For(FeatureError.ServiceUnavailable));
         if (response.Ok) return new(true, null);
         if (IsUnknownCommand(response)) return new(false, Strings.DaemonNeedsUpdate);
+        var error = Enum.TryParse<FeatureError>(response.Error, out var parsed) && Enum.IsDefined(parsed) ? parsed : (FeatureError?)null;
+        return new(false, response.Message, error);
+    }
+
+    public async Task<TuningState?> GetTuningAsync() =>
+        await SendAsync(new DaemonRequest(DaemonProtocol.GetTuning)).ConfigureAwait(false) is { Ok: true, Tuning: { } tuning }
+            ? new TuningState(tuning.Doh, tuning.ToCandidate())
+            : null;
+
+    /// <summary>Dịch vụ nền tự kiểm, áp và lưu. Bản cũ chưa biết set-tuning trả "Lệnh lạ:" nên đề nghị cài lại.</summary>
+    public async Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate)
+    {
+        var response = await SendAsync(new DaemonRequest(DaemonProtocol.SetTuning, Tuning: DaemonTuning.From(doh, candidate))).ConfigureAwait(false);
+        if (response is null) return new(false, ErrorMessages.For(FeatureError.ServiceUnavailable));
+        if (response.Ok) return new(true, null);
+        if (IsUnknownCommand(response)) return new(false, Strings.DaemonNeedsUpdateTuning);
         var error = Enum.TryParse<FeatureError>(response.Error, out var parsed) && Enum.IsDefined(parsed) ? parsed : (FeatureError?)null;
         return new(false, response.Message, error);
     }
