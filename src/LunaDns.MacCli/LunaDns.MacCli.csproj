@@ -7,6 +7,8 @@
     <RootNamespace>LunaDns.MacCli</RootNamespace>
     <Version>0.1.0</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Bản macOS publish trimmed: cảnh báo trim (IL2xxx) hiện ngay khi build thường, TreatWarningsAsErrors biến thành lỗi. -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>

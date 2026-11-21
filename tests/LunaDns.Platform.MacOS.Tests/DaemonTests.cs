@@ -280,6 +280,35 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
         }
     }
 
+    // Định dạng dây cố định: giao diện và daemon có thể khác bản (daemon cũ còn cài trên máy sau khi cập nhật app).
+    private const string RequestWire =
+        """{"command":"set-domains","allowProxyOverride":false,"domains":{"enabledGroups":["steam","reddit"],"custom":[{"domain":"example.com","enabled":false}]}}""";
+
+    private const string ResponseWire =
+        """{"ok":true,"version":"0.5.0","status":{"dnsRouting":true,"sniProxy":false,"proxyConnections":0,"journalEntries":2},"outcome":"applied"}""";
+
+    [Fact]
+    public void Protocol_wire_format_is_stable()
+    {
+        var request = new DaemonRequest(DaemonProtocol.SetDomains,
+            Domains: new DomainSelection { EnabledGroups = [DomainGroup.Steam, DomainGroup.Reddit], Custom = [new CustomDomain("example.com", false)] });
+        var response = new DaemonResponse(true, Version: "0.5.0", Status: new DaemonStatus(true, false, null, 0, 2), Outcome: "applied");
+
+        Assert.Equal(RequestWire, JsonSerializer.Serialize(request, DaemonProtocol.Json));
+        Assert.Equal(ResponseWire, JsonSerializer.Serialize(response, DaemonProtocol.Json));
+        Assert.Equal(request, JsonSerializer.Deserialize<DaemonRequest>(RequestWire, DaemonProtocol.Json));
+        Assert.Equal(response, JsonSerializer.Deserialize<DaemonResponse>(ResponseWire, DaemonProtocol.Json));
+    }
+
+    [Fact]
+    public void Protocol_reads_pascal_case_enums_and_ignores_unknown_fields()
+    {
+        // Bản cũ đọc enum không phân biệt hoa thường và bỏ qua trường lạ; giữ như vậy để client khác bản không vỡ.
+        var back = JsonSerializer.Deserialize<DaemonRequest>(
+            """{"command":"set-domains","domains":{"enabledGroups":["Steam"],"custom":[]},"extra":1}""", DaemonProtocol.Json)!;
+        Assert.Equal([DomainGroup.Steam], back.Domains!.EnabledGroups);
+    }
+
     [Fact]
     public void Protocol_round_trips_domain_selection_as_json()
     {
