@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using LunaDns.Core.Domains;
 
 namespace LunaDns.Platform.MacOS.Daemon;
@@ -26,13 +27,34 @@ public static class DaemonProtocol
     /// <summary>Đầu câu trả lời cho lệnh daemon không biết. Bản cũ cũng dùng đúng câu này, nên giao diện nhận ra daemon cần cài lại.</summary>
     public const string UnknownCommandPrefix = "Lệnh lạ:";
 
-    public static JsonSerializerOptions Json { get; } = new()
+    /// <summary>
+    /// Tuỳ chọn dây: camelCase, bỏ trường null, enum dạng chuỗi camelCase. Metadata lấy từ <see cref="DaemonJsonContext"/>
+    /// (sinh sẵn, để bản publish trimmed chạy được); kiểu ngoài context thì ném NotSupportedException thay vì dùng reflection.
+    /// </summary>
+    public static JsonSerializerOptions Json { get; } = CreateJson();
+
+    internal static JsonTypeInfo<DaemonRequest> RequestInfo { get; } = (JsonTypeInfo<DaemonRequest>)Json.GetTypeInfo(typeof(DaemonRequest));
+
+    internal static JsonTypeInfo<DaemonResponse> ResponseInfo { get; } = (JsonTypeInfo<DaemonResponse>)Json.GetTypeInfo(typeof(DaemonResponse));
+
+    private static JsonSerializerOptions CreateJson()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-    };
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Converters = { new JsonStringEnumConverter<DomainGroup>(JsonNamingPolicy.CamelCase) },
+            TypeInfoResolver = DaemonJsonContext.Default,
+        };
+        options.MakeReadOnly();
+        return options;
+    }
 }
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(DaemonRequest))]
+[JsonSerializable(typeof(DaemonResponse))]
+internal sealed partial class DaemonJsonContext : JsonSerializerContext;
 
 /// <summary>Feature là khoá trong FeatureKeys ("dns-routing", "sni-proxy").</summary>
 public sealed record DaemonRequest(string Command, string? Feature = null, bool AllowProxyOverride = false, DomainSelection? Domains = null);

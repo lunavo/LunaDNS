@@ -6,15 +6,13 @@ namespace LunaDns.Core.Journal;
 /// <summary>Lưu journal ra file JSON, ghi nguyên tử (tmp rồi replace). Thư mục cha phải có sẵn.</summary>
 public sealed class JsonFileJournalStore(string path) : IJournalStore
 {
-    private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
-
     public IReadOnlyList<JournalEntry> Load()
     {
         if (!File.Exists(path)) return [];
         try
         {
             using var stream = File.OpenRead(path);
-            return JsonSerializer.Deserialize<List<JournalEntry>>(stream, Options) ?? [];
+            return JsonSerializer.Deserialize(stream, JournalJsonContext.Default.ListJournalEntry) ?? [];
         }
         catch (JsonException)
         {
@@ -29,7 +27,7 @@ public sealed class JsonFileJournalStore(string path) : IJournalStore
         var tmp = path + ".tmp";
         using (var stream = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
         {
-            JsonSerializer.Serialize(stream, entries, Options);
+            JsonSerializer.Serialize(stream, entries, JournalJsonContext.Default.IReadOnlyListJournalEntry);
             stream.Flush(flushToDisk: true);
         }
         if (File.Exists(path)) File.Replace(tmp, path, destinationBackupFileName: null);

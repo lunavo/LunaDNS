@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace LunaDns.Core.Journal;
 
@@ -27,9 +28,10 @@ public sealed class ChangeJournal
         get { lock (_gate) return [.. _entries]; }
     }
 
-    public JournalEntry Record<T>(string feature, string op, T snapshot)
+    /// <param name="typeInfo">Metadata sinh sẵn của snapshot (JSON reflection bị tắt trong bản publish trimmed).</param>
+    public JournalEntry Record<T>(string feature, string op, T snapshot, JsonTypeInfo<T> typeInfo)
     {
-        var entry = new JournalEntry(Guid.NewGuid(), feature, op, JsonSerializer.SerializeToElement(snapshot), _time.GetUtcNow());
+        var entry = new JournalEntry(Guid.NewGuid(), feature, op, JsonSerializer.SerializeToElement(snapshot, typeInfo), _time.GetUtcNow());
         lock (_gate)
         {
             _entries.Add(entry);

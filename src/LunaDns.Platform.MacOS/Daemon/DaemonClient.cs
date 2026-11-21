@@ -24,14 +24,14 @@ public sealed class DaemonClient(string socketPath = DaemonProtocol.SocketPath)
             throw new DaemonUnavailableException("Dịch vụ nền LunaDNS chưa chạy. Cài bằng: sudo lunadns install", ex);
         }
 
-        var payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request, DaemonProtocol.Json) + "\n");
+        var payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request, DaemonProtocol.RequestInfo) + "\n");
         await socket.SendAsync(payload, SocketFlags.None, timeout.Token).ConfigureAwait(false);
 
         using var stream = new NetworkStream(socket, ownsSocket: false);
         using var reader = new StreamReader(stream, Encoding.UTF8);
         var line = await reader.ReadLineAsync(timeout.Token).ConfigureAwait(false)
             ?? throw new DaemonUnavailableException("Dịch vụ nền LunaDNS đóng kết nối mà không trả lời.");
-        return JsonSerializer.Deserialize<DaemonResponse>(line, DaemonProtocol.Json)
+        return JsonSerializer.Deserialize(line, DaemonProtocol.ResponseInfo)
             ?? throw new DaemonUnavailableException("Dịch vụ nền LunaDNS trả lời rỗng.");
     }
 }

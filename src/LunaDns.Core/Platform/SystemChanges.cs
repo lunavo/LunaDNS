@@ -12,7 +12,7 @@ public sealed class SystemChanges(ChangeJournal journal, INetworkConfigurator co
     public DnsRouteSnapshot AddDnsRoute(string feature, IReadOnlyList<string> domains, IPAddress nameServer)
     {
         var snapshot = configurator.PlanDnsRoute(domains, nameServer);
-        journal.Record(feature, ChangeOps.DnsRoute, snapshot);
+        journal.Record(feature, ChangeOps.DnsRoute, snapshot, SnapshotJsonContext.Default.DnsRouteSnapshot);
         configurator.ApplyDnsRoute(snapshot);
         configurator.FlushDnsCache();
         return snapshot;
@@ -21,7 +21,7 @@ public sealed class SystemChanges(ChangeJournal journal, INetworkConfigurator co
     public AutoProxySnapshot SetAutoProxy(string feature, Uri pacUrl, bool allowOverride = false)
     {
         var snapshot = configurator.PlanAutoProxy(pacUrl, allowOverride);
-        journal.Record(feature, ChangeOps.AutoProxy, snapshot);
+        journal.Record(feature, ChangeOps.AutoProxy, snapshot, SnapshotJsonContext.Default.AutoProxySnapshot);
         configurator.ApplyAutoProxy(snapshot);
         return snapshot;
     }
@@ -29,7 +29,7 @@ public sealed class SystemChanges(ChangeJournal journal, INetworkConfigurator co
     public HostsSnapshot AddHostsEntries(string feature, IReadOnlyList<HostsEntry> entries)
     {
         var snapshot = configurator.PlanHostsEntries(entries);
-        journal.Record(feature, ChangeOps.HostsEntries, snapshot);
+        journal.Record(feature, ChangeOps.HostsEntries, snapshot, SnapshotJsonContext.Default.HostsSnapshot);
         configurator.ApplyHostsEntries(snapshot);
         configurator.FlushDnsCache();
         return snapshot;
@@ -45,13 +45,13 @@ public sealed class SystemChanges(ChangeJournal journal, INetworkConfigurator co
             {
                 configurator.RevertDnsRoute(s);
                 configurator.FlushDnsCache();
-            }),
-            new SnapshotReverter<AutoProxySnapshot>(ChangeOps.AutoProxy, configurator.RevertAutoProxy),
+            }, SnapshotJsonContext.Default.DnsRouteSnapshot),
+            new SnapshotReverter<AutoProxySnapshot>(ChangeOps.AutoProxy, configurator.RevertAutoProxy, SnapshotJsonContext.Default.AutoProxySnapshot),
             new SnapshotReverter<HostsSnapshot>(ChangeOps.HostsEntries, s =>
             {
                 configurator.RevertHostsEntries(s);
                 configurator.FlushDnsCache();
-            }),
+            }, SnapshotJsonContext.Default.HostsSnapshot),
         ];
     }
 }
