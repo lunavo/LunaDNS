@@ -253,7 +253,31 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
 
         Assert.False(response.Ok);
         Assert.Contains("dòng 2", response.Message, StringComparison.Ordinal);
+        Assert.NotNull(response.Status); // kèm trạng thái: giao diện không coi là bị từ chối quyền
         Assert.False(File.Exists(Path.Combine(dir.Path, "settings.json")));
+    }
+
+    /// <summary>Lỗi dữ liệu (thiếu danh sách, sai dạng, quá 200 dòng) vẫn kèm Status như lỗi ReapplyAsync.</summary>
+    [Fact]
+    public async Task Set_domains_validation_failures_carry_status()
+    {
+        using var dir = new TempDirectory();
+        var commands = CreateCommands(new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json")));
+        DomainSelection?[] cases =
+        [
+            null,
+            new DomainSelection { Custom = null! },
+            new DomainSelection { Custom = [.. Enumerable.Range(0, DomainPolicy.MaxCustomDomains + 1).Select(i => new CustomDomain($"d{i}.example.org"))] },
+        ];
+
+        foreach (var wanted in cases)
+        {
+            var response = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.SetDomains, Domains: wanted), CancellationToken.None);
+
+            Assert.False(response.Ok);
+            Assert.False(string.IsNullOrEmpty(response.Message));
+            Assert.NotNull(response.Status);
+        }
     }
 
     [Fact]

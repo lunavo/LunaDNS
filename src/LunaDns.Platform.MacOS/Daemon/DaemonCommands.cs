@@ -45,7 +45,7 @@ public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, s
             case DaemonProtocol.SetDomains:
                 return await SetDomainsAsync(request.Domains, cancellationToken).ConfigureAwait(false);
             default:
-                return new DaemonResponse(false, $"Lệnh lạ: {request.Command}");
+                return new DaemonResponse(false, $"{DaemonProtocol.UnknownCommandPrefix} {request.Command}");
         }
     }
 
@@ -55,10 +55,11 @@ public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, s
     /// </summary>
     private async Task<DaemonResponse> SetDomainsAsync(DomainSelection? wanted, CancellationToken cancellationToken)
     {
-        if (wanted is null) return new DaemonResponse(false, "Thiếu danh sách tên miền.");
-        if (DescribeShape(wanted.CheckShape()) is { } shapeError) return new DaemonResponse(false, shapeError);
+        // Lỗi dữ liệu kèm Status (như lỗi ReapplyAsync): giao diện chỉ coi câu trả lời không có Status là bị từ chối.
+        if (wanted is null) return Refused("Thiếu danh sách tên miền.");
+        if (DescribeShape(wanted.CheckShape()) is { } shapeError) return Refused(shapeError);
         if (wanted.FirstInvalidIndex() is { } bad)
-            return new DaemonResponse(false, bad >= DomainPolicy.MaxCustomDomains
+            return Refused(bad >= DomainPolicy.MaxCustomDomains
                 ? $"Tối đa {DomainPolicy.MaxCustomDomains} tên miền."
                 : $"Tên miền không hợp lệ ở dòng {bad + 1}.");
         var result = await features.ReapplyAsync(FeatureDomains.Routed(wanted), cancellationToken).ConfigureAwait(false);
@@ -100,6 +101,8 @@ public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, s
         _ when result.PreviousRestored => $"Không áp được danh sách mới ({result.Error}); đã giữ danh sách cũ.",
         _ => $"Không áp được danh sách mới ({result.Error}) và không khôi phục được; chạy: sudo lunadns cleanup",
     };
+
+    private DaemonResponse Refused(string message) => Ok() with { Ok = false, Message = message };
 
     private DaemonResponse Ok()
     {

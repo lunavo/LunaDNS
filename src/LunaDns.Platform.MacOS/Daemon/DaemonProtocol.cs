@@ -23,6 +23,9 @@ public static class DaemonProtocol
     public const string GetDomains = "get-domains";
     public const string SetDomains = "set-domains";
 
+    /// <summary>Đầu câu trả lời cho lệnh daemon không biết. Bản cũ cũng dùng đúng câu này, nên giao diện nhận ra daemon cần cài lại.</summary>
+    public const string UnknownCommandPrefix = "Lệnh lạ:";
+
     public static JsonSerializerOptions Json { get; } = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
