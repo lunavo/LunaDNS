@@ -1,9 +1,11 @@
-// Dựng logo LunaDNS (trăng lưỡi liềm + mạch + khiên) từ một nguồn hình duy nhất rồi xuất:
+// Dựng logo LunaDNS (khiên + chữ L + đường định tuyến) từ một nguồn hình duy nhất rồi xuất:
 //   Assets/lunadns.ico, tray-{off,on,error}.ico  (khung PNG, như bản KH6)
 //   Assets/Logo.axaml                              (DrawingImage cho UI, không cần Svg.Skia)
 //   docs/assets/lunadns-mark.svg                   (README)
 //   [thư mục xem thử]/*.png                        (tuỳ chọn, để duyệt bằng mắt)
-// Lưới vẽ 256×256. PO chốt 14/11: mọi cỡ dùng chung một hình (SVG Gemini), không vẽ bản giản lược.
+// Lưới vẽ 256×256. PO chốt 14/11: mọi cỡ dùng chung một hình, không vẽ bản giản lược.
+// PO chốt 21/11: bỏ trăng lưỡi liềm ("Luna" là tên riêng, không phải Moon), dùng phương án 2 —
+// khiên + chữ L, chân chữ L nối ra đường định tuyến kết thúc bằng nút tròn.
 // Cách chạy: dotnet run --project build/icongen -- <thư mục repo> [thư mục xem thử]
 // Bản macOS: dotnet run --project build/icongen -- --macos <thư mục repo> [thư mục iconset]
 //   chỉ ghi Assets/tray-{off,on,error}-mac.png (template đen + alpha cho thanh menu) và thư mục .iconset
@@ -121,52 +123,36 @@ internal sealed record Part(SKPath Path, string[] Colors, Grad? Grad = null);
 internal static class Art
 {
     // Bảng màu theo ảnh tham khảo của PO: xanh ngọc → xanh dương → tím.
-    private static readonly string[] Moon = ["#22E4F5", "#2979FF", "#7C5CFF"];
+    private static readonly string[] Brand = ["#22E4F5", "#2979FF", "#7C5CFF"];
     private static readonly string[] Trace = ["#5EF2D6", "#22C3F0"];
-    private static readonly string[] Shield = ["#3DF0E0", "#2979FF"];
-    private static readonly string[] MoonOff = ["#A3AEC2", "#6B778C"];
+    private static readonly string[] BrandOff = ["#A3AEC2", "#6B778C"];
+    private static readonly string[] TraceOff = ["#E2E8F0", "#CBD5E1"];
     private const string Tile = "#0E1830";
     private const string TileEdge = "#1F3B66";
     private const string Red = "#EF4444";
 
-    /// <summary>Logo dùng cho mọi cỡ, chép hình từ SVG PO tạo bằng Gemini (14/11/2026): trăng, 3 vệt mạch
-    /// (vệt giữa là thân chìa khoá có mũi tên), khiên có tam giác "play", vệt quỹ đạo dưới chân trăng.</summary>
+    /// <summary>Logo dùng cho mọi cỡ (PO chốt 21/11/2026): khiên chuyển màu, đường định tuyến xanh ngọc
+    /// đi ra từ chân chữ L (vẽ trước để đầu tròn của chữ L che chỗ nối), chữ L trắng.
+    /// Thứ tự phần tử: [0] khiên, [1] đường định tuyến, [2] chữ L — <see cref="TemplatePng"/> dựa vào thứ tự này.</summary>
     public static List<Part> Mark()
     {
-        var moon = SKPath.ParseSvgPathData(MoonPath);
+        var outline = SKPath.ParseSvgPathData(ShieldData);
+        var shield = Simplify(Union(outline, Stroke(outline, 14, SKStrokeJoin.Round)));
 
-        var traces = new SKPath();
-        traces.AddPath(Line(96, 112, 132, 76, 10));
-        traces.AddCircle(136, 72, 9);
-        traces.AddPath(Line(74, 168, 178, 64, 11));
-        traces.AddPath(Line(138, 104, 150, 116, 9));
-        traces.AddPath(Line(152, 90, 162, 100, 9));
-        traces.AddPath(SKPath.ParseSvgPathData("M 186 56 L 160 64 L 178 82 Z"));
-        traces.AddPath(Line(142, 152, 188, 106, 10));
-        traces.AddCircle(192, 102, 9);
+        var route = Stroke(SKPath.ParseSvgPathData("M 136 158 H 160 V 112 H 176"), 10, SKStrokeJoin.Round);
+        route.AddCircle(180, 112, 12);
 
-        var shield = SKPath.ParseSvgPathData(ShieldData);
-        var play = SKPath.ParseSvgPathData("M 197 41 L 211 49 L 197 57 Z");
-
-        var orbit = Stroke(SKPath.ParseSvgPathData("M 48 164 C 24 196 66 226 144 188"), 9);
+        var letter = Stroke(SKPath.ParseSvgPathData("M 100 74 V 158 H 136"), 30, SKStrokeJoin.Round);
 
         return
         [
-            new Part(moon, Moon, MoonGrad),
-            new Part(Simplify(traces), Trace, TraceGrad),
-            new Part(shield, Shield, ShieldGrad),
-            new Part(play, ["#0A1120"]),
-            new Part(Simplify(orbit), Moon, MoonGrad),
+            new Part(shield, Brand, BrandGrad),
+            new Part(Simplify(route), Trace, TraceGrad),
+            new Part(Simplify(letter), ["#FFFFFF"]),
         ];
     }
 
-    private static SKPath Line(float x1, float y1, float x2, float y2, float width)
-    {
-        var line = new SKPath();
-        line.MoveTo(x1, y1);
-        line.LineTo(x2, y2);
-        return Stroke(line, width);
-    }
+    private static SKPath Union(SKPath a, SKPath b) => a.Op(b, SKPathOp.Union) ?? a;
 
     /// <summary>Điểm đầu, điểm cuối (toạ độ lưới) và các mốc của dải màu một mảng.</summary>
     private static Grad GradOf(Part part)
@@ -191,7 +177,10 @@ internal static class Art
         var mark = Mark().Select(p => Transform(p, inset)).ToList();
         if (variant == Variant.Off)
         {
-            mark = mark.Select(p => p.Colors.Length > 1 ? p with { Colors = MoonOff, Grad = null } : p).ToList();
+            mark = mark.Select(p =>
+                p.Colors == Brand ? p with { Colors = BrandOff, Grad = null }
+                : p.Colors == Trace ? p with { Colors = TraceOff, Grad = null }
+                : p).ToList();
         }
         parts.AddRange(mark);
 
@@ -207,12 +196,11 @@ internal static class Art
         return parts;
     }
 
-    private const string MoonPath = "M 134 24 A 104 104 0 1 0 218 188 A 84 84 0 1 1 134 24 Z";
-    private const string ShieldData = "M 202 22 L 228 32 V 50 C 228 65 216 74 202 79 C 188 74 176 65 176 50 V 32 Z";
+    // Đường viền khiên chưa bo; Mark() cộng thêm nét 14 bo tròn nên khiên thật phủ 17…239 × 17…235.
+    private const string ShieldData = "M 128 24 L 208 52 V 116 C 208 166 176 202 128 228 C 80 202 48 166 48 116 V 52 Z";
 
-    private static readonly Grad MoonGrad = new(new SKPoint(36, 24), new SKPoint(188, 228), [0f, 0.52f, 1f]);
-    private static readonly Grad TraceGrad = new(new SKPoint(68, 196), new SKPoint(216, 48), [0f, 1f]);
-    private static readonly Grad ShieldGrad = new(new SKPoint(176, 22), new SKPoint(228, 74), [0f, 1f]);
+    private static readonly Grad BrandGrad = new(new SKPoint(40, 20), new SKPoint(216, 236), [0f, 0.52f, 1f]);
+    private static readonly Grad TraceGrad = new(new SKPoint(80, 190), new SKPoint(200, 60), [0f, 1f]);
 
     private static Part Transform(Part part, SKMatrix m)
     {
@@ -222,9 +210,9 @@ internal static class Art
         return new Part(path, part.Colors, grad);
     }
 
-    private static SKPath Stroke(SKPath path, float width)
+    private static SKPath Stroke(SKPath path, float width, SKStrokeJoin join = SKStrokeJoin.Miter)
     {
-        using var paint = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = width, StrokeCap = SKStrokeCap.Round };
+        using var paint = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = width, StrokeCap = SKStrokeCap.Round, StrokeJoin = join };
         var result = new SKPath();
         paint.GetFillPath(path, result);
         return result;
@@ -247,7 +235,7 @@ internal static class Art
 
     /// <summary>
     /// Icon template cho thanh menu macOS: chỉ đen + alpha, macOS tự tô theo nền sáng/tối. Ba trạng thái khác nhau bằng hình:
-    /// tắt = hình mờ, bật = hình đặc, lỗi = hình đặc bị khoét một góc đặt chấm tròn. Tam giác "play" trên khiên được khoét trong suốt.
+    /// tắt = hình mờ, bật = hình đặc, lỗi = hình đặc bị khoét một góc đặt chấm tròn. Chữ L và đường định tuyến được khoét trong suốt.
     /// </summary>
     public static byte[] TemplatePng(int size, Variant variant)
     {
@@ -261,8 +249,8 @@ internal static class Art
         using var hole = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, BlendMode = SKBlendMode.Clear };
         for (var i = 0; i < parts.Count; i++)
         {
-            // Phần tử thứ 4 của Mark() là tam giác "play" màu tối trên khiên.
-            canvas.DrawPath(parts[i].Path, i == 3 ? hole : ink);
+            // Phần tử [0] của Mark() là khiên; các phần tử sau (đường định tuyến, chữ L) nằm trên khiên nên khoét thủng.
+            canvas.DrawPath(parts[i].Path, i == 0 ? ink : hole);
         }
         if (variant == Variant.Error)
         {
