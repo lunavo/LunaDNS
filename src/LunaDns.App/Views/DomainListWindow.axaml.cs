@@ -18,8 +18,8 @@ internal sealed partial class DomainListWindow : Window
         Domains.ItemsSource = entries.Select(e => new DomainListRow(e.Domain, e.Source == CatalogSource.Update ? update : Strings.DomainSourceBuiltin)).ToList();
     }
 
-    /// <summary>Một dòng của danh sách: tên miền và nguồn của nó.</summary>
-    internal sealed record DomainListRow(string Domain, string Source);
-
     private void OnClose(object? sender, RoutedEventArgs e) => Close();
 }
+
+/// <summary>Một dòng của danh sách: tên miền và nguồn của nó.</summary>
+internal sealed record DomainListRow(string Domain, string Source);

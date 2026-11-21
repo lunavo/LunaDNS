@@ -1,9 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="using:LunaDns.App"
+        xmlns:v="using:LunaDns.App.Views"
         x:Class="LunaDns.App.Views.DomainListWindow"
         x:ClassModifier="internal"
-        x:CompileBindings="False"
         Background="{DynamicResource Brush.Window}"
         Width="440" Height="560" MinWidth="360" MinHeight="400"
         ShowInTaskbar="False"
@@ -18,7 +18,7 @@
       <ListBox x:Name="Domains" Background="Transparent"
                FontFamily="Cascadia Mono, Consolas, Menlo, monospace" FontSize="12.5">
         <ListBox.ItemTemplate>
-          <DataTemplate>
+          <DataTemplate x:DataType="v:DomainListRow">
             <Grid ColumnDefinitions="*,Auto">
               <TextBlock Text="{Binding Domain}" />
               <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding Source}" />
