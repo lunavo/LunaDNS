@@ -9,7 +9,7 @@ Mở rộng mục **Nâng cao**. Thay đổi **có hiệu lực ở lần bật 
 | **Điểm cắt gói** | *Sau byte đầu tiên* (mặc định, `FirstByte`) / *Giữa tên miền (SNI)* (`MidSni`) | **Giữ mặc định.** Trên mạng đã thử, MidSni làm Store Steam màn đen và Kiểm tra ra "Không vào được"; chỉ FirstByte qua được. Chọn MidSni mà lỗi thì chọn lại FirstByte rồi tắt/bật lại Proxy SNI. |
 | **Tách TLS record** | bật / tắt (mặc định tắt) | Gửi ClientHello thành hai TLS record, cắt tại điểm chọn ở ô trên (với *Sau byte đầu tiên*, record đầu giữ 6 byte đầu của ClientHello vì có máy chủ TLS (như SChannel của Windows) từ chối record đầu ngắn hơn), để bộ lọc ghép lại gói TCP vẫn không thấy trọn tên miền. Chỉ thử khi Kiểm tra vẫn báo "Không vào được" với cả hai điểm cắt. Bật mà lỗi thì tắt đi rồi tắt/bật lại Proxy SNI. |
 | **Độ trễ giữa hai phần (ms, 0–20)** | số nguyên | Chờ giữa hai nửa gói đã cắt. Mặc định 0. Giá trị ngoài khoảng bị kẹp về 0–20. |
-| **Máy chủ DoH** | *Cloudflare trước, Google dự phòng* (mặc định) / *Google trước, Cloudflare dự phòng* | Đổi nếu một trong hai bị chặn. |
+| **Máy chủ DoH** | *Cloudflare* (mặc định) / *Google* / *Quad9* / *AdGuard* / *Tự nhập* | Máy được chọn hỏi trước, hai máy dựng sẵn khác làm dự phòng. Bấm **Đo** để đo độ trễ trên mạng của bạn và tự chọn máy nhanh nhất. *Tự nhập*: dán URL `https://…`, bấm **Lưu**; app tìm IP của máy đó qua DoH dựng sẵn (không qua DNS của nhà mạng). Nếu không tìm được, điền IP vào ô "IP (tuỳ chọn)". |
 
 Dưới hàng **Tắt hết & khôi phục** / **Chẩn đoán** (xem [Dòng lệnh](06-dong-lenh.md#báo-cáo)) có thêm hai nút:
 
