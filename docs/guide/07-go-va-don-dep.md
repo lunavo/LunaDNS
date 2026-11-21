@@ -7,15 +7,17 @@
 Chọn một:
 
 - **Settings → Apps → LunaDNS → Uninstall.** Nếu LunaDNS đang chạy, trình gỡ nhắc bạn thoát app trước.
-- Nút **Gỡ khỏi máy** trong app (chỉ hiện ở bản Setup): app hỏi xác nhận, mở trình gỡ rồi tự thoát bằng "Thoát & khôi phục".
+- Nút **Gỡ khỏi máy** ở khu **Gỡ & dọn** của app (chỉ hiện ở bản Setup): app hỏi xác nhận, mở trình gỡ rồi tự thoát bằng "Thoát & khôi phục".
 
 Trình gỡ chạy `LunaDNS.exe --uninstall`: hoàn tác mọi thay đổi, xoá tác vụ dọn dẹp và `%ProgramData%\LunaDNS`, rồi mới xoá app. Nếu còn thay đổi chưa hoàn tác được, trình gỡ **dừng lại, chưa gỡ gì** và báo *"Chưa khôi phục được hết cấu hình mạng (mã …)"*. Khi đó:
 
-1. Mở LunaDNS, bấm **Tắt hết & khôi phục**, rồi thoát bằng **Thoát & khôi phục**.
+1. Mở LunaDNS, bấm **Tắt hết & khôi phục** (khu **Gỡ & dọn**), rồi thoát bằng **Thoát & khôi phục**.
 2. Xem log `C:\ProgramData\LunaDNS\logs\lunadns.log` (lệnh ở dưới) để biết mục nào lỗi; dọn tay nếu cần ([Khi `--cleanup` không đủ](#khi---cleanup-không-đủ-thủ-công-chỉ-khi-cần)).
 3. Gỡ lại.
 
 ## Gỡ bản portable
+
+Bản portable không có nút **Gỡ khỏi máy**; khu **Gỡ & dọn** hiện một dòng tóm tắt các bước dưới đây.
 
 1. Thoát app bằng menu khay **Thoát & khôi phục**.
 2. Mở PowerShell bằng **Run as administrator**, chạy `--uninstall` và xem mã thoát (0 = sạch):

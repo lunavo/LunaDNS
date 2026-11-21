@@ -47,7 +47,7 @@ If Smart App Control is on, Windows 11 may **block** an unsigned exe completely,
 
 Run the new Setup; you do not need to uninstall the old version first. Before overwriting, Setup runs `--cleanup` of the installed version to restore the network settings the old version changed. If this step fails, Setup stops and tells you; see [Troubleshooting](08-troubleshooting.md). LunaDNS must be closed (Setup reminds you if the app is still running).
 
-The app checks for a new version about 10 seconds after it opens; if there is one, it shows a banner with a **Tải** (Download) button (opens the Releases page). The **Kiểm tra cập nhật** (Check for updates) button in the Nâng cao (Advanced) section checks right when you click it. The app never downloads or installs by itself: download the new Setup and run it.
+The app checks for a new version about 10 seconds after it opens; if there is one, it shows a banner with a **Tải** (Download) button (opens the Releases page). The **Kiểm tra cập nhật** (Check for updates) button in the **Cập nhật** (Update) zone, next to the line *"Đang dùng LunaDNS x.y.z"* ("Using LunaDNS x.y.z"), checks right when you click it: if there is a new version it asks whether to open the download page, otherwise it says you are on the latest version. The app never downloads or installs by itself: download the new Setup and run it.
 
 ## Build from source
 
