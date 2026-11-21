@@ -11,7 +11,7 @@ public class SplitWriterTests
     {
         using var stream = new RecordingStream();
 
-        await SplitWriter.WriteAsync(stream, Hello, SplitMode.FirstByte, TimeSpan.Zero, CancellationToken.None);
+        await SplitWriter.WriteAsync(stream, Hello, new HelloSplit(SplitMode.FirstByte), TimeSpan.Zero, CancellationToken.None);
 
         var writes = stream.Writes;
         Assert.Equal(2, writes.Count);
@@ -25,7 +25,7 @@ public class SplitWriterTests
         using var stream = new RecordingStream();
         Assert.True(ClientHelloParser.TryFindSni(Hello, out var sni));
 
-        await SplitWriter.WriteAsync(stream, Hello, SplitMode.MidSni, TimeSpan.Zero, CancellationToken.None);
+        await SplitWriter.WriteAsync(stream, Hello, new HelloSplit(SplitMode.MidSni), TimeSpan.Zero, CancellationToken.None);
 
         var writes = stream.Writes;
         Assert.Equal(2, writes.Count);
@@ -38,7 +38,7 @@ public class SplitWriterTests
     {
         using var stream = new RecordingStream();
 
-        await SplitWriter.WriteAsync(stream, Hello, SplitMode.FirstByte, TimeSpan.FromMilliseconds(10), CancellationToken.None);
+        await SplitWriter.WriteAsync(stream, Hello, new HelloSplit(SplitMode.FirstByte), TimeSpan.FromMilliseconds(10), CancellationToken.None);
 
         Assert.Equal(Hello, stream.Writes.SelectMany(w => w).ToArray());
     }
@@ -51,6 +51,20 @@ public class SplitWriterTests
         using var stream = new RecordingStream();
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            SplitWriter.WriteAsync(stream, Hello, SplitMode.FirstByte, TimeSpan.FromMilliseconds(milliseconds), CancellationToken.None));
+            SplitWriter.WriteAsync(stream, Hello, new HelloSplit(SplitMode.FirstByte), TimeSpan.FromMilliseconds(milliseconds), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Records_mode_writes_two_records()
+    {
+        using var stream = new RecordingStream();
+
+        await SplitWriter.WriteAsync(stream, Hello, new HelloSplit(SplitMode.FirstByte, Records: true), TimeSpan.Zero, CancellationToken.None);
+
+        var writes = stream.Writes;
+        Assert.Equal(2, writes.Count);
+        Assert.Equal(6, writes[0].Length);
+        Assert.Equal(Hello.Length + 5, writes.Sum(w => w.Length));
+        Assert.All(writes, w => Assert.Equal(0x16, w[0]));
     }
 }

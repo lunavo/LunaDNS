@@ -24,9 +24,9 @@ public sealed class SplitProxyTests : IAsyncLifetime
 
     public async Task DisposeAsync() => await _proxy.DisposeAsync();
 
-    private SplitProxy Start(SplitMode mode = SplitMode.FirstByte, int firstPort = 0, int lastPort = 0) =>
+    private SplitProxy Start(HelloSplit? split = null, int firstPort = 0, int lastPort = 0) =>
         SplitProxy.Start(
-            new SplitProxyOptions { Domains = DomainCatalog.All, FirstPort = firstPort, LastPort = lastPort, SplitMode = mode },
+            new SplitProxyOptions { Domains = DomainCatalog.All, FirstPort = firstPort, LastPort = lastPort, Split = split ?? HelloSplit.Default },
             _connector);
 
     private RecordingStream UseRecordingUpstream()
@@ -177,7 +177,7 @@ public sealed class SplitProxyTests : IAsyncLifetime
     [Fact]
     public async Task MidSni_mode_cuts_inside_host_name()
     {
-        await using var proxy = Start(SplitMode.MidSni);
+        await using var proxy = Start(new HelloSplit(SplitMode.MidSni));
         var upstream = UseRecordingUpstream();
         Assert.True(ClientHelloParser.TryFindSni(Hello, out var sni));
         await using var tunnel = await OpenTunnelAsync(proxy);
@@ -261,5 +261,22 @@ public sealed class SplitProxyTests : IAsyncLifetime
         await tunnel.DisposeAsync();
 
         await ProxyTestClient.WaitUntilAsync(() => _proxy.ActiveConnections == 0);
+    }
+
+    [Fact]
+    public async Task Records_mode_sends_two_records_upstream()
+    {
+        await using var proxy = Start(new HelloSplit(SplitMode.MidSni, Records: true));
+        var upstream = UseRecordingUpstream();
+        Assert.True(ClientHelloParser.TryFindSni(Hello, out var sni));
+        await using var tunnel = await OpenTunnelAsync(proxy);
+
+        await tunnel.WriteAsync(Hello);
+        await ProxyTestClient.WaitUntilAsync(() => upstream.TotalBytes == Hello.Length + 5);
+
+        var writes = upstream.Writes;
+        Assert.Equal(2, writes.Count);
+        Assert.Equal(sni.Offset + sni.Length / 2, writes[0].Length);
+        Assert.All(writes, w => Assert.Equal(0x16, w[0]));
     }
 }

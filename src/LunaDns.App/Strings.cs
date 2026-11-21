@@ -82,6 +82,8 @@ internal static class Strings
     public static string SplitModeLabel => Get(nameof(SplitModeLabel));
     public static string SplitModeFirstByte => Get(nameof(SplitModeFirstByte));
     public static string SplitModeMidSni => Get(nameof(SplitModeMidSni));
+    public static string SplitRecordsLabel => Get(nameof(SplitRecordsLabel));
+    public static string SplitRecordsHint => Get(nameof(SplitRecordsHint));
     public static string SplitDelayLabel => Get(nameof(SplitDelayLabel));
     public static string DohLabel => Get(nameof(DohLabel));
     public static string DohCloudflareFirst => Get(nameof(DohCloudflareFirst));

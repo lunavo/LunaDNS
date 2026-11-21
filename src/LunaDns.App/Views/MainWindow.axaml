@@ -296,6 +296,8 @@
             <ComboBoxItem Content="{x:Static app:Strings.SplitModeFirstByte}" />
             <ComboBoxItem Content="{x:Static app:Strings.SplitModeMidSni}" />
           </ComboBox>
+          <CheckBox IsChecked="{Binding SplitRecords}" Content="{x:Static app:Strings.SplitRecordsLabel}" />
+          <TextBlock Classes="secondary" Text="{x:Static app:Strings.SplitRecordsHint}" TextWrapping="Wrap" />
           <TextBlock Text="{x:Static app:Strings.SplitDelayLabel}" />
           <NumericUpDown Value="{Binding SplitDelayMs}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
           <TextBlock Text="{x:Static app:Strings.DohLabel}" />

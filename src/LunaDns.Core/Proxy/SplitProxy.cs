@@ -272,7 +272,7 @@ public sealed partial class SplitProxy : IAsyncDisposable
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
         timeout.CancelAfter(FirstBytesTimeout);
         var (filled, recordLength) = await TlsTunnel.ReadFirstRecordAsync(client, buffer, count, timeout.Token).ConfigureAwait(false);
-        await TlsTunnel.WriteFirstRecordAsync(upstream, buffer, filled, recordLength, _options.SplitMode, _options.SplitDelay, _stop.Token).ConfigureAwait(false);
+        await TlsTunnel.WriteFirstRecordAsync(upstream, buffer, filled, recordLength, _options.Split, _options.SplitDelay, _stop.Token).ConfigureAwait(false);
     }
 
     /// <summary>Chuyển byte hai chiều tới khi một bên đóng, rồi dừng chiều còn lại.</summary>

@@ -46,7 +46,7 @@ public sealed class CoreFeatureServices(
                 Domains = domains,
                 FirstPort = port ?? SplitProxyOptions.DefaultFirstPort,
                 LastPort = port ?? SplitProxyOptions.DefaultLastPort,
-                SplitMode = tuning.SplitMode,
+                Split = tuning.Split,
                 SplitDelay = tuning.SplitDelay,
             };
             var proxy = SplitProxy.Start(options, Connector(doh), _loggers.CreateLogger<SplitProxy>());
@@ -65,7 +65,7 @@ public sealed class CoreFeatureServices(
         var doh = CreateDoh();
         try
         {
-            var options = new SniForwarderOptions { Domains = domains, SplitMode = tuning.SplitMode, SplitDelay = tuning.SplitDelay };
+            var options = new SniForwarderOptions { Domains = domains, Split = tuning.Split, SplitDelay = tuning.SplitDelay };
             var forwarder = SniForwarder.Start(pubgEndPoint ?? SniForwarder.DefaultEndPoint, options, Connector(doh), _loggers.CreateLogger<SniForwarder>());
             return new RunningService(forwarder.Completion, forwarder.DisposeAsync, doh);
         }

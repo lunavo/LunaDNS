@@ -184,6 +184,12 @@ internal sealed partial class MainViewModel : ObservableObject
         set => SaveSettings(s => s with { SplitMode = value == 1 ? SplitMode.MidSni : SplitMode.FirstByte });
     }
 
+    public bool SplitRecords
+    {
+        get => _services.Settings.SplitRecords;
+        set => SaveSettings(s => s with { SplitRecords = value });
+    }
+
     public decimal? SplitDelayMs
     {
         get => _services.Settings.SplitDelayMs;
@@ -541,6 +547,7 @@ internal sealed partial class MainViewModel : ObservableObject
             ShowMessage(Strings.UnexpectedError, Tone.Error);
         }
         OnPropertyChanged(nameof(SplitModeIndex));
+        OnPropertyChanged(nameof(SplitRecords));
         OnPropertyChanged(nameof(SplitDelayMs));
         OnPropertyChanged(nameof(DohIndex));
     }

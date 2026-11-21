@@ -9,13 +9,13 @@ namespace LunaDns.Core.Probing;
 internal sealed class SplittingStream : Stream
 {
     private readonly Stream _inner;
-    private readonly SplitMode _mode;
+    private readonly HelloSplit _split;
     private bool _first = true;
 
-    public SplittingStream(Stream inner, SplitMode mode)
+    public SplittingStream(Stream inner, HelloSplit split)
     {
         _inner = inner;
-        _mode = mode;
+        _split = split;
     }
 
     public override bool CanRead => _inner.CanRead;
@@ -40,6 +40,13 @@ internal sealed class SplittingStream : Stream
 
     public override void SetLength(long value) => throw new NotSupportedException();
 
+    /// <summary>Độ dài record đầu nếu buffer chứa trọn nó, ngược lại cả buffer (cắt như trước).</summary>
+    private static int FirstRecordLength(ReadOnlySpan<byte> buffer)
+    {
+        var length = ClientHelloParser.RecordLength(buffer);
+        return length > 0 && length <= buffer.Length ? length : buffer.Length;
+    }
+
     public override void Write(byte[] buffer, int offset, int count)
     {
         if (!_first)
@@ -48,11 +55,14 @@ internal sealed class SplittingStream : Stream
             return;
         }
         _first = false;
-        foreach (var piece in HelloSplitter.Split(buffer.AsMemory(offset, count), _mode))
+        var data = buffer.AsMemory(offset, count);
+        var first = FirstRecordLength(data.Span);
+        foreach (var piece in HelloSplitter.Split(data[..first], _split))
         {
             _inner.Write(piece.Span);
             _inner.Flush();
         }
+        if (first < count) _inner.Write(data.Span[first..]);
     }
 
     public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
@@ -66,7 +76,10 @@ internal sealed class SplittingStream : Stream
             return;
         }
         _first = false;
-        await SplitWriter.WriteAsync(_inner, buffer, _mode, TimeSpan.Zero, cancellationToken).ConfigureAwait(false);
+        var first = FirstRecordLength(buffer.Span);
+        await SplitWriter.WriteAsync(_inner, buffer[..first], _split, TimeSpan.Zero, cancellationToken).ConfigureAwait(false);
+        if (first < buffer.Length)
+            await _inner.WriteAsync(buffer[first..], cancellationToken).ConfigureAwait(false);
     }
 
     protected override void Dispose(bool disposing)

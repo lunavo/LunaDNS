@@ -14,6 +14,9 @@ public sealed record AppSettings
 
     public int SplitDelayMs { get; init; }
 
+    /// <summary>Tách ClientHello thành hai TLS record (D1). Mặc định tắt.</summary>
+    public bool SplitRecords { get; init; }
+
     public bool PreferGoogleDoh { get; init; }
 
     public bool CheckPubg { get; init; }
@@ -30,5 +33,5 @@ public sealed record AppSettings
         PreferGoogleDoh ? [DohServer.Google, DohServer.Cloudflare] : DohServer.Defaults;
 
     public FeatureTuning Tuning() =>
-        new(SplitMode, TimeSpan.FromMilliseconds(Math.Clamp(SplitDelayMs, 0, MaxSplitDelayMs)));
+        new(new HelloSplit(SplitMode, SplitRecords), TimeSpan.FromMilliseconds(Math.Clamp(SplitDelayMs, 0, MaxSplitDelayMs)));
 }

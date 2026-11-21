@@ -23,7 +23,7 @@ internal static class TlsTunnel
     }
 
     /// <summary>Ghi record đầu sang máy chủ: cắt gói nếu là record handshake, chuyển nguyên nếu không; byte thừa ghi sau.</summary>
-    internal static async Task WriteFirstRecordAsync(Stream upstream, byte[] buffer, int count, int recordLength, SplitMode mode, TimeSpan delay, CancellationToken cancellationToken)
+    internal static async Task WriteFirstRecordAsync(Stream upstream, byte[] buffer, int count, int recordLength, HelloSplit split, TimeSpan delay, CancellationToken cancellationToken)
     {
         if (recordLength < 0)
         {
@@ -31,7 +31,7 @@ internal static class TlsTunnel
             return;
         }
         var helloLength = Math.Min(count, recordLength);
-        await SplitWriter.WriteAsync(upstream, buffer.AsMemory(0, helloLength), mode, delay, cancellationToken).ConfigureAwait(false);
+        await SplitWriter.WriteAsync(upstream, buffer.AsMemory(0, helloLength), split, delay, cancellationToken).ConfigureAwait(false);
         if (count > helloLength)
             await upstream.WriteAsync(buffer.AsMemory(helloLength, count - helloLength), cancellationToken).ConfigureAwait(false);
     }

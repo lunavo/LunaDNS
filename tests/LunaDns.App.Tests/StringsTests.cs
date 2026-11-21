@@ -18,7 +18,7 @@ public sealed class StringsTests
             .Where(p => p.PropertyType == typeof(string))
             .ToList();
 
-        Assert.Equal(149, properties.Count);
+        Assert.Equal(151, properties.Count);
         foreach (var property in properties) AssertResolved((string)property.GetValue(null)!);
     }
 

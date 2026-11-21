@@ -7,6 +7,7 @@ Mở rộng mục **Nâng cao**. Thay đổi **có hiệu lực ở lần bật 
 | Tuỳ chọn | Giá trị | Ghi chú |
 |---|---|---|
 | **Điểm cắt gói** | *Sau byte đầu tiên* (mặc định, `FirstByte`) / *Giữa tên miền (SNI)* (`MidSni`) | **Giữ mặc định.** Trên mạng đã thử, MidSni làm Store Steam màn đen và Kiểm tra ra "Không vào được"; chỉ FirstByte qua được. Chọn MidSni mà lỗi thì chọn lại FirstByte rồi tắt/bật lại Proxy SNI. |
+| **Tách TLS record** | bật / tắt (mặc định tắt) | Gửi ClientHello thành hai TLS record, cắt tại điểm chọn ở ô trên, để bộ lọc ghép lại gói TCP vẫn không thấy trọn tên miền. Chỉ thử khi Kiểm tra vẫn báo "Không vào được" với cả hai điểm cắt. Bật mà lỗi thì tắt đi rồi tắt/bật lại Proxy SNI. |
 | **Độ trễ giữa hai phần (ms, 0–20)** | số nguyên | Chờ giữa hai nửa gói đã cắt. Mặc định 0. Giá trị ngoài khoảng bị kẹp về 0–20. |
 | **Máy chủ DoH** | *Cloudflare trước, Google dự phòng* (mặc định) / *Google trước, Cloudflare dự phòng* | Đổi nếu một trong hai bị chặn. |
 

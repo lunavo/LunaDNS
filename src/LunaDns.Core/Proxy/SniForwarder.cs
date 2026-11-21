@@ -185,7 +185,7 @@ public sealed partial class SniForwarder : IAsyncDisposable
 
         try
         {
-            await TlsTunnel.WriteFirstRecordAsync(upstream, buffer, count, recordLength, _options.SplitMode, _options.SplitDelay, _stop.Token).ConfigureAwait(false);
+            await TlsTunnel.WriteFirstRecordAsync(upstream, buffer, count, recordLength, _options.Split, _options.SplitDelay, _stop.Token).ConfigureAwait(false);
             var ended = await TlsTunnel.RelayAsync(client, upstream, _stop.Token).ConfigureAwait(false);
             if (ended is not null) LogRelayEnded(_logger, ended);
         }

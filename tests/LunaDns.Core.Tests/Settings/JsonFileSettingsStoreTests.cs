@@ -27,6 +27,7 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
 
         Assert.Equal([DomainGroup.Steam, DomainGroup.Custom], settings.Domains.EnabledGroups);
         Assert.Empty(settings.Domains.Custom);
+        Assert.False(settings.SplitRecords);
     }
 
     [Fact]
@@ -67,7 +68,7 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
     public void Save_then_load_round_trips()
     {
         var store = new JsonFileSettingsStore(PathOf("sub/settings.json"));
-        var settings = new AppSettings { SplitMode = SplitMode.MidSni, SplitDelayMs = 5, PreferGoogleDoh = true, CheckPubg = true, PubgWarningAccepted = true, DomainsIntroSeen = true };
+        var settings = new AppSettings { SplitMode = SplitMode.MidSni, SplitRecords = true, SplitDelayMs = 5, PreferGoogleDoh = true, CheckPubg = true, PubgWarningAccepted = true, DomainsIntroSeen = true };
 
         store.Save(settings);
 
