@@ -102,6 +102,21 @@ public sealed class DaemonServerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Dispose_right_after_a_reply_never_faults_the_accept_loop()
+    {
+        // Trả lời xong là vòng accept gọi AcceptAsync ngay; Dispose chen vào lúc đó có thể làm accept hoàn tất đồng bộ
+        // với OperationAborted (SocketException, không phải OperationCanceledException).
+        // Cửa sổ rất hẹp: 20000 vòng (~5 giây) thường bắt được lỗi cũ, không phải lần nào cũng.
+        for (var i = 0; i < 20000; i++)
+        {
+            var path = $"/tmp/lunadns-test-{Guid.NewGuid():N}.sock";
+            var server = DaemonServer.Start(path, (_, _) => Task.FromResult(new DaemonResponse(true, Version: "test")), _ => true);
+            await new DaemonClient(path).SendAsync(new DaemonRequest(DaemonProtocol.Ping));
+            await server.DisposeAsync();
+        }
+    }
+
+    [Fact]
     public async Task Dispose_removes_socket_file()
     {
         await _server!.DisposeAsync();

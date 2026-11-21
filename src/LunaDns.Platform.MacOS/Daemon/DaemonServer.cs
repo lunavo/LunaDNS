@@ -76,6 +76,12 @@ public sealed partial class DaemonServer : IAsyncDisposable
             {
                 return;
             }
+            catch (SocketException) when (_stop.IsCancellationRequested)
+            {
+                // Dispose đóng listener đúng lúc AcceptAsync đang bắt đầu: accept hoàn tất đồng bộ với OperationAborted,
+                // và .NET chỉ đổi lỗi đó thành OperationCanceledException ở nhánh bất đồng bộ.
+                return;
+            }
             await ServeAsync(client).ConfigureAwait(false);
         }
     }
