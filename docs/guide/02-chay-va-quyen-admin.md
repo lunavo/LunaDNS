@@ -1,5 +1,7 @@
 # 2. Chạy bằng quyền Admin, khay hệ thống
 
+<sub>[English](en/02-running-as-admin.md)</sub>
+
 ## Quyền Admin
 
 `LunaDNS.exe` có manifest `requireAdministrator`: bấm đúp (hoặc mở từ Start menu) là Windows hỏi UAC, **không cần** chuột phải → "Run as administrator". Cần Admin vì app sửa luật NRPT, file hosts và cấu hình proxy của người dùng đăng nhập.
@@ -20,7 +22,7 @@ Không có quyền thì tính năng báo: *"Không có quyền sửa cấu hình
 
 ## Đăng xuất, tắt máy
 
-App cố hoàn tác trong tối đa 4 giây khi phiên kết thúc. Chưa đo được chắc chắn trên Avalonia 11.3 (Task 8 bước 6 còn chờ). Nếu không kịp, thay đổi còn trong journal và sẽ được hoàn tác bởi tác vụ dọn dẹp lúc khởi động máy/đăng nhập (bản Setup), ở lần mở app sau, hoặc bằng `--cleanup`. Trong lúc đó Steam có thể không phân giải được tên miền.
+App cố hoàn tác trong tối đa 4 giây khi phiên kết thúc. Thời gian này chưa được đo chắc chắn trên mọi máy. Nếu không kịp, thay đổi còn trong journal và sẽ được hoàn tác bởi tác vụ dọn dẹp lúc khởi động máy/đăng nhập (bản Setup), ở lần mở app sau, hoặc bằng `--cleanup`. Trong lúc đó Steam có thể không phân giải được tên miền.
 
 ## Lưu ý
 

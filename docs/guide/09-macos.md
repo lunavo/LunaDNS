@@ -1,5 +1,7 @@
 # 9. macOS (thử nghiệm)
 
+<sub>[English](en/09-macos.md)</sub>
+
 Bản macOS gồm một **dịch vụ nền** (launchd), **lệnh** `lunadns` và **giao diện** LunaDNS (cùng giao diện Avalonia với bản Windows), dùng chung lõi với bản Windows (DoH, stub DNS, proxy SNI, journal). Có file `.dmg` cho Apple Silicon và Mac Intel, ký ad-hoc, **chưa notarize** (chưa có Apple Developer ID). Chưa có Chế độ PUBG.
 
 ## Cài từ file .dmg

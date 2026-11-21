@@ -23,6 +23,9 @@ internal sealed partial class MainViewModel : ObservableObject
     private static readonly HttpClient UpdateHttp = new() { Timeout = TimeSpan.FromSeconds(15) };
     private static readonly TimeSpan StatusInterval = TimeSpan.FromSeconds(2);
 
+    /// <summary>Tự kiểm cập nhật sau khi khởi động xong, để không tranh mạng với lần kiểm kết nối đầu.</summary>
+    private static readonly TimeSpan UpdateStartupDelay = TimeSpan.FromSeconds(10);
+
     private readonly AppServices _services;
     private readonly IUserPrompts _prompts;
     private readonly Maintenance _maintenance;
@@ -54,6 +57,7 @@ internal sealed partial class MainViewModel : ObservableObject
         _services = services;
         _prompts = prompts;
         _maintenance = new Maintenance(prompts, shell);
+        UpdateBanner = new UpdateBannerViewModel(shell, AppInfo.Version, OnError);
         _quit = quit;
         _logger = services.LoggerFactory.CreateLogger<MainViewModel>();
         // KH6 U0: PUBG ra khỏi v1, giao diện chỉ còn hai công tắc.
@@ -113,6 +117,8 @@ internal sealed partial class MainViewModel : ObservableObject
     public AsyncCommand QuitCommand { get; }
 
     public AsyncCommand InstallServiceCommand { get; }
+
+    public UpdateBannerViewModel UpdateBanner { get; }
 
     /// <summary>Chỉ bản Windows do Setup cài có nút gỡ; bản portable và macOS gỡ theo guide.</summary>
     public bool CanUninstall { get; } = PlatformInfo.CanUninstall();
@@ -202,6 +208,7 @@ internal sealed partial class MainViewModel : ObservableObject
         _ = PollAsync();
         _ = LoadDomainsSafeAsync();
         CheckCommand.Execute(null);
+        _ = CheckUpdateSilentlyAsync();
     }
 
     /// <summary>Dựng bốn dòng của khu Tên miền theo lựa chọn của nơi giữ thật (macOS: dịch vụ nền), hỏi không được thì theo settings.json.</summary>
@@ -452,8 +459,18 @@ internal sealed partial class MainViewModel : ObservableObject
         if (result.Success) await LoadDomainsAsync();
     });
 
-    private Task CheckUpdateAsync() =>
-        _maintenance.CheckForUpdateAsync(ct => new UpdateChecker(UpdateHttp, AppInfo.Repository, AppInfo.Version).CheckAsync(ct), AppInfo.Version, CancellationToken.None);
+    private async Task CheckUpdateAsync() =>
+        UpdateBanner.Show(await _maintenance.CheckForUpdateAsync(FetchUpdateAsync, AppInfo.Version, CancellationToken.None).ConfigureAwait(true));
+
+    /// <summary>Chạy một lần mỗi lần mở app; CheckSilentlyAsync không ném nên bỏ Task không sợ mất lỗi.</summary>
+    private async Task CheckUpdateSilentlyAsync()
+    {
+        await Task.Delay(UpdateStartupDelay).ConfigureAwait(true);
+        if (await Maintenance.CheckSilentlyAsync(FetchUpdateAsync, CancellationToken.None).ConfigureAwait(true) is { } update) UpdateBanner.Show(update);
+    }
+
+    private static Task<UpdateCheckResult> FetchUpdateAsync(CancellationToken cancellationToken) =>
+        new UpdateChecker(UpdateHttp, AppInfo.Repository, AppInfo.Version).CheckAsync(cancellationToken);
 
     private async Task UninstallAppAsync()
     {

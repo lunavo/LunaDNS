@@ -14,7 +14,6 @@ Nếu Windows hiện "Windows protected your PC": exe chưa ký số.
 Chỉ khi bạn tin nguồn tải, bấm "More info" -> "Run anyway".
 
 LƯU Ý
-- Không bật "Chế độ PUBG": chưa hỗ trợ, sẽ bị ẩn ở bản sau.
 - Nút X chỉ thu app xuống khay hệ thống; app vẫn chạy.
 - Chỉ một bản chạy cùng lúc; mở lại thì cửa sổ cũ hiện lên.
 - Bản portable không tự chạy cùng Windows.
@@ -32,4 +31,46 @@ Thay đổi còn lại sẽ được hoàn tác khi mở lại LunaDNS. Hoặc m
 Mã thoát 0 = máy đã sạch. Trong lúc chưa dọn, Steam có thể không phân giải
 được tên miền.
 
-Hướng dẫn đầy đủ: thư mục docs\guide trong mã nguồn LunaDNS.
+Hướng dẫn đầy đủ: https://github.com/lunavo/LunaDNS/tree/main/docs/guide
+
+
+-----------------------------------------------------
+ENGLISH
+-----------------------------------------------------
+LunaDNS {VERSION} - portable build (no .NET install needed)
+
+INSTALL AND RUN
+1. Right-click the zip -> Properties -> tick "Unblock" -> OK (if shown).
+2. Extract the WHOLE folder to a fixed place, e.g. C:\Tools\LunaDNS\
+   (do not run it from inside the zip window; keep the .dll files next to
+   LunaDNS.exe). This build has no installer: LunaDNS.exe is the app.
+3. Double-click LunaDNS.exe. Windows asks for Administrator (UAC) -> Yes.
+   The app needs Admin to change DNS rules (NRPT), the hosts file and the
+   proxy settings.
+4. On first launch the app runs "Kiểm tra" (Check). Turn on "Định tuyến DNS"
+   (DNS routing), and "Proxy SNI" if the check suggests it.
+
+If Windows shows "Windows protected your PC": the exe is not code-signed.
+Only if you trust where you downloaded it, click "More info" -> "Run anyway".
+
+NOTES
+- The X button only hides the app to the system tray; it keeps running.
+- Only one copy runs at a time; launching again brings the window back.
+- The portable build does not start with Windows.
+- Data and logs: %ProgramData%\LunaDNS
+
+TURN OFF AND REMOVE
+1. In the app click "Tắt hết & khôi phục" (Turn all off & restore), or
+   right-click the tray icon -> "Thoát & khôi phục" (Quit & restore).
+   Every change made to the system is undone.
+2. Delete the extracted folder. To remove everything, also delete
+   %ProgramData%\LunaDNS.
+
+APP KILLED, HUNG OR POWER LOSS
+Leftover changes are undone the next time you open LunaDNS. Or open
+PowerShell with "Run as administrator" in the app folder and run:
+    .\LunaDNS.exe --cleanup
+Exit code 0 = the machine is clean. Until then Steam may fail to resolve
+domain names.
+
+Full guide: https://github.com/lunavo/LunaDNS/tree/main/docs/guide/en

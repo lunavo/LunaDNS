@@ -1,5 +1,7 @@
 # 6. Dòng lệnh
 
+<sub>[English](en/06-command-line.md)</sub>
+
 Chạy từ PowerShell/CMD **mở bằng Admin**. Tham số không phân biệt hoa thường; chỉ nhận **một** tham số. exe là ứng dụng cửa sổ nên **không in gì ra console**: kết quả xem ở mã thoát và log.
 
 Chờ và đọc mã thoát trong PowerShell (gọi thẳng `.\LunaDNS.exe --cleanup` thì shell không đợi):
@@ -49,7 +51,7 @@ Trình gỡ của Setup gọi lệnh này; với bản portable, chạy tay trư
 
 `LunaDNS.exe --report` (hoặc nút **Chẩn đoán** trong app) ghi `LunaDNS-report-<yyyyMMdd-HHmmss>.txt`, UTF-8 có BOM.
 
-- **Hiện tại ghi ra Desktop.** PO đã chốt sẽ chuyển sang `%ProgramData%\LunaDNS\reports\` (giữ 10 báo cáo gần nhất, khoảng 64 KB mỗi file); **chưa code**, nên bây giờ vẫn là Desktop và không tự dọn.
+- **Hiện tại ghi ra Desktop** và không tự dọn. Bản sau dự kiến chuyển sang `%ProgramData%\LunaDNS\reports\` (giữ 10 báo cáo gần nhất).
 - `--report` tự chạy Kiểm tra tối đa 20 giây (quá giờ: mục kiểm tra ghi "(chưa chạy)"). Nút Chẩn đoán dùng kết quả Kiểm tra gần nhất.
 - Nội dung: phiên bản, Windows, kết quả kiểm tra, journal, luật NRPT của LunaDNS, `AutoConfigURL`, dòng hosts `# LunaDNS`, 200 dòng log cuối.
 - **Che thông tin cá nhân:** tên người dùng, tên máy, SID, IP CGNAT/Tailscale (`100.64/10`), `169.254/16`, IPv6 ULA/link-local. `AutoConfigURL` chỉ ghi khi là địa chỉ loopback của LunaDNS; PAC khác chỉ ghi "có giá trị khác". Vẫn nên đọc lại trước khi gửi.

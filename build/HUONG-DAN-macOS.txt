@@ -21,7 +21,7 @@ CÀI
 LƯU Ý
 - Biểu tượng LunaDNS nằm trên thanh menu. Nút đỏ chỉ đóng cửa sổ, app vẫn chạy.
 - "Thoát & khôi phục" (hoặc Cmd+Q) tắt hết và hoàn tác thay đổi.
-- Có lệnh Terminal: lunadns on | off | status (xem docs/guide/09-macos.md).
+- Có lệnh Terminal: lunadns on | off | status (xem hướng dẫn đầy đủ ở cuối).
   Máy chưa có /usr/local/bin (thường gặp ở Mac chip Apple chưa cài Homebrew) thì gọi
   bằng đường dẫn đầy đủ: /Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns
 - Chưa có Chế độ PUBG và mục Nâng cao trên macOS.
@@ -34,4 +34,49 @@ GỠ
 2. Kéo LunaDNS từ Applications vào Thùng rác. Muốn sạch hẳn thì xoá thêm
    ~/Library/Application Support/LunaDNS.
 
-Hướng dẫn đầy đủ: docs/guide/09-macos.md trong mã nguồn LunaDNS.
+Hướng dẫn đầy đủ: https://github.com/lunavo/LunaDNS/blob/main/docs/guide/09-macos.md
+
+------------------------------------------------
+ENGLISH
+------------------------------------------------
+LunaDNS {VERSION} for macOS (no .NET install needed)
+
+INSTALL
+1. Drag LunaDNS into the Applications folder (the icon next to it in this
+   window). Do not open it straight from the .dmg window.
+2. Open LunaDNS from Applications. This build is not notarized by Apple yet,
+   so the first time macOS refuses to open it:
+   - Go to System Settings -> Privacy & Security, scroll down, click
+     "Open Anyway" next to the LunaDNS line, enter your password, then open
+     the app again.
+   - Or open Terminal and run:
+       xattr -dr com.apple.quarantine /Applications/LunaDNS.app
+   Only do this if you trust where you downloaded it. Check the .dmg with:
+       shasum -a 256 ~/Downloads/LunaDNS-*.dmg
+   and compare with the SHA256 on the Release page.
+3. On first launch the app shows "Dịch vụ nền chưa cài" (background service
+   not installed): click "Cài dịch vụ nền" (Install background service) and
+   enter your Mac password. The service does the root-only work (/etc/resolver,
+   proxy, hosts); after that, switching on/off needs no password.
+4. Turn on "Định tuyến DNS" (DNS routing), and "Proxy SNI" if the check
+   suggests it.
+
+NOTES
+- The LunaDNS icon lives in the menu bar. The red button only closes the
+  window; the app keeps running.
+- "Thoát & khôi phục" (Quit & restore, or Cmd+Q) turns everything off and
+  undoes the changes.
+- Terminal command: lunadns on | off | status. If /usr/local/bin does not
+  exist (common on Apple Silicon without Homebrew), use the full path:
+  /Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns
+- No PUBG mode and no Advanced section on macOS yet.
+
+UNINSTALL
+1. In Terminal:
+       sudo /Library/PrivilegedHelperTools/vn.lunavo.lunadns/lunadns uninstall
+   (turns off, restores, removes the background service and the data in
+   /Library/Application Support/LunaDNS).
+2. Drag LunaDNS from Applications to the Trash. To remove everything, also
+   delete ~/Library/Application Support/LunaDNS.
+
+Full guide: https://github.com/lunavo/LunaDNS/blob/main/docs/guide/en/09-macos.md

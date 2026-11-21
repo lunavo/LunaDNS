@@ -73,12 +73,31 @@ public sealed class UpdateCheckerTests
     [Theory]
     [InlineData(HttpStatusCode.Forbidden, "[]")]
     [InlineData(HttpStatusCode.OK, "not json")]
-    [InlineData(HttpStatusCode.OK, "[]")]
-    public async Task Errors_and_empty_lists_fail_softly(HttpStatusCode status, string body)
+    public async Task Errors_fail_softly(HttpStatusCode status, string body)
     {
         var result = await Checker("0.9.0", status, body).CheckAsync(CancellationToken.None);
 
         Assert.Equal(UpdateStatus.Failed, result.Status);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("""[{"tag_name":"v9.9.9","html_url":"https://github.com/owner/lunadns/releases/tag/v9.9.9","draft":true,"prerelease":false}]""")]
+    [InlineData("""[{"tag_name":"nightly","html_url":"https://github.com/owner/lunadns/releases/tag/nightly","draft":false,"prerelease":false}]""")]
+    public async Task No_valid_release_means_up_to_date(string body)
+    {
+        var result = await Checker("0.9.0", HttpStatusCode.OK, body).CheckAsync(CancellationToken.None);
+
+        Assert.Equal(UpdateStatus.UpToDate, result.Status);
+        Assert.Null(result.Latest);
+        Assert.Null(result.Url);
+    }
+
+    [Fact]
+    public void Normalize_fills_missing_build_and_drops_revision()
+    {
+        Assert.Equal(new Version(0, 9, 0), UpdateChecker.Normalize(new Version(0, 9)));
+        Assert.Equal(new Version(0, 9, 1), UpdateChecker.Normalize(new Version(0, 9, 1, 7)));
     }
 
     [Fact]

@@ -1,5 +1,7 @@
 # 1. Cài đặt
 
+<sub>[English](en/01-install.md)</sub>
+
 Có hai cách, đều tải ở trang Releases của LunaDNS trên GitHub, đều đã kèm sẵn .NET (không cần cài runtime):
 
 | | Setup `LunaDNS-Setup-x.y.z.exe` | Portable `LunaDNS-x.y.z-portable.zip` |
@@ -45,7 +47,7 @@ Nếu Smart App Control đang bật, Windows 11 có thể **chặn hẳn** exe c
 
 Chạy Setup bản mới, không cần gỡ bản cũ. Trước khi ghi đè, Setup chạy `--cleanup` của bản đang cài để khôi phục cấu hình mạng bản cũ đã đổi. Nếu bước này lỗi, Setup dừng và báo; xem [Xử lý sự cố](08-su-co.md). LunaDNS phải đang tắt (Setup sẽ nhắc nếu app còn chạy).
 
-Nút **Kiểm tra cập nhật** trong app báo khi có bản mới và mở trang tải; app không tự tải hay tự cài.
+App tự kiểm bản mới khoảng 10 giây sau khi mở; có bản mới thì hiện dải báo kèm nút **Tải** (mở trang Releases). Nút **Kiểm tra cập nhật** ở mục Nâng cao kiểm ngay lúc bấm. App không tự tải hay tự cài: tải Setup bản mới rồi chạy.
 
 ## Build từ mã nguồn
 
