@@ -111,7 +111,7 @@ internal sealed partial class DomainListUpdater(HttpClient http, Uri url, IDomai
         catch (Exception ex) when (ex is HttpRequestException or IOException
             || (ex is TaskCanceledException && !cancellationToken.IsCancellationRequested))
         {
-            LogDownloadFailed(logger, ex.GetType().Name);
+            if (logger.IsEnabled(LogLevel.Information)) LogDownloadFailed(logger, ex.GetType().Name);
             return new(now, DomainListCheckKind.NetworkError);
         }
         if (body is null) return new(now, DomainListCheckKind.TooLarge);
