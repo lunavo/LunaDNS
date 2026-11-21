@@ -31,3 +31,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Public Suffix List
+
+Public Suffix List, <https://publicsuffix.org>, Mozilla Public License 2.0. Nhúng nguyên văn tại `src/LunaDns.Core/Domains/public_suffix_list.dat`.
