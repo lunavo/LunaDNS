@@ -50,16 +50,17 @@ public class HelloSplitterTests
     private static int BodyLength(ReadOnlyMemory<byte> record) => (record.Span[3] << 8) | record.Span[4];
 
     [Fact]
-    public void Records_first_byte_puts_one_handshake_byte_in_first_record()
+    public void Records_first_byte_puts_handshake_header_and_version_in_first_record()
     {
         var hello = TestClientHello.Build("store.steampowered.com");
 
         var records = HelloSplitter.Split(hello, new HelloSplit(SplitMode.FirstByte, Records: true));
 
+        // SChannel (Windows) trả alert protocol_version nếu record đầu thiếu header handshake 4 byte + legacy_version.
         Assert.Equal(2, records.Count);
-        Assert.Equal(6, records[0].Length);
-        Assert.Equal(1, BodyLength(records[0]));
-        Assert.Equal(hello[5], records[0].Span[5]);
+        Assert.Equal(11, records[0].Length);
+        Assert.Equal(6, BodyLength(records[0]));
+        Assert.Equal(hello.AsSpan(5, 6).ToArray(), records[0].Span[5..].ToArray());
         Assert.Equal(hello.Length + 5, records.Sum(r => r.Length));
     }
 
@@ -85,13 +86,13 @@ public class HelloSplitterTests
 
         var records = HelloSplitter.Split(hello, new HelloSplit(SplitMode.MidSni, Records: true));
 
-        Assert.Equal(6, records[0].Length);
+        Assert.Equal(11, records[0].Length);
     }
 
     [Fact]
-    public void Records_with_one_byte_body_is_left_whole()
+    public void Records_with_body_too_short_for_first_cut_is_left_whole()
     {
-        byte[] hello = [0x16, 0x03, 0x01, 0x00, 0x01, 0x01];
+        byte[] hello = [0x16, 0x03, 0x01, 0x00, 0x06, 0x01, 0x00, 0x00, 0x02, 0x03, 0x03];
 
         var pieces = HelloSplitter.Split(hello, new HelloSplit(SplitMode.FirstByte, Records: true));
 

@@ -50,8 +50,8 @@ public class SplittingStreamTests
 
         var writes = inner.Writes;
         Assert.Equal(3, writes.Count);
-        Assert.Equal(6, writes[0].Length);
-        Assert.Equal(Hello.Length - 1, writes[1].Length); // 5 byte header mới + phần thân còn lại
+        Assert.Equal(11, writes[0].Length);
+        Assert.Equal(Hello.Length - 6, writes[1].Length); // 5 byte header mới + phần thân còn lại
         Assert.Equal(Later, writes[2]);
     }
 }
