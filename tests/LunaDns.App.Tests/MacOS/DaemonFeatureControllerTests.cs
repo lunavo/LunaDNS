@@ -1,5 +1,6 @@
 using LunaDns.App.Features;
 using LunaDns.App.MacOS;
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Platform.MacOS.Daemon;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -166,6 +167,70 @@ public sealed class DaemonFeatureControllerTests
         Assert.False(result.Success);
     }
 
+    [Fact]
+    public async Task Apply_domains_sends_set_domains_and_maps_old_daemon_reply()
+    {
+        _daemon.Reply = r => new DaemonResponse(false, $"Lệnh lạ: {r.Command}");
+        await using var controller = Create();
+
+        var result = await controller.ApplyDomainsAsync(new DomainSelection());
+
+        Assert.Equal(DaemonProtocol.SetDomains, _daemon.LastRequest!.Command);
+        Assert.False(result.Success);
+        Assert.Equal(Strings.DaemonNeedsUpdate, result.Message);
+    }
+
+    [Fact]
+    public async Task Apply_domains_passes_selection_and_daemon_message()
+    {
+        _daemon.Reply = _ => new DaemonResponse(false, "Tên miền không hợp lệ ở dòng 2.");
+        await using var controller = Create();
+        var selection = new DomainSelection { EnabledGroups = [DomainGroup.Reddit] };
+
+        var result = await controller.ApplyDomainsAsync(selection);
+
+        Assert.True(_daemon.LastRequest!.Domains!.SameAs(selection));
+        Assert.False(result.Success);
+        Assert.Equal("Tên miền không hợp lệ ở dòng 2.", result.Message);
+    }
+
+    [Fact]
+    public async Task Apply_domains_succeeds_when_daemon_accepts()
+    {
+        await using var controller = Create();
+
+        var result = await controller.ApplyDomainsAsync(new DomainSelection());
+
+        Assert.True(result.Success);
+        Assert.Null(result.Message);
+    }
+
+    [Fact]
+    public async Task Apply_domains_without_daemon_is_service_unavailable()
+    {
+        _daemon.Down = true;
+        await using var controller = Create();
+
+        var result = await controller.ApplyDomainsAsync(new DomainSelection());
+
+        Assert.False(result.Success);
+        Assert.Equal(ErrorMessages.For(FeatureError.ServiceUnavailable), result.Message);
+    }
+
+    [Fact]
+    public async Task Get_domains_returns_daemon_selection_or_null_when_down()
+    {
+        var selection = new DomainSelection { EnabledGroups = [DomainGroup.Steam, DomainGroup.Reddit] };
+        _daemon.Reply = r => r.Command == DaemonProtocol.GetDomains ? new DaemonResponse(true, Domains: selection) : null;
+        await using var controller = Create();
+
+        Assert.True((await controller.GetDomainsAsync())!.SameAs(selection));
+        Assert.Equal(DaemonProtocol.GetDomains, _daemon.LastRequest!.Command);
+
+        _daemon.Down = true;
+        Assert.Null(await controller.GetDomainsAsync());
+    }
+
     /// <summary>Daemon giả giữ trạng thái như DaemonCommands: journal có một mục khi có tính năng bật.</summary>
     private sealed class FakeDaemon : IDaemonTransport
     {
@@ -176,12 +241,16 @@ public sealed class DaemonFeatureControllerTests
         public bool DisableAllFails { get; set; }
         public (string Outcome, string Error)? FailWith { get; set; }
         public List<DaemonRequest> Requests { get; } = [];
+        /// <summary>Trả lời riêng cho một yêu cầu; null thì xử lý như bình thường.</summary>
+        public Func<DaemonRequest, DaemonResponse?>? Reply { get; set; }
+        public DaemonRequest? LastRequest => Requests.Count > 0 ? Requests[^1] : null;
 
         public Task<DaemonResponse> SendAsync(DaemonRequest request, CancellationToken cancellationToken)
         {
             if (Down) throw new DaemonUnavailableException("down");
             if (Reject) return Task.FromResult(new DaemonResponse(false, "Chỉ người đang dùng máy này"));
             Requests.Add(request);
+            if (Reply?.Invoke(request) is { } custom) return Task.FromResult(custom);
             DaemonResponse response;
             switch (request.Command)
             {

@@ -89,11 +89,19 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         return new DisableAllResult([], Remaining(response));
     }
 
-    // Tạm (Task 8): Task 9 gửi get-domains/set-domains tới dịch vụ nền.
-    public Task<DomainSelection?> GetDomainsAsync() => Task.FromResult<DomainSelection?>(null);
+    public async Task<DomainSelection?> GetDomainsAsync() =>
+        (await SendAsync(new DaemonRequest(DaemonProtocol.GetDomains)).ConfigureAwait(false))?.Domains;
 
-    public Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection) =>
-        Task.FromResult(new DomainApplyResult(false, Strings.DaemonNeedsUpdate));
+    /// <summary>Dịch vụ nền tự kiểm, áp và lưu. Bản cũ chưa biết set-domains trả "Lệnh lạ:" nên đề nghị cài lại.</summary>
+    public async Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        var response = await SendAsync(new DaemonRequest(DaemonProtocol.SetDomains, Domains: selection)).ConfigureAwait(false);
+        if (response is null) return new(false, ErrorMessages.For(FeatureError.ServiceUnavailable));
+        if (response.Ok) return new(true, null);
+        if (response.Message?.StartsWith("Lệnh lạ:", StringComparison.Ordinal) == true) return new(false, Strings.DaemonNeedsUpdate);
+        return new(false, response.Message);
+    }
 
     /// <summary>Không có gì bật thì không làm phiền daemon; daemon không chạy thì không còn gì để giao diện hoàn tác.</summary>
     public async Task<int> ShutdownAsync()
