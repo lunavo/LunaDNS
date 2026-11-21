@@ -1,11 +1,18 @@
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
+using LunaDns.Core.Settings;
 
 namespace LunaDns.Platform.MacOS.Daemon;
 
-/// <summary>Ánh xạ yêu cầu socket sang FeatureSet. Chế độ PUBG chưa mở trên macOS.</summary>
-public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, string version)
+/// <summary>
+/// Ánh xạ yêu cầu socket sang FeatureSet. Chế độ PUBG chưa mở trên macOS.
+/// Daemon giữ settings.json (thư mục dữ liệu của root); giao diện chỉ đọc/ghi danh sách tên miền qua get-domains/set-domains.
+/// </summary>
+public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, string version, JsonFileSettingsStore settingsStore)
 {
+    private AppSettings _settings = (settingsStore ?? throw new ArgumentNullException(nameof(settingsStore))).Load();
+
     public async Task<DaemonResponse> HandleAsync(DaemonRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -33,10 +40,37 @@ public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, s
                         ? Ok()
                         : Ok() with { Ok = false, Message = $"Còn {result.RemainingEntries} thay đổi chưa hoàn tác; xem log." };
                 }
+            case DaemonProtocol.GetDomains:
+                return Ok() with { Domains = _settings.Domains };
+            case DaemonProtocol.SetDomains:
+                return await SetDomainsAsync(request.Domains, cancellationToken).ConfigureAwait(false);
             default:
                 return new DaemonResponse(false, $"Lệnh lạ: {request.Command}");
         }
     }
+
+    /// <summary>Không tin dữ liệu từ giao diện (quyền user): kiểm lại toàn bộ, áp, rồi mới ghi file (spec KH8 3.3).</summary>
+    private async Task<DaemonResponse> SetDomainsAsync(DomainSelection? wanted, CancellationToken cancellationToken)
+    {
+        if (wanted is null) return new DaemonResponse(false, "Thiếu danh sách tên miền.");
+        if (wanted.FirstInvalidIndex() is { } bad)
+            return new DaemonResponse(false, bad >= DomainPolicy.MaxCustomDomains
+                ? $"Tối đa {DomainPolicy.MaxCustomDomains} tên miền."
+                : $"Tên miền không hợp lệ ở dòng {bad + 1}.");
+        var result = await features.ReapplyAsync(FeatureDomains.Routed(wanted), cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+            return Ok() with { Ok = false, Error = result.Error.ToString(), Message = DescribeReapply(result) };
+        _settings = _settings with { Domains = wanted };
+        settingsStore.Save(_settings);
+        return Ok() with { Domains = wanted };
+    }
+
+    private static string DescribeReapply(ReapplyResult result) => result.Error switch
+    {
+        FeatureError.NoDomains => "Chưa có tên miền nào được chọn. Bật ít nhất một nhóm, hoặc tắt Định tuyến DNS và Proxy SNI trước.",
+        _ when result.PreviousRestored => $"Không áp được danh sách mới ({result.Error}); đã giữ danh sách cũ.",
+        _ => $"Không áp được danh sách mới ({result.Error}) và không khôi phục được; chạy: sudo lunadns cleanup",
+    };
 
     private DaemonResponse Ok()
     {

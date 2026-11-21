@@ -25,11 +25,13 @@ internal sealed class Engine : IAsyncDisposable
         Configurator = configurator;
         Journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile), SystemChanges.Reverters(configurator));
         StartupRollback = Journal.RollbackAll();
-        var settings = new AppSettings();
+        SettingsStore = new JsonFileSettingsStore(paths.SettingsFile);
+        var settings = SettingsStore.Load();
         var services = new CoreFeatureServices(() => settings.DohServers(), loggers,
             dnsEndPoint: new IPEndPoint(IPAddress.Loopback, configurator.Dns.Port));
         Features = new FeatureSet(Journal, new SystemChanges(Journal, configurator), services,
-            settings.Tuning, logger: loggers.CreateLogger<FeatureSet>());
+            settings.Tuning, logger: loggers.CreateLogger<FeatureSet>(),
+            routedDomains: FeatureDomains.Routed(settings.Domains));
     }
 
     public MacPaths Paths { get; }
@@ -41,6 +43,9 @@ internal sealed class Engine : IAsyncDisposable
     public ChangeJournal Journal { get; }
 
     public FeatureSet Features { get; }
+
+    /// <summary>settings.json của daemon; DaemonCommands đọc/ghi danh sách tên miền qua đây.</summary>
+    public JsonFileSettingsStore SettingsStore { get; }
 
     public RollbackResult StartupRollback { get; }
 
