@@ -30,5 +30,5 @@ public sealed record AppSettings
         PreferGoogleDoh ? [DohServer.Google, DohServer.Cloudflare] : DohServer.Defaults;
 
     public FeatureTuning Tuning() =>
-        new(SplitMode, TimeSpan.FromMilliseconds(Math.Clamp(SplitDelayMs, 0, MaxSplitDelayMs)));
+        new(new HelloSplit(SplitMode), TimeSpan.FromMilliseconds(Math.Clamp(SplitDelayMs, 0, MaxSplitDelayMs)));
 }

@@ -13,7 +13,7 @@ public class SplitProxyOptionsTests
 
         Assert.Equal(18080, options.FirstPort);
         Assert.Equal(18090, options.LastPort);
-        Assert.Equal(SplitMode.FirstByte, options.SplitMode);
+        Assert.Equal(HelloSplit.Default, options.Split);
         Assert.Equal(TimeSpan.Zero, options.SplitDelay);
         options.Validate();
     }

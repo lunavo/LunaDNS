@@ -13,7 +13,7 @@ public class SplittingStreamTests
     public async Task Splits_only_the_first_async_write()
     {
         var inner = new RecordingStream();
-        await using var stream = new SplittingStream(inner, SplitMode.FirstByte);
+        await using var stream = new SplittingStream(inner, HelloSplit.Default);
 
         await stream.WriteAsync(Hello);
         await stream.WriteAsync(Later);
@@ -29,7 +29,7 @@ public class SplittingStreamTests
     public void Splits_only_the_first_sync_write()
     {
         var inner = new RecordingStream();
-        using var stream = new SplittingStream(inner, SplitMode.FirstByte);
+        using var stream = new SplittingStream(inner, HelloSplit.Default);
 
         stream.Write(Hello, 0, Hello.Length);
         stream.Write(Later, 0, Later.Length);

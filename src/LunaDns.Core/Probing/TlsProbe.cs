@@ -15,20 +15,21 @@ namespace LunaDns.Core.Probing;
 public sealed partial class TlsProbe : ITlsProbe
 {
     private readonly int _port;
-    private readonly SplitMode _splitMode;
+    private readonly HelloSplit _split;
     private readonly RemoteCertificateValidationCallback? _validation;
     private readonly ILogger _logger;
 
-    public TlsProbe(SplitMode splitMode = SplitMode.FirstByte, ILogger<TlsProbe>? logger = null)
-        : this(443, splitMode, null, logger)
+    public TlsProbe(HelloSplit? split = null, ILogger<TlsProbe>? logger = null)
+        : this(443, split ?? HelloSplit.Default, null, logger)
     {
     }
 
     /// <summary>Cho test: cổng và cách kiểm tra chứng chỉ tuỳ chọn.</summary>
-    internal TlsProbe(int port, SplitMode splitMode, RemoteCertificateValidationCallback? validation, ILogger<TlsProbe>? logger)
+    internal TlsProbe(int port, HelloSplit split, RemoteCertificateValidationCallback? validation, ILogger<TlsProbe>? logger)
     {
+        ArgumentNullException.ThrowIfNull(split);
         _port = port;
-        _splitMode = splitMode;
+        _split = split;
         _validation = validation;
         _logger = (ILogger?)logger ?? NullLogger.Instance;
     }
@@ -41,7 +42,7 @@ public sealed partial class TlsProbe : ITlsProbe
         {
             await socket.ConnectAsync(new IPEndPoint(address, _port), cancellationToken).ConfigureAwait(false);
             Stream transport = new NetworkStream(socket, ownsSocket: false);
-            if (split) transport = new SplittingStream(transport, _splitMode);
+            if (split) transport = new SplittingStream(transport, _split);
             using var ssl = new SslStream(transport, leaveInnerStreamOpen: false);
             var options = new SslClientAuthenticationOptions
             {

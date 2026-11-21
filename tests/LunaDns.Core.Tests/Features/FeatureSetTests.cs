@@ -149,7 +149,7 @@ public sealed class FeatureSetTests : IAsyncLifetime
     [Fact]
     public async Task Tuning_comes_from_the_callback_at_start()
     {
-        var tuning = new FeatureTuning(SplitMode.MidSni, TimeSpan.FromMilliseconds(5));
+        var tuning = new FeatureTuning(new HelloSplit(SplitMode.MidSni), TimeSpan.FromMilliseconds(5));
         await using var features = Create(() => tuning);
 
         await features.EnableAsync(Feature.SniProxy);

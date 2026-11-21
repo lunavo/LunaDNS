@@ -10,7 +10,7 @@ public class HelloSplitterTests
     public void FirstByte_cuts_after_first_byte()
     {
         var hello = TestClientHello.Build("store.steampowered.com");
-        Assert.Equal(FirstCut, HelloSplitter.CutPoints(hello, SplitMode.FirstByte));
+        Assert.Equal(FirstCut, HelloSplitter.CutPoints(hello, new HelloSplit(SplitMode.FirstByte)));
     }
 
     [Fact]
@@ -19,7 +19,7 @@ public class HelloSplitterTests
         var hello = TestClientHello.Build("store.steampowered.com");
         ClientHelloParser.TryFindSni(hello, out var sni);
 
-        var cut = Assert.Single(HelloSplitter.CutPoints(hello, SplitMode.MidSni));
+        var cut = Assert.Single(HelloSplitter.CutPoints(hello, new HelloSplit(SplitMode.MidSni)));
         Assert.InRange(cut, sni.Offset + 1, sni.Offset + sni.Length - 1);
     }
 
@@ -27,12 +27,12 @@ public class HelloSplitterTests
     public void MidSni_falls_back_to_first_byte_without_sni()
     {
         var hello = TestClientHello.Build(null, paddingLength: 8);
-        Assert.Equal(FirstCut, HelloSplitter.CutPoints(hello, SplitMode.MidSni));
+        Assert.Equal(FirstCut, HelloSplitter.CutPoints(hello, new HelloSplit(SplitMode.MidSni)));
     }
 
     [Fact]
     public void One_byte_input_has_no_cut() =>
-        Assert.Empty(HelloSplitter.CutPoints([0x16], SplitMode.FirstByte));
+        Assert.Empty(HelloSplitter.CutPoints([0x16], new HelloSplit(SplitMode.FirstByte)));
 
     [Theory]
     [InlineData(SplitMode.FirstByte)]
@@ -41,7 +41,7 @@ public class HelloSplitterTests
     {
         var hello = TestClientHello.Build("steamcommunity.com", paddingLength: 100);
 
-        var pieces = HelloSplitter.Split(hello, mode);
+        var pieces = HelloSplitter.Split(hello, new HelloSplit(mode));
 
         Assert.Equal(2, pieces.Count);
         Assert.Equal(hello, pieces.SelectMany(p => p.ToArray()).ToArray());

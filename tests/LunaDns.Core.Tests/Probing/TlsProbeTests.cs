@@ -18,7 +18,7 @@ public sealed class TlsProbeTests : IAsyncLifetime
 
     public async Task DisposeAsync() => await _server.DisposeAsync();
 
-    private TlsProbe Trusting(int? port = null) => new(port ?? _server.Port, SplitMode.FirstByte, _server.Trusts, null);
+    private TlsProbe Trusting(int? port = null) => new(port ?? _server.Port, HelloSplit.Default, _server.Trusts, null);
 
     [Fact]
     public async Task Intact_handshake_succeeds_with_trusted_certificate() =>
@@ -32,7 +32,7 @@ public sealed class TlsProbeTests : IAsyncLifetime
     public async Task Untrusted_certificate_is_a_failure()
     {
         // Không truyền callback: dùng kiểm tra mặc định của hệ điều hành, chứng chỉ tự ký bị từ chối.
-        var probe = new TlsProbe(_server.Port, SplitMode.FirstByte, null, null);
+        var probe = new TlsProbe(_server.Port, HelloSplit.Default, null, null);
 
         Assert.False(await probe.HandshakeAsync(IPAddress.Loopback, Host, split: false, CancellationToken.None));
     }

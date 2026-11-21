@@ -15,7 +15,8 @@ public sealed record SplitProxyOptions
 
     public int LastPort { get; init; } = DefaultLastPort;
 
-    public SplitMode SplitMode { get; init; } = SplitMode.FirstByte;
+    /// <summary>Cắt ClientHello ở đâu và có tách TLS record không (mục Nâng cao, spec 4.3 và D1).</summary>
+    public HelloSplit Split { get; init; } = HelloSplit.Default;
 
     /// <summary>Chờ giữa hai mảnh ClientHello, 0–20 ms. Mặc định 0: chỉ cần NoDelay và hai lần Write.</summary>
     public TimeSpan SplitDelay { get; init; } = TimeSpan.Zero;
@@ -23,6 +24,7 @@ public sealed record SplitProxyOptions
     internal void Validate()
     {
         ArgumentNullException.ThrowIfNull(Domains);
+        ArgumentNullException.ThrowIfNull(Split);
         if (FirstPort is < 0 or > 65535 || LastPort is < 0 or > 65535 || FirstPort > LastPort)
             throw new ArgumentException($"Khoảng cổng proxy không hợp lệ: {FirstPort}–{LastPort}.");
         if (SplitDelay < TimeSpan.Zero || SplitDelay > SplitWriter.MaxDelay)
