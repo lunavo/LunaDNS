@@ -124,13 +124,28 @@ public sealed class ResolverDnsRouterTests : IDisposable
     [Theory]
     [InlineData("../hosts")]
     [InlineData("..steampowered.com")]
-    [InlineData("printer.local")]
+    [InlineData("a/b")]
+    [InlineData("")]
     public void Snapshot_from_tampered_journal_is_refused(string name)
     {
         var bad = new DnsRouteSnapshot(ResolverDnsRouter.MarkerPrefix + "x", [name], "127.0.0.1", []);
 
         Assert.Throws<ArgumentException>(() => _router.Revert(bad));
         Assert.Throws<ArgumentException>(() => _router.Apply(bad));
+    }
+
+    [Fact]
+    public void Revert_does_not_depend_on_current_domain_policy()
+    {
+        // "com" là hậu tố công khai: IsRoutable từ chối, nhưng journal cũ vẫn phải gỡ được file đã ghi.
+        var snapshot = new DnsRouteSnapshot(ResolverDnsRouter.MarkerPrefix + "old", ["com"], "127.0.0.1", []);
+        System.IO.Directory.CreateDirectory(_router.Directory);
+        File.WriteAllText(FileFor("com"), "# " + snapshot.Marker + "\nnameserver 127.0.0.1\nport 15353\n");
+
+        Assert.Throws<ArgumentException>(() => _router.Apply(snapshot));
+        _router.Revert(snapshot);
+
+        Assert.False(File.Exists(FileFor("com")));
     }
 
     [Fact]

@@ -304,6 +304,9 @@ internal sealed partial class MainViewModel : ObservableObject
         {
             var group = summary.Groups.FirstOrDefault(g => g.Group == row.Group);
             if (group is null) row.ShowProbe(null, null);
+            else if (group.Group == DomainGroup.Custom && group.Results.Count(r => r.Verdict == ProbeVerdict.Unreachable) is > 0 and var unhelped)
+                row.ShowProbe(Strings.Format(nameof(Strings.DomainRowProbeUnhelpedFormat), unhelped), Tone.Error);
+            else if (group.Worst == ProbeVerdict.Ok) row.ShowProbe(Strings.DomainRowProbeOk, Tone.Good);
             else row.ShowProbe(DomainProbeText.For(group.Worst), DomainProbeText.ToneFor(group.Worst));
         }
     }

@@ -2,6 +2,8 @@ using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
 using LunaDns.Core.Settings;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LunaDns.Platform.MacOS.Daemon;
 
@@ -9,9 +11,27 @@ namespace LunaDns.Platform.MacOS.Daemon;
 /// Ánh xạ yêu cầu socket sang FeatureSet. Chế độ PUBG chưa mở trên macOS.
 /// Daemon giữ settings.json (thư mục dữ liệu của root); giao diện chỉ đọc/ghi danh sách tên miền qua get-domains/set-domains.
 /// </summary>
-public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, string version, JsonFileSettingsStore settingsStore)
+public sealed partial class DaemonCommands
 {
-    private AppSettings _settings = (settingsStore ?? throw new ArgumentNullException(nameof(settingsStore))).Load();
+    private readonly FeatureSet features;
+    private readonly ChangeJournal journal;
+    private readonly string version;
+    private readonly JsonFileSettingsStore settingsStore;
+    private AppSettings _settings;
+
+    public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, JsonFileSettingsStore settingsStore, ILogger? logger = null)
+    {
+        this.features = features;
+        this.journal = journal;
+        this.version = version;
+        this.settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
+        _settings = settingsStore.Load();
+        // Daemon là bên giữ settings.json trên macOS: dòng bị bỏ lúc nạp phải để lại dấu (spec mục 7).
+        if (settingsStore.DroppedDomains > 0) LogDroppedDomains(logger ?? NullLogger.Instance, settingsStore.DroppedDomains);
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Đã bỏ {Count} dòng tên miền Tuỳ chỉnh không hợp lệ khi nạp settings.json.")]
+    private static partial void LogDroppedDomains(ILogger logger, int count);
 
     public async Task<DaemonResponse> HandleAsync(DaemonRequest request, CancellationToken cancellationToken)
     {

@@ -95,6 +95,7 @@ public sealed partial class FeatureSet : IAsyncDisposable
             LogReapplyFailed(_logger, failure.Feature, failure.Error);
             _routed = previous;
             var restoreFailure = await RestartAsync(active).ConfigureAwait(false);
+            if (restoreFailure is not null) LogReapplyRestoreFailed(_logger, restoreFailure.Feature, restoreFailure.Error);
             return new ReapplyResult(false, restoreFailure is null, failure.Error);
         }
         finally
@@ -385,4 +386,7 @@ public sealed partial class FeatureSet : IAsyncDisposable
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Áp danh sách tên miền mới lỗi ở {Feature} ({Error}); quay về danh sách cũ.")]
     private static partial void LogReapplyFailed(ILogger logger, Feature feature, FeatureError error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Không khôi phục được danh sách tên miền cũ cho {Feature} ({Error}); chạy 'lunadns cleanup' nếu mạng bất thường")]
+    private static partial void LogReapplyRestoreFailed(ILogger logger, Feature feature, FeatureError error);
 }

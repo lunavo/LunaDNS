@@ -84,7 +84,7 @@ public sealed class DomainGroupViewModelTests
     public async Task Refusing_the_last_group_marks_row_kept_back()
     {
         var vm = new DomainGroupViewModel(DomainGroup.Steam, () => new DomainSelection { EnabledGroups = [DomainGroup.Steam] },
-            _ => Task.FromResult(new DomainApplyResult(false, ErrorMessages.For(FeatureError.NoDomains))), _ => { });
+            _ => Task.FromResult(new DomainApplyResult(false, "bất kỳ câu nào", FeatureError.NoDomains)), _ => { });
 
         await vm.SetEnabledAsync(false);
 

@@ -100,7 +100,8 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         if (response is null) return new(false, ErrorMessages.For(FeatureError.ServiceUnavailable));
         if (response.Ok) return new(true, null);
         if (IsUnknownCommand(response)) return new(false, Strings.DaemonNeedsUpdate);
-        return new(false, response.Message);
+        var error = Enum.TryParse<FeatureError>(response.Error, out var parsed) && Enum.IsDefined(parsed) ? parsed : (FeatureError?)null;
+        return new(false, response.Message, error);
     }
 
     /// <summary>Không có gì bật thì không làm phiền daemon; daemon không chạy thì không còn gì để giao diện hoàn tác.</summary>

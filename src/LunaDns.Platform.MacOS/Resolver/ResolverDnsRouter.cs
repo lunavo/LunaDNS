@@ -82,7 +82,7 @@ public sealed class ResolverDnsRouter
 
     public void Revert(DnsRouteSnapshot snapshot)
     {
-        EnsureSnapshot(snapshot);
+        EnsureSnapshot(snapshot, requireRoutable: false);
         Guard(() =>
         {
             foreach (var host in snapshot.Namespaces)
@@ -122,18 +122,20 @@ public sealed class ResolverDnsRouter
         marker.StartsWith(MarkerPrefix, StringComparison.Ordinal) && marker.Length > MarkerPrefix.Length;
 
     /// <summary>Tên file lấy từ journal trên đĩa: chỉ tên miền định tuyến được (DomainPolicy), không bao giờ có "/" hay "..".</summary>
-    private static bool IsSafeDomain(string host) =>
+    private static bool IsSafeDomain(string host) => IsSafeFileName(host) && DomainPolicy.IsRoutable(host);
+
+    /// <summary>Chỉ xét tên file: Revert không phụ thuộc DomainPolicy vì danh sách cấm/PSL đổi theo bản phát hành, journal cũ vẫn phải gỡ được.</summary>
+    private static bool IsSafeFileName(string host) =>
         host.Length > 0
         && host.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '-' or '.')
-        && !host.StartsWith('.') && !host.Contains("..", StringComparison.Ordinal)
-        && DomainPolicy.IsRoutable(host);
+        && !host.StartsWith('.') && !host.Contains("..", StringComparison.Ordinal);
 
-    private static void EnsureSnapshot(DnsRouteSnapshot snapshot)
+    private static void EnsureSnapshot(DnsRouteSnapshot snapshot, bool requireRoutable = true)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         if (!IsLunaDnsMarker(snapshot.Marker) || snapshot.Marker.Contains('\n', StringComparison.Ordinal))
             throw new ArgumentException("Snapshot định tuyến DNS không mang dấu của LunaDNS.", nameof(snapshot));
-        if (snapshot.Namespaces.Any(n => !IsSafeDomain(n)))
+        if (snapshot.Namespaces.Any(n => requireRoutable ? !IsSafeDomain(n) : !IsSafeFileName(n)))
             throw new ArgumentException("Snapshot định tuyến DNS có tên miền lạ.", nameof(snapshot));
         if (!IPAddress.TryParse(snapshot.NameServer, out var server) || !IPAddress.IsLoopback(server))
             throw new ArgumentException("Snapshot định tuyến DNS không trỏ về máy này.", nameof(snapshot));

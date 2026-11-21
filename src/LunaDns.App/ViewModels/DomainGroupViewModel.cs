@@ -91,7 +91,7 @@ internal sealed class DomainGroupViewModel : ObservableObject
             var result = await _apply(_current().WithGroup(Group, enabled));
             if (!result.Success && result.Message is { } message)
             {
-                if (message.StartsWith(ErrorMessages.For(FeatureError.NoDomains), StringComparison.Ordinal))
+                if (result.Error == FeatureError.NoDomains)
                     ShowTemporary(Strings.GroupKeptBack, Tone.Error);
                 else if (message == Strings.DaemonNeedsUpdate)
                     ShowTemporary(Strings.GroupNotApplied, Tone.Warning);
