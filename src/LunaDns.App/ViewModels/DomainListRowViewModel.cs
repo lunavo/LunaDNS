@@ -38,7 +38,8 @@ internal sealed class DomainListRowViewModel : ObservableObject, IDisposable
         _time = time ?? throw new ArgumentNullException(nameof(time));
         _post = post ?? (a => a());
         onError ??= _ => { };
-        ToggleCommand = new AsyncCommand(ToggleAsync, onError);
+        // Cùng điều kiện với Cập nhật ngay: không bật/tắt khi một lượt áp tên miền khác đang chạy.
+        ToggleCommand = new AsyncCommand(ToggleAsync, onError, () => !_isChecking() && !_busyElsewhere());
         CheckNowCommand = new AsyncCommand(CheckNowAsync, onError, () => IsEnabled && !_isChecking() && !_busyElsewhere());
     }
 
@@ -125,7 +126,8 @@ internal sealed class DomainListRowViewModel : ObservableObject, IDisposable
         DomainListOutcome.UnknownFormat => Strings.DomainListNeedsNewerApp,
         DomainListOutcome.Malformed or DomainListOutcome.UnknownKey or DomainListOutcome.BadSignature or DomainListOutcome.Downgrade
             => Strings.DomainListBadSignature,
-        DomainListOutcome.ReapplyFailed or DomainListOutcome.SaveFailed => ErrorMessages.For(result.Error),
+        DomainListOutcome.ReapplyFailed => ErrorMessages.For(result.Error),
+        DomainListOutcome.SaveFailed => Strings.DomainListSaveFailed,
         _ => Strings.DomainListDownloadFailed,
     };
 
@@ -147,6 +149,7 @@ internal sealed class DomainListRowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsEnabled));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(StatusTone));
+        ToggleCommand.RaiseCanExecuteChanged();
         CheckNowCommand.RaiseCanExecuteChanged();
     }
 }

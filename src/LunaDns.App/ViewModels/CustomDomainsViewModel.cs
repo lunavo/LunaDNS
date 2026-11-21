@@ -199,6 +199,13 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
     public bool CommitEdit(CustomDomainRowViewModel row)
     {
         ArgumentNullException.ThrowIfNull(row);
+        // Không đổi chữ thì giữ nguyên dòng: lớp 2 có thể vừa thêm đúng tên này vào nhóm đang bật (chỉ hiện ghi chú, không báo trùng).
+        if (string.Equals(row.EditText.Trim(), row.Domain, StringComparison.OrdinalIgnoreCase))
+        {
+            row.EditError = null;
+            row.IsEditing = false;
+            return true;
+        }
         var others = Rows.Where(r => !ReferenceEquals(r, row)).Select(r => r.Domain).ToList();
         var check = DomainPolicy.Check(row.EditText, others, _enabledCatalog);
         if (!check.Ok)

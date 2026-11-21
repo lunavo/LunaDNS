@@ -149,23 +149,13 @@ public sealed partial class DaemonCommands
         };
     }
 
-    /// <summary>Áp trước, lưu settings.json sau; lưu lỗi thì bật/tắt ngược lại để tính năng khớp file.</summary>
+    /// <summary>Áp trước, lưu settings.json sau (trong cổng của service); lưu lỗi thì service áp ngược lại và trả SaveFailed.</summary>
     private async Task<DaemonResponse> SetDomainListEnabledAsync(bool? enabled, CancellationToken cancellationToken)
     {
         if (enabled is not { } value) return Refused("Thiếu giá trị công tắc.");
-        var result = await _domainList.SetEnabledAsync(value, cancellationToken).ConfigureAwait(false);
-        if (!result.Success)
-            return Ok() with { Ok = false, DomainListResult = DaemonDomainListResult.From(result), DomainList = DaemonDomainList.From(_domainList.State) };
-        try
-        {
-            _settings.Save(_settings.Current with { DomainListUpdates = value });
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            await _domainList.SetEnabledAsync(!value, CancellationToken.None).ConfigureAwait(false);
-            return Ok() with { Ok = false, Message = $"Không lưu được settings.json ({ex.Message}); giữ công tắc cũ." };
-        }
-        return Ok() with { DomainListResult = DaemonDomainListResult.From(result), DomainList = DaemonDomainList.From(_domainList.State) };
+        var result = await _domainList.SetEnabledAsync(value, () => _settings.Save(_settings.Current with { DomainListUpdates = value }),
+            cancellationToken).ConfigureAwait(false);
+        return Ok() with { Ok = result.Success, DomainListResult = DaemonDomainListResult.From(result), DomainList = DaemonDomainList.From(_domainList.State) };
     }
 
     /// <summary>

@@ -41,6 +41,16 @@ public sealed class DomainListUpdaterTests
     }
 
     [Fact]
+    public async Task Checked_at_in_the_future_waits_at_most_one_interval()
+    {
+        _sink.State = _sink.State! with { CheckedAt = _time.GetUtcNow() + TimeSpan.FromDays(90) };
+        var wait = await Create().TickAsync(CancellationToken.None);
+
+        Assert.Empty(_sink.Offered);
+        Assert.Equal(DomainListUpdater.Interval, wait);
+    }
+
+    [Fact]
     public async Task Disabled_switch_never_downloads()
     {
         _sink.State = DomainListState.Empty(enabled: false);

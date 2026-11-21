@@ -44,6 +44,7 @@ The **Tự cập nhật danh sách tên miền** (Auto-update domain list) row h
 | *Không kiểm được lúc HH:mm, giữ bản dd/MM* | The check failed; the existing update is kept (or *"dùng danh sách có sẵn"*, built-in list, if there is none). |
 | *Chữ ký không hợp lệ, giữ bản cũ* | The downloaded file is damaged, wrongly signed or signed with an unknown key; it is ignored. |
 | *Cần bản LunaDNS mới hơn để đọc danh sách này* | The list uses a format this app version cannot read. |
+| *Không lưu được cài đặt, giữ như cũ* | The switch changed but settings.json could not be written; the app puts the previous configuration back. |
 | *Không áp được bản dd/MM, xem Chẩn đoán* | Applying it to the running switches failed; the old configuration stays. **Chẩn đoán** (Diagnostics) has a "Danh sách tên miền cập nhật" block. |
 
 ## PUBG mode: not supported

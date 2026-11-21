@@ -87,7 +87,6 @@ internal sealed class Engine : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await Features.DisposeAsync().ConfigureAwait(false);
-        DomainList.Dispose();
         Loggers.Dispose();
         await _lock.DisposeAsync().ConfigureAwait(false);
     }

@@ -52,7 +52,6 @@ internal sealed class DaemonHarness : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        DomainList.Dispose();
         await Features.DisposeAsync();
     }
 }

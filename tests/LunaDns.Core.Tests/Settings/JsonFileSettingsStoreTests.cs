@@ -155,4 +155,13 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         store.Save(new AppSettings { DomainListUpdates = false });
         Assert.False(store.Load().DomainListUpdates);
     }
+
+    [Fact]
+    public void Settings_with_utf8_bom_load_instead_of_being_moved_aside()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "DomainListUpdates": false }""", new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        Assert.False(new JsonFileSettingsStore(path).Load().DomainListUpdates);
+        Assert.Empty(Directory.GetFiles(_dir, "settings.json.corrupt-*"));
+    }
 }

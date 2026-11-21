@@ -44,6 +44,7 @@ Dòng **Tự cập nhật danh sách tên miền** có công tắc và nút **C�
 | *Không kiểm được lúc HH:mm, giữ bản dd/MM* | Lần kiểm lỗi; vẫn giữ bản đã có (hoặc *"dùng danh sách có sẵn"* nếu chưa có). |
 | *Chữ ký không hợp lệ, giữ bản cũ* | File tải về hỏng, sai chữ ký hoặc ký bằng khoá lạ; bị bỏ qua. |
 | *Cần bản LunaDNS mới hơn để đọc danh sách này* | Bản danh sách dùng định dạng mà bản app này chưa đọc được. |
+| *Không lưu được cài đặt, giữ như cũ* | Bật/tắt công tắc nhưng không ghi được settings.json; app trả cấu hình về như trước. |
 | *Không áp được bản dd/MM, xem Chẩn đoán* | Áp vào công tắc đang bật bị lỗi; app giữ cấu hình cũ. **Chẩn đoán** có khối "Danh sách tên miền cập nhật". |
 
 ## Chế độ PUBG: chưa hỗ trợ

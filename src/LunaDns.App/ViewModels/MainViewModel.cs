@@ -517,7 +517,6 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
         _lifetime.Dispose();
-        _domainListUpdater.Dispose();
         DomainList.Dispose();
     }
 

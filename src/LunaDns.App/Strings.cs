@@ -168,6 +168,7 @@ internal static class Strings
     public static string DomainListBadSignature => Get(nameof(DomainListBadSignature));
     public static string DomainListNeedsNewerApp => Get(nameof(DomainListNeedsNewerApp));
     public static string DomainListDownloadFailed => Get(nameof(DomainListDownloadFailed));
+    public static string DomainListSaveFailed => Get(nameof(DomainListSaveFailed));
     public static string GroupCountWithUpdateFormat => Get(nameof(GroupCountWithUpdateFormat));
     public static string DomainSourceBuiltin => Get(nameof(DomainSourceBuiltin));
     public static string DomainSourceUpdateFormat => Get(nameof(DomainSourceUpdateFormat));

@@ -16,8 +16,8 @@ public sealed class JsonFileSettingsStore(string path)
         if (!File.Exists(path)) return new AppSettings();
         try
         {
-            var bytes = File.ReadAllBytes(path);
-            var loaded = JsonSerializer.Deserialize(bytes, SettingsJsonContext.Default.AppSettings) ?? new AppSettings();
+            var bytes = WithoutBom(File.ReadAllBytes(path));
+            var loaded = JsonSerializer.Deserialize(bytes.Span, SettingsJsonContext.Default.AppSettings) ?? new AppSettings();
 #pragma warning disable CA1508 // JSON "Domains": null ghi đè giá trị mặc định, nên vẫn có thể null lúc chạy.
             var domains = (loaded.Domains ?? new DomainSelection()).Sanitized(out var dropped);
 #pragma warning restore CA1508
@@ -39,7 +39,11 @@ public sealed class JsonFileSettingsStore(string path)
         }
     }
 
-    private static bool HasProperty(byte[] json, string name)
+    // Overload span/byte không bỏ BOM như overload stream; file sửa bằng Notepad cũ hay PowerShell 5 có BOM.
+    private static ReadOnlyMemory<byte> WithoutBom(byte[] bytes) =>
+        bytes.AsSpan().StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]) ? bytes.AsMemory(3) : bytes;
+
+    private static bool HasProperty(ReadOnlyMemory<byte> json, string name)
     {
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty(name, out _);

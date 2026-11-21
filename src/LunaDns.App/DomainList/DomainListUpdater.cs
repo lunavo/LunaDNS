@@ -21,7 +21,11 @@ internal sealed record DomainListCheck(DateTimeOffset At, DomainListCheckKind Ki
 /// lỗi mạng thì 1 giờ. Không tự xác minh: byte đi nguyên vẹn tới IDomainListSink (Windows: app; macOS: daemon).
 /// Lượt lỗi chỉ nằm trong bộ nhớ. Một lượt tải tại một thời điểm.
 /// </summary>
-internal sealed partial class DomainListUpdater(HttpClient http, Uri url, IDomainListSink sink, TimeProvider time, ILogger logger) : IDisposable
+// SemaphoreSlim không dùng AvailableWaitHandle thì không giữ handle nào; không dispose để lượt đang dở
+// (Offer/Reapply không huỷ được) vẫn Release được khi app hay daemon đang tắt.
+#pragma warning disable CA1001
+internal sealed partial class DomainListUpdater(HttpClient http, Uri url, IDomainListSink sink, TimeProvider time, ILogger logger)
+#pragma warning restore CA1001
 {
     public static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(30);
     public static readonly TimeSpan Interval = TimeSpan.FromHours(24);
@@ -42,8 +46,6 @@ internal sealed partial class DomainListUpdater(HttpClient http, Uri url, IDomai
 
     public event EventHandler? Changed;
 
-    public void Dispose() => _single.Dispose();
-
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         await Task.Delay(StartupDelay, time, cancellationToken).ConfigureAwait(false);
@@ -60,7 +62,10 @@ internal sealed partial class DomainListUpdater(HttpClient http, Uri url, IDomai
         if (state is null || !state.Enabled) return RetryDelay;
         if (state.CheckedAt is { } checkedAt)
         {
+            // Đồng hồ từng chạy nhanh rồi được chỉnh lại thì checkedAt nằm ở tương lai: chặn trên bằng Interval,
+            // nếu không Task.Delay quá ~49,7 ngày sẽ ném và vòng hẹn giờ chết hẳn.
             var due = checkedAt + Interval - time.GetUtcNow();
+            if (due > Interval) return Interval;
             if (due > TimeSpan.Zero) return due;
         }
         var check = await CheckNowAsync(cancellationToken).ConfigureAwait(false);
@@ -70,10 +75,10 @@ internal sealed partial class DomainListUpdater(HttpClient http, Uri url, IDomai
     public async Task<DomainListCheck> CheckNowAsync(CancellationToken cancellationToken = default)
     {
         await _single.WaitAsync(cancellationToken).ConfigureAwait(false);
-        _checking = true;
-        Changed?.Invoke(this, EventArgs.Empty);
         try
         {
+            _checking = true;
+            Changed?.Invoke(this, EventArgs.Empty);
             var check = await CheckCoreAsync(cancellationToken).ConfigureAwait(false);
             _reapplyFailures = check.Offer?.Outcome is DomainListOutcome.ReapplyFailed or DomainListOutcome.SaveFailed ? _reapplyFailures + 1 : 0;
             _last = check;

@@ -54,12 +54,18 @@ public static class DomainListSigning
                 errors.Add($"{key}: nhóm không nhận lớp 2.");
                 continue;
             }
+            if (list is null)
+            {
+                errors.Add($"{key}: danh sách null.");
+                continue;
+            }
             if (list.Count > DomainListVerifier.MaxPerGroup) errors.Add($"{key}: quá {DomainListVerifier.MaxPerGroup} tên miền.");
             total += list.Count;
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var domain in list)
             {
-                if (DomainPolicy.Normalize(domain) != domain) errors.Add($"{key}: {domain} chưa chuẩn hoá.");
+                if (domain is null) errors.Add($"{key}: có phần tử null.");
+                else if (DomainPolicy.Normalize(domain) != domain) errors.Add($"{key}: {domain} chưa chuẩn hoá.");
                 else if (DomainPolicy.Validate(domain) is var r and not DomainRejection.None) errors.Add($"{key}: {domain} bị từ chối ({r}).");
                 else if (DomainMatcher.Matches(domain, DomainCatalog.For(group))) errors.Add($"{key}: {domain} đã có ở lớp 1.");
                 else if (!seen.Add(domain)) errors.Add($"{key}: {domain} lặp lại.");

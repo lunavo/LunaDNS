@@ -9,7 +9,11 @@ namespace LunaDns.Core.Domains;
 /// Routed đổi, rồi mới ghi file. Mọi thao tác chạy tuần tự qua một cổng; set-domains/Lưu Tuỳ chỉnh dùng WithCatalogAsync
 /// để Routed tính bằng catalog đúng lúc áp. Công tắc lưu ở settings.json do bên gọi giữ; service chỉ giữ giá trị đang dùng.
 /// </summary>
-public sealed partial class DomainListService : IDisposable
+// SemaphoreSlim không dùng AvailableWaitHandle thì không giữ handle nào; không dispose để lượt đang dở
+// (Offer/Reapply không huỷ được) vẫn Release được khi app hay daemon đang tắt.
+#pragma warning disable CA1001
+public sealed partial class DomainListService
+#pragma warning restore CA1001
 {
     private readonly DomainListStore _store;
     private readonly IReadOnlyDictionary<string, string> _keys;
@@ -54,7 +58,10 @@ public sealed partial class DomainListService : IDisposable
         try
         {
             if (!_enabled) return new(DomainListOutcome.Disabled);
-            var verified = DomainListVerifier.Verify(file, _keys, _data.HighestSerial);
+            // File trạng thái hỏng (Current null, HighestSerial còn giữ): nhận lại đúng serial đó, vẫn kiểm chữ ký,
+            // để không phải chờ bản phát hành sau mới thoát lớp 1. Serial thấp hơn vẫn là hạ cấp.
+            var floor = _data.Current is null && _data.HighestSerial > 0 ? _data.HighestSerial - 1 : _data.HighestSerial;
+            var verified = DomainListVerifier.Verify(file, _keys, floor);
             var now = _time.GetUtcNow();
             if (verified.Outcome == DomainListOutcome.NotNewer)
             {
@@ -92,7 +99,11 @@ public sealed partial class DomainListService : IDisposable
         }
     }
 
-    public async Task<DomainListOfferResult> SetEnabledAsync(bool enabled, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Bật/tắt lớp 2. <paramref name="commit"/> (lưu công tắc vào settings.json) chạy trong cổng, sau khi áp xong,
+    /// để không lượt Offer/Lưu Tuỳ chỉnh nào chen vào giữa áp và lưu. Lưu lỗi thì áp ngược lại.
+    /// </summary>
+    public async Task<DomainListOfferResult> SetEnabledAsync(bool enabled, Action? commit = null, CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -102,6 +113,16 @@ public sealed partial class DomainListService : IDisposable
             var after = CatalogFor(_data, enabled);
             var applied = await ApplyAsync(before, after, cancellationToken).ConfigureAwait(false);
             if (!applied.Success) return Failed(applied);
+            try
+            {
+                commit?.Invoke();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                LogSaveFailed(_logger, ex);
+                var back = await ApplyAsync(after, before, CancellationToken.None).ConfigureAwait(false);
+                return new(DomainListOutcome.SaveFailed, PreviousRestored: back.Success);
+            }
             _enabled = enabled;
             return new(DomainListOutcome.Accepted, CountAdded(before, after));
         }
@@ -124,8 +145,6 @@ public sealed partial class DomainListService : IDisposable
             _gate.Release();
         }
     }
-
-    public void Dispose() => _gate.Dispose();
 
     private static EffectiveCatalog CatalogFor(DomainListStoreData data, bool enabled) =>
         enabled && data.Current is { } current ? EffectiveCatalog.From(current.Groups, current.Issued) : EffectiveCatalog.Builtin;

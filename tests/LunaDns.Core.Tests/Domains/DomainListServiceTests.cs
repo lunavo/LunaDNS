@@ -157,4 +157,33 @@ public sealed class DomainListServiceTests : IDisposable
         await held;
         Assert.Equal(DomainListOutcome.Accepted, (await offer).Outcome);
     }
+
+    [Fact]
+    public async Task Broken_state_accepts_the_same_serial_again_but_not_a_lower_one()
+    {
+        new DomainListStore(FilePath, Keys).Save(new DomainListStoreData(null, 5, null));
+        var service = Create();
+
+        Assert.NotEqual(DomainListOutcome.Accepted, (await service.OfferAsync(Steam(4, "cdn.example.net"))).Outcome);
+        Assert.Equal(DomainListOutcome.Accepted, (await service.OfferAsync(Steam(5, "cdn.example.net"))).Outcome);
+        Assert.Equal(DomainListOutcome.NotNewer, (await service.OfferAsync(Steam(5, "cdn.example.net"))).Outcome);
+    }
+
+    [Fact]
+    public async Task Switch_commit_runs_after_reapply_and_a_failed_commit_reapplies_back()
+    {
+        _selection = new DomainSelection { EnabledGroups = [DomainGroup.Steam] };
+        var service = Create();
+        await service.OfferAsync(Steam(5, "cdn.example.net"));
+        _reapplied.Clear();
+
+        var result = await service.SetEnabledAsync(false, () => throw new IOException("disk full"));
+
+        Assert.Equal(DomainListOutcome.SaveFailed, result.Outcome);
+        Assert.True(result.PreviousRestored);
+        Assert.Equal(2, _reapplied.Count);
+        Assert.DoesNotContain("cdn.example.net", _reapplied[0]);
+        Assert.Contains("cdn.example.net", _reapplied[1]);
+        Assert.True(service.State.Enabled);
+    }
 }

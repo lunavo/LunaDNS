@@ -337,4 +337,18 @@ public sealed class CustomDomainsViewModelTests
         Assert.Empty(vm.Rows);
         Assert.Single(vm.AddErrors);
     }
+
+    [Fact]
+    public void Committing_an_unchanged_row_also_in_a_group_is_not_a_duplicate()
+    {
+        _catalog = EffectiveCatalog.From(new Dictionary<DomainGroup, IReadOnlyList<string>> { [DomainGroup.Steam] = ["cdn.example.net"] }, null);
+        var vm = Create("cdn.example.net");
+        var row = vm.Rows[0];
+        row.IsEditing = true;
+        row.EditText = "cdn.example.net";
+
+        Assert.True(vm.CommitEdit(row));
+        Assert.Null(row.EditError);
+        Assert.False(row.IsEditing);
+    }
 }

@@ -186,7 +186,6 @@ internal sealed class RealDaemon : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _server.DisposeAsync();
-        _domainList.Dispose();
         await _features.DisposeAsync();
         _tmp.Dispose();
     }
@@ -216,7 +215,6 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        _domainList.Dispose();
         await _features.DisposeAsync();
         _tmp.Dispose();
     }
@@ -463,7 +461,7 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
         using var dir = new TempDirectory();
         var services = new FlakyDnsServices();
         await using var features = new FeatureSet(_journal, new SystemChanges(_journal, _cfg), services);
-        using var domainList = DaemonHarness.Idle(features, dir.Path);
+        var domainList = DaemonHarness.Idle(features, dir.Path);
         var commands = new DaemonCommands(features, _journal, "test", new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json")), domainList);
         Assert.True((await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.DnsRouting), CancellationToken.None)).Ok);
         Assert.True((await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.SniProxy), CancellationToken.None)).Ok);

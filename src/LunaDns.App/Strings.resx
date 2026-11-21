@@ -189,6 +189,7 @@
   <data name="DomainListBadSignature" xml:space="preserve"><value>Chữ ký không hợp lệ, giữ bản cũ</value></data>
   <data name="DomainListNeedsNewerApp" xml:space="preserve"><value>Cần bản LunaDNS mới hơn để đọc danh sách này</value></data>
   <data name="DomainListDownloadFailed" xml:space="preserve"><value>Không tải được, thử lại sau</value></data>
+  <data name="DomainListSaveFailed" xml:space="preserve"><value>Không lưu được cài đặt, giữ như cũ</value></data>
   <data name="GroupCountWithUpdateFormat" xml:space="preserve"><value>{0} tên miền ({1} từ bản cập nhật)</value></data>
   <data name="DomainSourceBuiltin" xml:space="preserve"><value>Có sẵn</value></data>
   <data name="DomainSourceUpdateFormat" xml:space="preserve"><value>Bản cập nhật {0:dd/MM}</value></data>
