@@ -6,6 +6,19 @@ Có hai công tắc: Định tuyến DNS và Proxy SNI. Mỗi công tắc bật/
 
 Mọi thay đổi hệ thống được **ghi vào journal trước khi làm**, và hoàn tác theo thứ tự ngược (LIFO). App chỉ động tới thứ do chính nó tạo.
 
+## Bốn khu của cửa sổ
+
+Cửa sổ chính chia theo việc bạn muốn làm, từ trên xuống:
+
+| Khu | Có gì | Xem |
+|---|---|---|
+| **Kiểm tra** | Kết quả kiểm theo nhóm, **Kiểm tra**, **Áp dụng đề xuất**, **Tìm cấu hình hợp mạng**, **Chẩn đoán**; ngay dưới là mục **Nâng cao** (chỉ Windows) | [Kiểm tra và đề xuất](04-kiem-tra-va-de-xuat.md), [Nâng cao](05-nang-cao.md) |
+| **Trạng thái** | Hai công tắc và mục **TÊN MIỀN** | trang này |
+| **Cập nhật** | Dòng *"Đang dùng LunaDNS x.y.z"*, **Kiểm tra cập nhật**, **Tự cập nhật danh sách tên miền** | [Cài đặt](01-cai-dat.md#nâng-cấp), [Tự cập nhật danh sách](#tự-cập-nhật-danh-sách) |
+| **Gỡ & dọn** | **Tắt hết & khôi phục**, **Gỡ khỏi máy** (bản Setup) hoặc dòng chỉ cách gỡ (bản portable, macOS) | [Tắt](#tắt), [Gỡ và dọn](07-go-va-don-dep.md) |
+
+Các dải báo (thông báo, có bản mới, dịch vụ nền macOS) luôn hiện ở đầu cửa sổ.
+
 ## Định tuyến DNS
 
 - Dựng DoH stub tại `127.0.0.1:53`, hỏi Cloudflare (`1.1.1.1`) rồi Google (`8.8.8.8`) làm dự phòng; đổi thứ tự ở [Nâng cao](05-nang-cao.md). Kết nối DoH đi thẳng tới IP, không hỏi DNS hệ thống.
@@ -32,7 +45,7 @@ Mục **TÊN MIỀN** liệt kê các nhóm tên miền mà hai công tắc đ�
 
 ### Tự cập nhật danh sách
 
-Dòng **Tự cập nhật danh sách tên miền** có công tắc và nút **Cập nhật ngay**. Khi bật, app kiểm bản mới 30 giây sau khi mở rồi mỗi 24 giờ (lỗi mạng thì thử lại sau 1 giờ). Bản mới được áp vào các công tắc đang bật trước, áp xong mới lưu. Tắt công tắc thì app quay về danh sách có sẵn và gỡ tên miền lớp 2 khỏi luật đang chạy.
+Dòng **Tự cập nhật danh sách tên miền** nằm ở khu **Cập nhật**, có công tắc và nút **Cập nhật ngay**. Khi bật, app kiểm bản mới 30 giây sau khi mở rồi mỗi 24 giờ (lỗi mạng thì thử lại sau 1 giờ). Bản mới được áp vào các công tắc đang bật trước, áp xong mới lưu. Tắt công tắc thì app quay về danh sách có sẵn và gỡ tên miền lớp 2 khỏi luật đang chạy.
 
 | Dòng trạng thái | Nghĩa |
 |---|---|
@@ -54,5 +67,5 @@ LunaDNS hiện **không hỗ trợ PUBG**; giao diện không có công tắc ha
 ## Tắt
 
 - Gạt công tắc tắt: hoàn tác phần của tính năng đó. Nếu hoàn tác lỗi, dịch vụ **vẫn chạy**, mục giữ lại trong journal, thông báo *"Một số thay đổi chưa hoàn tác được…"*, bấm tắt lại để thử tiếp.
-- **Tắt hết & khôi phục:** tắt mọi công tắc và trả cấu hình mạng như trước (*"Đã tắt hết và trả lại cấu hình mạng như trước."*).
+- **Tắt hết & khôi phục** (khu **Gỡ & dọn**, hoặc menu khay): tắt mọi công tắc và trả cấu hình mạng như trước (*"Đã tắt hết và trả lại cấu hình mạng như trước."*).
 - Tính năng gặp lỗi lặp lại sẽ tự dừng và báo *"… gặp lỗi lặp lại nên đã được tắt."*

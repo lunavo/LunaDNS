@@ -2,7 +2,7 @@
 
 <sub>[English](en/05-advanced.md)</sub>
 
-Mở rộng mục **Nâng cao**. Thay đổi **có hiệu lực ở lần bật tính năng kế tiếp** (tắt rồi bật lại công tắc). Lựa chọn lưu ở `%ProgramData%\LunaDNS\settings.json`.
+Mục **Nâng cao** nằm cuối khu **Kiểm tra**, ngay dưới thẻ kết quả kiểm (chỉ có trên Windows). Mở rộng mục này. Thay đổi **có hiệu lực ở lần bật tính năng kế tiếp** (tắt rồi bật lại công tắc). Lựa chọn lưu ở `%ProgramData%\LunaDNS\settings.json`.
 
 | Tuỳ chọn | Giá trị | Ghi chú |
 |---|---|---|
@@ -11,9 +11,6 @@ Mở rộng mục **Nâng cao**. Thay đổi **có hiệu lực ở lần bật 
 | **Độ trễ giữa hai phần (ms, 0–20)** | số nguyên | Chờ giữa hai nửa gói đã cắt. Mặc định 0. Giá trị ngoài khoảng bị kẹp về 0–20. |
 | **Máy chủ DoH** | *Cloudflare* (mặc định) / *Google* / *Quad9* / *AdGuard* / *Tự nhập* | Máy được chọn hỏi trước, hai máy dựng sẵn khác làm dự phòng. Bấm **Đo** để đo độ trễ trên mạng của bạn và tự chọn máy nhanh nhất. *Tự nhập*: dán URL `https://…`, bấm **Lưu**; app tìm IP của máy đó qua DoH dựng sẵn (không qua DNS của nhà mạng). Nếu không tìm được, điền IP vào ô "IP (tuỳ chọn)". |
 
-Dưới hàng **Tắt hết & khôi phục** / **Chẩn đoán** (xem [Dòng lệnh](06-dong-lenh.md#báo-cáo)) có thêm hai nút:
-
-- **Kiểm tra cập nhật:** hỏi GitHub Releases xem có bản mới không; có thì hỏi mở trang tải. Ngoài ra app **tự kiểm một lần, khoảng 10 giây sau khi mở**, không hiện hộp thoại: có bản mới thì hiện dải *"Đã có LunaDNS x.y.z (bạn đang dùng a.b.c)."* kèm nút **Tải**. App không tự tải hay tự cài.
-- **Gỡ khỏi máy:** chỉ hiện ở bản Setup. Xem [Gỡ và dọn](07-go-va-don-dep.md#gỡ-bản-setup).
+**Kiểm tra cập nhật** và **Gỡ khỏi máy** không thuộc mục này: chúng ở khu **Cập nhật** và **Gỡ & dọn** (xem [Bốn khu của cửa sổ](03-ba-cong-tac.md#bốn-khu-của-cửa-sổ), [Nâng cấp](01-cai-dat.md#nâng-cấp), [Gỡ và dọn](07-go-va-don-dep.md)).
 
 Muốn đặt lại mặc định: thoát app (tắt hết) rồi xoá `settings.json`. File hỏng được tự đổi tên `settings.json.corrupt-<thời gian>` và app dùng mặc định.

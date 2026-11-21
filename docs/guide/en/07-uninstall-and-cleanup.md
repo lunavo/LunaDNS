@@ -7,15 +7,17 @@
 Choose one:
 
 - **Settings → Apps → LunaDNS → Uninstall.** If LunaDNS is running, the uninstaller asks you to quit the app first.
-- The **Gỡ khỏi máy** (Remove from this PC) button in the app (only shown in the Setup version): the app asks for confirmation, opens the uninstaller, then quits itself with "Thoát & khôi phục" (Quit & restore).
+- The **Gỡ khỏi máy** (Remove from this PC) button in the app's **Gỡ & dọn** (Remove & clean up) zone (only shown in the Setup version): the app asks for confirmation, opens the uninstaller, then quits itself with "Thoát & khôi phục" (Quit & restore).
 
 The uninstaller runs `LunaDNS.exe --uninstall`: it undoes every change, deletes the cleanup task and `%ProgramData%\LunaDNS`, and only then removes the app. If some changes cannot be undone, the uninstaller **stops, with nothing removed**, and says *"Chưa khôi phục được hết cấu hình mạng (mã …)"* ("Could not restore all network settings (code …)"). In that case:
 
-1. Open LunaDNS, click **Tắt hết & khôi phục** (Turn all off & restore), then quit with **Thoát & khôi phục** (Quit & restore).
+1. Open LunaDNS, click **Tắt hết & khôi phục** (Turn all off & restore) in the **Gỡ & dọn** zone, then quit with **Thoát & khôi phục** (Quit & restore).
 2. Look at the log `C:\ProgramData\LunaDNS\logs\lunadns.log` (command below) to see which entry failed; clean up by hand if needed ([When `--cleanup` is not enough](#when---cleanup-is-not-enough-manual-only-if-needed)).
 3. Uninstall again.
 
 ## Uninstall the portable version
+
+The portable version has no **Gỡ khỏi máy** button; the **Gỡ & dọn** zone shows a line summarising the steps below.
 
 1. Quit the app with the tray menu **Thoát & khôi phục** (Quit & restore).
 2. Open PowerShell with **Run as administrator**, run `--uninstall` and check the exit code (0 = clean):

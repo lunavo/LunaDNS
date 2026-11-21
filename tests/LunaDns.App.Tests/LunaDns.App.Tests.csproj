@@ -29,6 +29,11 @@
     <Compile Remove="Windows\**" />
   </ItemGroup>
 
+  <!-- MainWindowLayoutTests đọc axaml như XML (spec D5) -->
+  <ItemGroup>
+    <None Include="..\..\src\LunaDns.App\Views\MainWindow.axaml" Link="Layout\MainWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\LunaDns.App\LunaDns.App.csproj" />
   </ItemGroup>

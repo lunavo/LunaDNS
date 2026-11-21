@@ -18,7 +18,7 @@ public sealed class StringsTests
             .Where(p => p.PropertyType == typeof(string))
             .ToList();
 
-        Assert.Equal(202, properties.Count);
+        Assert.Equal(207, properties.Count);
         foreach (var property in properties) AssertResolved((string)property.GetValue(null)!);
     }
 
@@ -49,6 +49,14 @@ public sealed class StringsTests
         }
         Assert.Contains("15353", Strings.Lookup("Error_DnsPortBusy", macOS: true), StringComparison.Ordinal);
         Assert.Contains(" 53 ", Strings.Lookup("Error_DnsPortBusy", macOS: false), StringComparison.Ordinal);
+    }
+
+    /// <summary>D5: gợi ý gỡ khác nhau giữa bản portable Windows và macOS.</summary>
+    [Fact]
+    public void Uninstall_hint_points_to_platform_way()
+    {
+        Assert.Contains("--uninstall", Strings.Lookup(nameof(Strings.UninstallHint), macOS: false), StringComparison.Ordinal);
+        Assert.Contains("sudo lunadns uninstall", Strings.Lookup(nameof(Strings.UninstallHint), macOS: true), StringComparison.Ordinal);
     }
 
     [Fact]

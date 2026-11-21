@@ -4,6 +4,7 @@
 
 ## Check (Kiểm tra)
 
+The check card is in the **Kiểm tra** (Check) zone at the top of the window. At the bottom of the card is the **Chẩn đoán** (Diagnose) button (writes a report to the Desktop, see [Command line](06-command-line.md#report)); right below the card is the [Advanced](05-advanced.md) section.
 The **Kiểm tra** (Check) button (it also runs by itself when the app opens) tries sample hosts over the **original** network path, not through LunaDNS:
 
 - Steam: `store.steampowered.com`, `steamcommunity.com`, `api.steampowered.com`, `cdn.akamai.steamstatic.com`

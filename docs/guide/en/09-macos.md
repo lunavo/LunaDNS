@@ -60,16 +60,16 @@ The script builds `artifacts/run/osx-arm64/LunaDNS.app` (unsigned, only to run o
 
 The menu bar icon is a black transparent **template** icon (macOS tints it to fit a light/dark menu bar). The three states differ by shape: **faded** = off, **solid** = on, **with a round dot** = needs attention.
 
-Differences from the Windows version:
+The window has the same four zones as on Windows (Kiểm tra, Trạng thái, Cập nhật, Gỡ & dọn; see [The four zones of the window](03-switches.md#the-four-zones-of-the-window)). Differences from the Windows version:
 
 - **The interface runs with user rights and does not change system settings itself.** Every on/off action and the status go through the background service (socket `/var/run/lunadns.sock`). The check (probe) still runs inside the interface.
 - **Background service not installed:** the interface shows a banner with the **Cài dịch vụ nền** (Install background service) button. This button opens the macOS password box (`osascript … with administrator privileges`) and then runs the `lunadns install` that ships inside the `.app`. If it is installed but not answering, the button becomes **Cài lại dịch vụ nền** (Reinstall background service). The two switches stay grey until the background service answers.
 - The interface asks the background service every 2 seconds, so switching on/off with `lunadns on|off` in Terminal also shows up in the interface.
 - **Thoát & khôi phục** (Quit & restore) (menu bar, or Cmd+Q, or signing out) sends the turn-everything-off command to the background service, meaning the same as the button on Windows. This is true even when a feature was turned on with `lunadns on`. To keep LunaDNS running, only close the window (red button): the app stays as an icon in the menu bar.
 - The **Find a configuration that works** button is available on macOS: the background service checks, applies and saves the result. An older background service must be reinstalled (**Cài lại dịch vụ nền**) before it can apply. There is no custom DoH field.
-- The **Tự cập nhật danh sách tên miền** (Auto-update domain list) row is available on macOS: the background service verifies the signature, applies and saves the list (`DomainListUpdates` lives in `/Library/Application Support/LunaDNS/settings.json`). If the row is missing, the background service is an older version: click **Cài lại dịch vụ nền** (Reinstall background service).
-- There is no **Nâng cao** (Advanced) section yet (split type, delay, DoH): the background service uses the default settings.
-- There is no **Gỡ khỏi máy** (Remove from this PC) button: uninstall with `sudo lunadns uninstall`.
+- The **Tự cập nhật danh sách tên miền** (Auto-update domain list) row (in the **Cập nhật** zone) is available on macOS: the background service verifies the signature, applies and saves the list (`DomainListUpdates` lives in `/Library/Application Support/LunaDNS/settings.json`). If the row is missing, the background service is an older version: click **Cài lại dịch vụ nền** (Reinstall background service).
+- The **Kiểm tra** (Check) zone has no **Nâng cao** (Advanced) section yet (split type, delay, DoH): the background service uses the default settings.
+- There is no **Gỡ khỏi máy** (Remove from this PC) button: the **Gỡ & dọn** (Remove & clean up) zone shows a line telling you to uninstall with `sudo lunadns uninstall`.
 - The interface's settings and log are in `~/Library/Application Support/LunaDNS` (with `gui.lock` and `gui.sock` so that only one interface runs; if you open it a second time, the running window comes up).
 - **Chẩn đoán** (Diagnose) writes a report to the Desktop: LunaDNS's `/etc/resolver` files, the services using LunaDNS's PAC, the hosts lines, the background service version and the number of journal entries (the background service's journal belongs to root, so the interface cannot read its contents).
 

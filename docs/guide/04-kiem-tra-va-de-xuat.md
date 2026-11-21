@@ -4,6 +4,7 @@
 
 ## Kiểm tra
 
+Thẻ kiểm tra nằm ở khu **Kiểm tra**, trên cùng cửa sổ. Cuối thẻ có nút **Chẩn đoán** (ghi báo cáo ra Desktop, xem [Dòng lệnh](06-dong-lenh.md#báo-cáo)); ngay dưới thẻ là mục [Nâng cao](05-nang-cao.md).
 Nút **Kiểm tra** (cũng tự chạy khi mở app) thử các host mẫu bằng đường mạng **gốc**, không qua LunaDNS:
 
 - Steam: `store.steampowered.com`, `steamcommunity.com`, `api.steampowered.com`, `cdn.akamai.steamstatic.com`

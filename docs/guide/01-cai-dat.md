@@ -47,7 +47,7 @@ Nếu Smart App Control đang bật, Windows 11 có thể **chặn hẳn** exe c
 
 Chạy Setup bản mới, không cần gỡ bản cũ. Trước khi ghi đè, Setup chạy `--cleanup` của bản đang cài để khôi phục cấu hình mạng bản cũ đã đổi. Nếu bước này lỗi, Setup dừng và báo; xem [Xử lý sự cố](08-su-co.md). LunaDNS phải đang tắt (Setup sẽ nhắc nếu app còn chạy).
 
-App tự kiểm bản mới khoảng 10 giây sau khi mở; có bản mới thì hiện dải báo kèm nút **Tải** (mở trang Releases). Nút **Kiểm tra cập nhật** ở mục Nâng cao kiểm ngay lúc bấm. App không tự tải hay tự cài: tải Setup bản mới rồi chạy.
+App tự kiểm bản mới khoảng 10 giây sau khi mở; có bản mới thì hiện dải báo kèm nút **Tải** (mở trang Releases). Nút **Kiểm tra cập nhật** ở khu **Cập nhật** (cạnh dòng *"Đang dùng LunaDNS x.y.z"*) kiểm ngay lúc bấm: có bản mới thì hỏi mở trang tải, không thì báo đang dùng bản mới nhất. App không tự tải hay tự cài: tải Setup bản mới rồi chạy.
 
 ## Build từ mã nguồn
 

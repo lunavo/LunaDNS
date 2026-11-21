@@ -41,6 +41,10 @@ internal sealed class Maintenance(IUserPrompts prompts, ISystemShell shell)
         }
     }
 
+    /// <summary>Dòng "Đang dùng LunaDNS x.y.z" ở khu Cập nhật (spec D5); ba số như hộp thoại "bản mới nhất".</summary>
+    public static string VersionText(Version current) =>
+        Strings.Format(nameof(Strings.VersionFormat), UpdateChecker.Normalize(current).ToString());
+
     /// <summary>true khi đã mở trình gỡ: bên gọi phải thoát app (hoàn tác) để AppMutex của Setup cho gỡ tiếp.</summary>
     public async Task<bool> UninstallAsync(string uninstallerPath)
     {

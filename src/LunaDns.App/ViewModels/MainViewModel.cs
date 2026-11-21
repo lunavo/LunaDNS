@@ -159,6 +159,9 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Chỉ bản Windows do Setup cài có nút gỡ; bản portable và macOS gỡ theo guide.</summary>
     public bool CanUninstall { get; } = PlatformInfo.CanUninstall();
 
+    /// <summary>Khu Cập nhật (spec D5).</summary>
+    public string VersionText { get; } = Maintenance.VersionText(AppInfo.Version);
+
     /// <summary>macOS ẩn mục Nâng cao: dịch vụ nền chưa nhận settings từ giao diện.</summary>
     public bool HasAdvancedSettings { get; } = PlatformInfo.HasAdvancedSettings();
 

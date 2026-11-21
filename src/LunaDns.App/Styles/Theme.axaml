@@ -131,6 +131,12 @@
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
   </Style>
+  <!-- Tiêu đề khu (spec D5): to hơn tiêu đề thẻ, màu chữ mặc định; kéo sát thẻ bên dưới -->
+  <Style Selector="TextBlock.zone">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="2,8,0,-8" />
+  </Style>
   <Style Selector="TextBlock.tone"><Setter Property="Foreground" Value="{DynamicResource Brush.Neutral}" /></Style>
   <Style Selector="TextBlock.tone.info"><Setter Property="Foreground" Value="{DynamicResource Brush.Info}" /></Style>
   <Style Selector="TextBlock.tone.good"><Setter Property="Foreground" Value="{DynamicResource Brush.Good}" /></Style>

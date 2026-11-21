@@ -6,6 +6,19 @@ There are two switches: Định tuyến DNS (DNS routing) and Proxy SNI (SNI pro
 
 Every system change is **written to the journal before it is made**, and undone in reverse order (LIFO). The app only touches things it created itself.
 
+## The four zones of the window
+
+The main window is arranged by what you want to do, top to bottom:
+
+| Zone | What is in it | See |
+|---|---|---|
+| **Kiểm tra** (Check) | Check results by group, **Kiểm tra** (Check), **Áp dụng đề xuất** (Apply suggestions), **Tìm cấu hình hợp mạng** (Find a configuration that works), **Chẩn đoán** (Diagnose); right below is the **Nâng cao** (Advanced) section (Windows only) | [Check and suggestions](04-check-and-suggestions.md), [Advanced](05-advanced.md) |
+| **Trạng thái** (Status) | The two switches and the **TÊN MIỀN** (Domains) section | this page |
+| **Cập nhật** (Update) | The line *"Đang dùng LunaDNS x.y.z"* ("Using LunaDNS x.y.z"), **Kiểm tra cập nhật** (Check for updates), **Tự cập nhật danh sách tên miền** (Auto-update domain list) | [Install](01-install.md#upgrade), [Auto-update the domain list](#auto-update-the-domain-list) |
+| **Gỡ & dọn** (Remove & clean up) | **Tắt hết & khôi phục** (Turn all off & restore), **Gỡ khỏi máy** (Remove from this PC; Setup version) or a line telling you how to uninstall (portable, macOS) | [Turning off](#turning-off), [Uninstall and cleanup](07-uninstall-and-cleanup.md) |
+
+Banners (messages, new version, macOS background service) always appear at the top of the window.
+
 ## DNS routing (Định tuyến DNS)
 
 - Starts a DoH stub at `127.0.0.1:53`, asks Cloudflare (`1.1.1.1`) first and Google (`8.8.8.8`) as a fallback; change the order in [Advanced](05-advanced.md). The DoH connection goes straight to the IP and does not ask the system DNS.
@@ -32,7 +45,7 @@ The **TÊN MIỀN** (Domains) section lists the domain groups the two switches r
 
 ### Auto-update the domain list
 
-The **Tự cập nhật danh sách tên miền** (Auto-update domain list) row has a switch and an **Cập nhật ngay** (Update now) button. When it is on, the app checks for a new list 30 seconds after launch and every 24 hours (after a network error it retries in 1 hour). A new list is applied to the running switches first and saved only after that succeeds. Turning the switch off goes back to the built-in list and removes layer-2 domains from the running rules.
+The **Tự cập nhật danh sách tên miền** (Auto-update domain list) row sits in the **Cập nhật** (Update) zone and has a switch and an **Cập nhật ngay** (Update now) button. When it is on, the app checks for a new list 30 seconds after launch and every 24 hours (after a network error it retries in 1 hour). A new list is applied to the running switches first and saved only after that succeeds. Turning the switch off goes back to the built-in list and removes layer-2 domains from the running rules.
 
 | Status line | Meaning |
 |---|---|
@@ -54,5 +67,5 @@ LunaDNS currently **does not support PUBG**; the interface has no switch or chec
 ## Turning off
 
 - Flip a switch off: undoes that feature's part. If the undo fails, the service **keeps running**, the entry stays in the journal, and the message *"Một số thay đổi chưa hoàn tác được…"* ("Some changes could not be undone…") appears; turn it off again to retry.
-- **Tắt hết & khôi phục** (Turn all off & restore): turns off every switch and puts the network settings back as before (*"Đã tắt hết và trả lại cấu hình mạng như trước."*, "Everything is off and the network settings are back as before.").
+- **Tắt hết & khôi phục** (Turn all off & restore; in the **Gỡ & dọn** zone, or the tray menu): turns off every switch and puts the network settings back as before (*"Đã tắt hết và trả lại cấu hình mạng như trước."*, "Everything is off and the network settings are back as before.").
 - A feature that keeps failing stops by itself and says *"… gặp lỗi lặp lại nên đã được tắt."* ("… kept failing, so it was turned off.")
