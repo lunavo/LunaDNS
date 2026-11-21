@@ -39,4 +39,19 @@ public class SplittingStreamTests
         Assert.Single(writes[0]);
         Assert.Equal(Hello, writes[0].Concat(writes[1]).ToArray());
     }
+
+    [Fact]
+    public async Task Records_mode_splits_only_the_first_record_of_the_first_write()
+    {
+        var inner = new RecordingStream();
+        await using var stream = new SplittingStream(inner, new HelloSplit(SplitMode.FirstByte, Records: true));
+
+        await stream.WriteAsync((byte[])[.. Hello, .. Later]);
+
+        var writes = inner.Writes;
+        Assert.Equal(3, writes.Count);
+        Assert.Equal(6, writes[0].Length);
+        Assert.Equal(Hello.Length - 1, writes[1].Length); // 5 byte header mới + phần thân còn lại
+        Assert.Equal(Later, writes[2]);
+    }
 }

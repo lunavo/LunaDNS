@@ -86,4 +86,14 @@ public sealed class TlsProbeTests : IAsyncLifetime
             listener.Stop();
         }
     }
+
+    [Theory]
+    [InlineData(SplitMode.FirstByte)]
+    [InlineData(SplitMode.MidSni)]
+    public async Task Record_split_handshake_is_accepted_by_the_server(SplitMode mode)
+    {
+        var probe = new TlsProbe(_server.Port, new HelloSplit(mode, Records: true), _server.Trusts, null);
+
+        Assert.True(await probe.HandshakeAsync(IPAddress.Loopback, Host, split: true, CancellationToken.None));
+    }
 }

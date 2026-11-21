@@ -262,4 +262,21 @@ public sealed class SplitProxyTests : IAsyncLifetime
 
         await ProxyTestClient.WaitUntilAsync(() => _proxy.ActiveConnections == 0);
     }
+
+    [Fact]
+    public async Task Records_mode_sends_two_records_upstream()
+    {
+        await using var proxy = Start(new HelloSplit(SplitMode.MidSni, Records: true));
+        var upstream = UseRecordingUpstream();
+        Assert.True(ClientHelloParser.TryFindSni(Hello, out var sni));
+        await using var tunnel = await OpenTunnelAsync(proxy);
+
+        await tunnel.WriteAsync(Hello);
+        await ProxyTestClient.WaitUntilAsync(() => upstream.TotalBytes == Hello.Length + 5);
+
+        var writes = upstream.Writes;
+        Assert.Equal(2, writes.Count);
+        Assert.Equal(sni.Offset + sni.Length / 2, writes[0].Length);
+        Assert.All(writes, w => Assert.Equal(0x16, w[0]));
+    }
 }
