@@ -1,4 +1,5 @@
 using LunaDns.App.Features;
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
@@ -91,6 +92,31 @@ internal sealed partial class AppServices : IAsyncDisposable
         if (result.Success && Features.Availability == ControllerAvailability.Local)
             Settings = Settings with { Domains = selection };
         return result;
+    }
+
+    /// <summary>Lấy IP cho URL DoH tự nhập qua chuỗi DoH dựng sẵn (D2), không qua DNS hệ thống.</summary>
+    public async Task<CustomDoh> ResolveCustomDohAsync(CustomDoh custom, CancellationToken cancellationToken)
+    {
+        using var doh = DohClient.Create(Settings.BootstrapDohServers(), LoggerFactory.CreateLogger<DohClient>());
+        return await CustomDohBootstrap.ResolveAsync(custom, new DohHostResolver(doh), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Nút "Đo" (D2). Tự nhập phân giải lại trước; lỗi thì đo bằng IP cũ, máy đó có thể ra "lỗi".</summary>
+    public async Task<IReadOnlyList<DohLatency>> MeasureDohAsync(CancellationToken cancellationToken)
+    {
+        if (Settings.CustomDoh is { } custom && CustomDohParser.TryParseEndpoint(custom.Endpoint, out _))
+        {
+            try
+            {
+                var resolved = await ResolveCustomDohAsync(custom, cancellationToken).ConfigureAwait(false);
+                if (!ReferenceEquals(resolved, custom)) Settings = Settings with { CustomDoh = resolved };
+            }
+            catch (DohException)
+            {
+                // Giữ IP cũ; kết quả đo của Tự nhập sẽ cho người dùng thấy máy đó có dùng được không.
+            }
+        }
+        return await DohLatencyMeter.Create(LoggerFactory).MeasureAsync(Settings.DohChoices(), cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<ProbeSummary> ProbeAsync(CancellationToken cancellationToken)
