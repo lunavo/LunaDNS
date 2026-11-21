@@ -98,6 +98,7 @@
   <data name="Error_HostsUnsupportedEncoding" xml:space="preserve"><value>File hosts dùng bảng mã mà LunaDNS không sửa an toàn được.</value></data>
   <data name="Error_NrptFailed" xml:space="preserve"><value>Windows từ chối thêm luật định tuyến DNS.</value></data>
   <data name="Error_RollbackFailed" xml:space="preserve"><value>Chưa hoàn tác được thay đổi.</value></data>
+  <data name="Error_NoDomains" xml:space="preserve"><value>Chưa có tên miền nào được chọn. Bật ít nhất một nhóm, hoặc tắt Định tuyến DNS và Proxy SNI trước.</value></data>
   <data name="Error_Other" xml:space="preserve"><value>Lỗi không xác định; chi tiết nằm trong log.</value></data>
   <data name="Error_ServiceUnavailable" xml:space="preserve"><value>Dịch vụ nền LunaDNS chưa chạy.</value></data>
   <data name="ServiceNotInstalled" xml:space="preserve"><value>Trên macOS, LunaDNS cần một dịch vụ nền chạy bằng quyền quản trị để đổi DNS và proxy. Dịch vụ nền chưa được cài.</value></data>
