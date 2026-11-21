@@ -169,7 +169,7 @@ SYSTEM/Administrators, `DataDirectoryAcl`, spec 4.6), macOS `/Library/Applicatio
 |---|---|
 | `Domains/DomainListKeys.cs` (mới) | `IReadOnlyDictionary<string, string>` keyId → khoá công khai SubjectPublicKeyInfo base64. Bản đầu có một khoá `2026a`. |
 | `Domains/DomainListVerifier.cs` (mới) | Hàm thuần `Verify(ReadOnlySpan<byte>, keys, highestSerial)` → `DomainListVerification` (`Outcome`, `DomainListUpdate?`, `Dropped`). Khoá truyền vào để test dùng cặp khoá sinh trong test. |
-| `Domains/DomainListUpdate.cs` (mới) | Record bất biến: `Serial`, `Issued`, `Groups : IReadOnlyDictionary<DomainGroup, IReadOnlyList<string>>`, `File : byte[]` (nguyên byte đã tải). |
+| `Domains/DomainListModels.cs` (mới) | `DomainListOutcome`, `DomainListState`, `DomainListOfferResult`, và record bất biến `DomainListUpdate`: `Serial`, `Issued`, `Groups : IReadOnlyDictionary<DomainGroup, IReadOnlyList<string>>`, `File : byte[]` (nguyên byte đã tải). |
 | `Domains/EffectiveCatalog.cs` (mới) | Bất biến, dựng từ lớp 1 + `DomainListUpdate?`. `For(group)`, `Added(group)`, `Entries(group)` → `CatalogEntry(Domain, Source)`, `Issued`, `AllAdded`. `EffectiveCatalog.Builtin` = chỉ lớp 1. |
 | `Domains/DomainListStore.cs` (mới) | Đọc/ghi `domain-list.json`, xác minh lại khi nạp. Đường dẫn truyền vào. |
 | `Domains/DomainListService.cs` (mới) | Chỗ chạy chung cho Windows (app) và macOS (daemon): `Current`, `Enabled`, `OfferAsync(bytes)`, `SetEnabledAsync(bool)`. Gồm xác minh, gộp, quyết định reapply, rồi ghi. Có khoá tuần tự với các lệnh reapply khác. |
