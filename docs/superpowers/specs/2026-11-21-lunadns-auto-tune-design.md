@@ -48,10 +48,13 @@ cấu hình đó không qua, người dùng không biết nên đổi gì.
   4. báo một dòng, ví dụ "Đã chọn Quad9 · giữa SNI · tách record · 0 ms". Không hỏi thêm.
 
   Mọi cài đặt vẫn sửa tay được ở mục Nâng cao (Windows).
-- **Tiến độ và huỷ.** Khi đang dò, nút đổi thành **"Dừng"** và có dòng tiến độ ("Đang đo DoH…", "Đang thử 3/8: giữa
+- **Tiến độ và huỷ.** Khi đang dò, nút thay bằng nút **"Dừng"** và có dòng tiến độ ("Đang đo DoH…", "Đang thử 3/8: giữa
   SNI, 0 ms"). Bấm Dừng, đóng cửa sổ hoặc hết 60 giây trong bước 1–3 thì huỷ mọi lượt đang chạy, không lưu, không bật
   gì, và báo "Đã dừng, cài đặt giữ nguyên". Đã sang bước áp thì chạy cho xong, nút Dừng bị khoá.
-- Kết quả dò còn được đưa vào dòng nhóm Steam của Kiểm tra (`ShowGroupProbes`), như sau một lần Kiểm tra.
+- Kết quả bước phân loại thay khối kết quả Kiểm tra (chỉ nhóm Steam), để Áp dụng đề xuất và Chẩn đoán dùng được. Khi
+  tìm được tổ hợp, host "không vào được" ở bước phân loại hiện là "bị lọc SNI", vì tổ hợp mới đã qua. Các dòng nhóm tên
+  miền không đổi.
+- Trong lúc dò, Kiểm tra, Áp dụng đề xuất và Đo bị khoá. Thẻ tính năng chỉ bị khoá ở bước áp.
 - Thời gian thường gặp: bước 1 khoảng 1–3 giây, bước 2 ≤ 9 giây, bước 3 ≤ 8 × 3 giây. Tổng xấu nhất khoảng 40 giây, dưới
   mốc 60 giây.
 
@@ -106,11 +109,12 @@ public sealed record TuningState(DohProvider Doh, TuneCandidate Candidate);
 | Đơn vị | Thay đổi |
 |---|---|
 | `App/Features/IFeatureController` | Thêm `Task<TuningState?> GetTuningAsync()` và `Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate)`. `TuningApplyResult(bool Success, string? Message, FeatureError? Error)` theo mẫu `DomainApplyResult`. |
-| `App/Features/LocalFeatureController` | `GetTuningAsync` trả từ settings của app. `ApplyTuningAsync`: `AppServices` lưu `WithTuning` trước, rồi gọi `FeatureSet.ReapplyTuningAsync`. Lỗi thì lưu lại settings cũ và gọi `ReapplyTuningAsync` lần nữa. Khôi phục cũng lỗi thì thêm `Strings.ChangesLeftBehind` vào thông báo. Lưu/khôi phục settings đi qua một callback do `AppServices` đưa vào, vì controller không giữ `JsonFileSettingsStore`. |
+| `App/Features/LocalFeatureController` | `GetTuningAsync` trả từ settings của app. `ApplyTuningAsync` chỉ gọi `FeatureSet.ReapplyTuningAsync`. |
+| `App/AppServices.ApplyTuningAsync` | Windows: lưu `WithTuning` trước (FeatureSet đọc settings lúc khởi động lại), gọi controller; lỗi thì lưu lại settings cũ và gọi lần nữa; khôi phục cũng lỗi thì thêm `Strings.ChangesLeftBehind`. macOS: gọi controller, thành công mới chép `WithTuning` vào settings của app để Kiểm tra dùng cùng cấu hình. |
 | `App/AppServices` | `TuneAsync(IProgress<TuneProgress>, CancellationToken)`: lấy `current` qua `Features.GetTuningAsync()`. Không có thì dùng `Settings.CurrentCandidate()`, rồi tới mặc định. Phần phân giải lại Tự nhập của `MeasureDohAsync` tách thành hàm riêng `RefreshCustomDohAsync`, dùng chung cho cả hai. `choices = DohCatalog.Choices(resolved ?? Settings.CustomDoh)`; trên macOS chỉ có máy dựng sẵn vì app không có `CustomDoh`. `measureDoh` bọc `DohLatencyMeter`. Chạy `NetworkTuner`, lưu `LastProbe` để nút Chẩn đoán dùng, và trả `TuneRun(TuneResult Result, CustomDoh? ResolvedCustom)`. Không ghi settings ở luồng nền: giao diện áp `ResolvedCustom` ở luồng UI, như nút Đo. |
-| `App/ViewModels/MainViewModel` | `TuneCommand`, `IsTuning`, `TuneStatus` (dòng tiến độ / kết quả), `TuneButtonText` ("Tìm cấu hình hợp mạng" ↔ "Dừng"). Khi đang dò, `TuneCommand` gọi huỷ. `CancellationTokenSource` 60 giây, nối với huỷ khi đóng cửa sổ, theo mẫu `_cancelDoh` của nút Đo. Có kết quả `Found` / `SplitNotNeeded` thì gọi `ApplyTuningAsync` (bỏ qua nếu DoH và tổ hợp không đổi), rồi bật biện pháp còn thiếu bằng `EnableAsync` (DNS trước, proxy sau, như `ApplyRecommendedAsync`). Cuối cùng báo đổi `DohIndex`, `SplitModeIndex`, `SplitRecords`, `SplitDelayMs`. Các nút bận khác bị khoá như hiện nay; nút Dừng vẫn bấm được trong bước 1–3. |
-| `App/Views/MainWindow.axaml` | Nút thứ hai trong khối Kiểm tra (`Command="{Binding TuneCommand}"`, `Content="{Binding TuneButtonText}"`) và một dòng `TuneStatus`. |
-| `App/Strings` (+ `Strings.resx`) | `TuneButton`, `TuneStop`, `TuneMeasuringDoh`, `TuneClassifying`, `TuneTryingFormat` ("Đang thử {0}/{1}: {2}"), `TuneCandidateFormat` ("{0} · {1} · {2} ms"), `TuneRecordsOn`, `TuneChosenFormat` ("Đã chọn {0}"), `TuneNoChange` ("Cấu hình hiện tại đã chạy, không cần đổi"), `TuneDohFailed`, `TuneNothingWorkedFormat` ("Không tổ hợp nào qua; vẫn lỗi: {0}"), `TuneCancelled`, `TuneFoundNotAppliedFormat` (daemon cũ: "Tìm được {0} nhưng dịch vụ nền cần cập nhật"). Tên điểm cắt dùng lại chuỗi của ô Điểm cắt gói. |
+| `App/ViewModels/MainViewModel` | `TuneCommand`, `StopTuneCommand` (lệnh riêng, vì `AsyncCommand` không cho bấm lại khi đang chạy), `IsTuning`, `TuneStatus` (dòng tiến độ / kết quả). `CheckCommand`, `ApplyRecommendedCommand`, `MeasureDohCommand` khoá khi `IsTuning`. `CancellationTokenSource` 60 giây, nối với huỷ khi đóng cửa sổ, theo mẫu `_cancelDoh` của nút Đo. Có kết quả `Found` / `SplitNotNeeded` thì gọi `ApplyTuningAsync` (bỏ qua nếu DoH và tổ hợp không đổi), rồi bật biện pháp còn thiếu bằng `EnableAsync` (DNS trước, proxy sau, như `ApplyRecommendedAsync`). Cuối cùng báo đổi `DohIndex`, `SplitModeIndex`, `SplitRecords`, `SplitDelayMs`. Nút Dừng chỉ bấm được trong bước 1–3. Câu hiển thị nằm ở `App/TuneText` (hàm thuần, có test). |
+| `App/Views/MainWindow.axaml` | Trong khối Kiểm tra: nút dò (`IsVisible="{Binding !IsTuning}"`), nút Dừng (`IsVisible="{Binding IsTuning}"`), một dòng `TuneStatus`. |
+| `App/Strings` (+ `Strings.resx`) | `TuneButton`, `TuneStop`, `TuneMeasuringDoh`, `TuneClassifying`, `TuneTryingFormat` ("Đang thử {0}/{1}: {2}"), `TuneCandidateFormat` ("{0} · {1} · {2} ms"), `TuneRecordsOn`, `TuneChosenFormat` ("Đã chọn {0}"), `TuneNoChange` ("Cấu hình hiện tại đã chạy, không cần đổi"), `TuneDohFailed`, `TuneNothingWorkedFormat` ("Không tổ hợp nào qua; vẫn lỗi: {0}"), `TuneCancelled`, `TuneFoundNotAppliedFormat` ("Tìm được {0}. {1}", cho mọi lỗi áp), `TuneSplitFirstByte`, `TuneSplitMidSni`, `TuneRecordsOff`, `DaemonNeedsUpdateTuning` (câu `DaemonNeedsUpdate` hiện nói về danh sách tên miền). |
 | `docs/guide/04-kiem-tra-va-de-xuat.md`, `09-macos.md` (+ bản `en`) | Mô tả nút mới, thứ tự thử, nút Dừng. macOS: cần cập nhật dịch vụ nền. |
 
 ### macOS (daemon)
@@ -151,6 +155,7 @@ Sau đó `EnableAsync` bật các biện pháp còn thiếu.
   vẫn giữ.
 - **Daemon** không chạy, không trả lời, hoặc từ chối vì UID: báo như mọi lệnh (`ServiceUnavailable`). Daemon cũ: xem
   mục macOS ở trên.
+- **Bấm Kiểm tra / Áp dụng đề xuất / Đo trong lúc dò**: các nút này bị khoá cho tới khi dò xong.
 - **Dò khi proxy đang bật**: `TlsProbe` đi socket trần tới IP của DoH, không qua proxy hệ thống, nên vẫn đo đường mạng
   gốc. Định tuyến DNS đang bật cũng không ảnh hưởng, vì DoH đi qua `DohClient` riêng.
 - **Hai lệnh cùng lúc trên daemon** (`set-domains` và `set-tuning`): `FeatureSet._gate` xếp hàng phần chạy lại. Cả hai
