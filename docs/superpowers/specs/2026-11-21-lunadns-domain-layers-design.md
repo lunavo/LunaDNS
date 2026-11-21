@@ -1,6 +1,6 @@
 # D4: Cập nhật danh sách tên miền theo lớp (thiết kế)
 
-Ngày: 21/11/2026 · Trạng thái: chờ PO duyệt bản viết.
+Ngày: 21/11/2026 · Trạng thái: PO duyệt 21/11/2026. Kế hoạch: [2026-11-21-lunadns-12-domain-layers.md](../plans/2026-11-21-lunadns-12-domain-layers.md).
 Lộ trình: [2026-11-21-lunadns-lo-trinh-tinh-nang.md](2026-11-21-lunadns-lo-trinh-tinh-nang.md) mục D4. Nối tiếp
 [nhóm tên miền và Tuỳ chỉnh](2026-11-21-lunadns-custom-domains-design.md) (lớp 3) và [spec v1](2026-11-13-lunadns-design.md)
 mục 4.5 (Journal), 4.6 (thư mục dữ liệu và ACL), 4.10 (cập nhật có chữ ký). Lấy ý từ Accesser `rules.toml` và Flowseal
@@ -105,7 +105,7 @@ Thêm một dòng dưới danh sách nhóm ở khu **Tên miền**:
 - App tải bằng quyền user, rồi gửi nguyên byte cho daemon (`set-domain-list`). Daemon chạy lại toàn bộ bước xác minh
   với khoá nhúng trong chính nó. Không tin bất cứ kết quả kiểm nào của app.
 - Công tắc lưu trong `settings.json` của daemon (root), đổi qua `set-domain-list-enabled`.
-- Số đếm, nhãn nguồn và dòng trạng thái lấy từ `get-domain-list`. App không đọc file của root.
+- Số đếm, nhãn nguồn và dòng trạng thái lấy từ `get-domain-list` (kèm đủ danh sách lớp 2). App không đọc file của root.
 - `checkedAt` của lượt **thành công** do daemon ghi. Lượt lỗi chỉ nằm trong bộ nhớ của app (hẹn 1 giờ). Mở lại app
   sau một lượt lỗi thì thử lại sau 30 giây, như lần đầu.
 - **Daemon cũ** trả "Lệnh lạ:" cho `get-domain-list`: app ẩn dòng "Tự cập nhật danh sách", không tải, và hiện banner
@@ -132,7 +132,7 @@ Khoá của `groups` là tên `DomainGroup` viết thường (`steam`, `reddit`,
 | 2 | Envelope là JSON hợp lệ; có `keyId`, `payload`, `sig`; `keyId` nằm trong `DomainListKeys`; `sig` giải ra đúng 64 byte | `Malformed` / `UnknownKey` |
 | 3 | `ECDsa.VerifyData(payloadBytes, sig, SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation)` | `BadSignature` |
 | 4 | `format == 1` | `UnknownFormat` |
-| 5 | `serial`, `issued`, `groups` đúng kiểu; không có nhóm trùng | `Malformed` |
+| 5 | `serial`, `issued`, `groups` đúng kiểu (khoá JSON trùng: bản sau ghi đè, theo System.Text.Json) | `Malformed` |
 | 6 | `serial > highestSerial`. Bằng nhau thì trả `NotNewer` (lượt kiểm bình thường); nhỏ hơn thì `Downgrade` | `NotNewer` / `Downgrade` |
 | 7 | Mỗi nhóm ≤ 200 tên miền, toàn file ≤ 1000 | `Malformed` |
 | 8 | Từng tên miền: `DomainPolicy.Normalize(x) == x` và `DomainPolicy.Validate(x) == None`; không trùng lớp 1 | bỏ **dòng đó**, đếm vào `Dropped`, log |
@@ -152,7 +152,7 @@ SYSTEM/Administrators, `DataDirectoryAcl`, spec 4.6), macOS `/Library/Applicatio
 `MacPaths`). Không tạo thư mục mới và không đặt ACL riêng: file kế thừa quyền của thư mục. Thư mục bị cách ly
 (`LunaDNS.untrusted-<ts>`) thì file trong đó cũng bị bỏ, như journal.
 ```json
-{ "envelope": { "keyId": "2026a", "payload": "...", "sig": "..." },
+{ "envelope": "<base64 của nguyên file domains.json đã tải>",
   "highestSerial": 202611211402, "checkedAt": "2026-11-22T07:00:00Z" }
 ```
 - Ghi nguyên tử (file tạm rồi `File.Replace`), như journal. File này không phải thay đổi hệ thống, nên không có mục
@@ -169,8 +169,8 @@ SYSTEM/Administrators, `DataDirectoryAcl`, spec 4.6), macOS `/Library/Applicatio
 |---|---|
 | `Domains/DomainListKeys.cs` (mới) | `IReadOnlyDictionary<string, string>` keyId → khoá công khai SubjectPublicKeyInfo base64. Bản đầu có một khoá `2026a`. |
 | `Domains/DomainListVerifier.cs` (mới) | Hàm thuần `Verify(ReadOnlySpan<byte>, keys, highestSerial)` → `DomainListVerification` (`Outcome`, `DomainListUpdate?`, `Dropped`). Khoá truyền vào để test dùng cặp khoá sinh trong test. |
-| `Domains/DomainListUpdate.cs` (mới) | Record bất biến: `Serial`, `Issued`, `Groups : IReadOnlyDictionary<DomainGroup, IReadOnlyList<string>>`, `Envelope : byte[]`. |
-| `Domains/EffectiveCatalog.cs` (mới) | Bất biến, dựng từ lớp 1 + `DomainListUpdate?`. `For(group)`, `Entries(group)` → `CatalogEntry(Domain, Source, Issued?)`, `AddedCount(group)`, `All`. `EffectiveCatalog.Builtin` = chỉ lớp 1. |
+| `Domains/DomainListUpdate.cs` (mới) | Record bất biến: `Serial`, `Issued`, `Groups : IReadOnlyDictionary<DomainGroup, IReadOnlyList<string>>`, `File : byte[]` (nguyên byte đã tải). |
+| `Domains/EffectiveCatalog.cs` (mới) | Bất biến, dựng từ lớp 1 + `DomainListUpdate?`. `For(group)`, `Added(group)`, `Entries(group)` → `CatalogEntry(Domain, Source)`, `Issued`, `AllAdded`. `EffectiveCatalog.Builtin` = chỉ lớp 1. |
 | `Domains/DomainListStore.cs` (mới) | Đọc/ghi `domain-list.json`, xác minh lại khi nạp. Đường dẫn truyền vào. |
 | `Domains/DomainListService.cs` (mới) | Chỗ chạy chung cho Windows (app) và macOS (daemon): `Current`, `Enabled`, `OfferAsync(bytes)`, `SetEnabledAsync(bool)`. Gồm xác minh, gộp, quyết định reapply, rồi ghi. Có khoá tuần tự với các lệnh reapply khác. |
 | `Features/FeatureDomains.cs` | `Routed(selection, catalog)`. Overload cũ gọi với `EffectiveCatalog.Builtin`. |
@@ -181,7 +181,7 @@ SYSTEM/Administrators, `DataDirectoryAcl`, spec 4.6), macOS `/Library/Applicatio
 | File | Nội dung |
 |---|---|
 | `App/DomainList/DomainListUpdater.cs` (mới) | Hẹn giờ (30 giây, 24 giờ, 1 giờ), tải có giới hạn, giao byte cho `IDomainListSink`. Đồng hồ và HttpClient tiêm vào để test. |
-| `App/DomainList/LocalDomainListSink.cs` (mới) | Windows: gọi `DomainListService` trong cùng tiến trình. |
+| `App/Features/IDomainListSink.cs` (mới), `IFeatureController.cs`, `LocalFeatureController.cs` | `IFeatureController` kế thừa `IDomainListSink` (`GetDomainListAsync`, `OfferDomainListAsync`) và thêm `SetDomainListEnabledAsync`. Windows gọi `DomainListService` trong cùng tiến trình. |
 | `App/AppPaths.cs` | `DomainListFile`. |
 | `App/ViewModels/DomainListRowViewModel.cs` (mới) | Công tắc, dòng trạng thái, nút Cập nhật ngay, dòng kết quả tạm. Test được không cần Dispatcher. |
 | `App/ViewModels/MainViewModel.cs`, `DomainGroupViewModel.cs`, `CustomDomainsViewModel.cs` | Dùng `EffectiveCatalog`; số đếm "(n từ bản cập nhật)"; ghi chú "Cũng có trong nhóm". |
@@ -192,10 +192,10 @@ SYSTEM/Administrators, `DataDirectoryAcl`, spec 4.6), macOS `/Library/Applicatio
 ### macOS (daemon và app)
 | File | Nội dung |
 |---|---|
-| `Platform.MacOS/Daemon/DaemonProtocol.cs` | Lệnh `get-domain-list`, `set-domain-list` (trường `Envelope : string` base64), `set-domain-list-enabled` (trường `Enabled`). Phản hồi `DomainList : DaemonDomainList { Enabled, Serial, Issued, CheckedAt, AddedByGroup }`. `MaxLineBytes` từ 65 536 lên **131 072**, vì envelope 64 KB sau base64 và JSON sẽ vượt mốc cũ. |
-| `Platform.MacOS/Daemon/DaemonCommands.cs` | Ba lệnh trên gọi `DomainListService`. Kiểm `PeerCredentials` như `set-domains`, kể cả `set-domain-list` (chữ ký là chốt chính; kiểm người gọi để tiến trình lạ không spam reapply). `get-domains` và `set-domains` dùng `EffectiveCatalog` hiện tại. |
+| `Platform.MacOS/Daemon/DaemonProtocol.cs` | Lệnh `get-domain-list`, `set-domain-list` (trường `Envelope : string` base64), `set-domain-list-enabled` (trường `Enabled`). Phản hồi `DomainList : DaemonDomainList { Enabled, Serial, Issued, CheckedAt, Added }`, trong đó `Added` là đủ danh sách tên miền lớp 2 theo khoá nhóm (`"steam": [...]`), để hộp [Xem] trên macOS có từng dòng. `MaxLineBytes` từ 65 536 lên **131 072**, vì envelope 64 KB sau base64 và JSON sẽ vượt mốc cũ. |
+| `Platform.MacOS/Daemon/DaemonCommands.cs` | Ba lệnh trên gọi `DomainListService`. `PeerCredentials` đã được `DaemonServer` kiểm cho mọi lệnh, nên ba lệnh mới tự có. `get-domains` và `set-domains` dùng `EffectiveCatalog` hiện tại. |
 | `MacCli/MacPaths.cs`, `MacCli/Engine.cs` | `DomainListFile`; nạp `DomainListStore` lúc khởi động trước khi bật tính năng. |
-| `App/MacOS/DaemonFeatureController.cs`, `App/MacOS/DaemonDomainListSink.cs` (mới) | Gửi lệnh, dịch "Lệnh lạ:" thành `DaemonNeedsUpdate`. |
+| `App/MacOS/DaemonFeatureController.cs` | Ba phương thức của `IFeatureController` gửi lệnh daemon; "Lệnh lạ:" hay không trả lời thì `null`/`Unavailable`. |
 
 ### Công cụ ký
 - `tools/DomainListSigner` (console .NET 8, nằm trong `.sln` để CI build với `-warnaserror`). Lệnh:
@@ -244,7 +244,7 @@ DomainListStore.Write(domain-list.json)  ─▶ UI: get-domain-list / Current
   - `DomainListVerifier`: file đúng; mỗi mã lỗi ở bảng thứ tự kiểm; sửa một byte payload thì `BadSignature`; chữ ký
     dạng DER thay vì P1363 thì `Malformed`; `serial` bằng/nhỏ hơn; 65 537 byte; 201 tên miền một nhóm; tên miền bị cấm,
     TLD, chưa chuẩn hoá, trùng lớp 1 thì chỉ bỏ dòng; nhóm `pubg`, `custom`, nhóm lạ bị bỏ qua.
-  - `EffectiveCatalog`: gộp giữ thứ tự, bỏ trùng, `AddedCount`, `Builtin` chỉ có lớp 1, nhóm không `Selectable` không
+  - `EffectiveCatalog`: gộp giữ thứ tự, bỏ trùng, `Added`, `Builtin` chỉ có lớp 1, nhóm không `Selectable` không
     nhận lớp 2.
   - `DomainListStore`: ghi rồi đọc lại; file sai chữ ký thì ra lớp 1 nhưng giữ `highestSerial`; file hỏng.
   - `DomainListService` (với `FakeConfigurator`): `Routed` đổi và tính năng bật thì reapply rồi mới ghi; reapply lỗi thì
