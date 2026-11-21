@@ -13,11 +13,20 @@ public sealed class AppSettingsTests
 
         Assert.Equal(SplitMode.FirstByte, settings.SplitMode);
         Assert.Equal(0, settings.SplitDelayMs);
+        Assert.False(settings.SplitRecords);
         Assert.False(settings.PreferGoogleDoh);
         Assert.False(settings.CheckPubg);
         Assert.False(settings.PubgWarningAccepted);
         Assert.False(settings.DomainsIntroSeen);
         Assert.Equal(FeatureTuning.Default, settings.Tuning());
+    }
+
+    [Fact]
+    public void Tuning_carries_record_split()
+    {
+        var settings = new AppSettings { SplitMode = SplitMode.MidSni, SplitRecords = true, SplitDelayMs = 3 };
+
+        Assert.Equal(new FeatureTuning(new HelloSplit(SplitMode.MidSni, Records: true), TimeSpan.FromMilliseconds(3)), settings.Tuning());
     }
 
     [Theory]
