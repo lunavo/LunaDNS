@@ -25,7 +25,7 @@ internal enum ControllerAvailability
 /// macOS: DaemonFeatureController gửi lệnh qua Unix socket tới daemon chạy bằng root.
 /// <see cref="Status"/> là ảnh chụp gần nhất, đọc được trên luồng UI mà không chặn; <see cref="RefreshAsync"/> cập nhật nó.
 /// </summary>
-internal interface IFeatureController : IAsyncDisposable
+internal interface IFeatureController : IDomainListSink, IAsyncDisposable
 {
     /// <summary>Watchdog đã tắt một tính năng. Bản daemon không phát (không phân biệt được với "lunadns off" từ Terminal).</summary>
     event EventHandler<FeatureStoppedEventArgs>? FeatureStopped;
@@ -63,6 +63,11 @@ internal interface IFeatureController : IAsyncDisposable
     /// rồi bật lại đúng các tính năng đã chạy.
     /// </summary>
     Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate, Action? restore = null);
+
+    /// <summary>
+    /// Công tắc "Tự cập nhật danh sách" (D4). Bản daemon tự lưu vào settings.json của nó; bản Local để AppServices lưu sau khi áp.
+    /// </summary>
+    Task<DomainListOfferResult> SetDomainListEnabledAsync(bool enabled);
 
     /// <summary>"Thoát &amp; khôi phục" và đăng xuất. Trả số thay đổi chưa hoàn tác được (0 = sạch).</summary>
     Task<int> ShutdownAsync();

@@ -16,6 +16,7 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - run: dotnet build -c Release -warnaserror
+      - run: dotnet run --project tools/DomainListSigner -c Release --no-build -- verify-source data/domain-list.json
       # Test Admin/mạng thật tự skip vì không đặt LUNADNS_ADMIN_TESTS / LUNADNS_NETWORK_TESTS.
       - run: dotnet test tests/LunaDns.Core.Tests -c Release --no-build
       - run: dotnet test tests/LunaDns.Platform.Windows.Tests -c Release --no-build
@@ -29,6 +30,7 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - run: dotnet build -c Release -warnaserror
+      - run: dotnet run --project tools/DomainListSigner -c Release --no-build -- verify-source data/domain-list.json
       # Test MacAdmin (đụng /etc thật) tự skip vì không đặt LUNADNS_ADMIN_TESTS.
       - run: dotnet test tests/LunaDns.Core.Tests -c Release --no-build
       - run: dotnet test tests/LunaDns.Platform.MacOS.Tests -c Release --no-build

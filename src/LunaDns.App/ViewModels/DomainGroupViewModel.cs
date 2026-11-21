@@ -15,6 +15,7 @@ internal sealed class DomainGroupViewModel : ObservableObject
     public const string NoStatus = "—";
 
     private readonly Func<DomainSelection> _current;
+    private readonly Func<EffectiveCatalog> _catalog;
     private readonly Func<DomainSelection, Task<DomainApplyResult>> _apply;
     private readonly Action<string> _showError;
     private (string Text, Tone Tone)? _probe;
@@ -24,6 +25,7 @@ internal sealed class DomainGroupViewModel : ObservableObject
     public DomainGroupViewModel(
         DomainGroup group,
         Func<DomainSelection> current,
+        Func<EffectiveCatalog> catalog,
         Func<DomainSelection, Task<DomainApplyResult>> apply,
         Action<string> showError,
         Func<DomainGroupViewModel, Task>? open = null,
@@ -31,6 +33,7 @@ internal sealed class DomainGroupViewModel : ObservableObject
     {
         Group = group;
         _current = current ?? throw new ArgumentNullException(nameof(current));
+        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _apply = apply ?? throw new ArgumentNullException(nameof(apply));
         _showError = showError ?? throw new ArgumentNullException(nameof(showError));
         onError ??= _ => { };
@@ -62,9 +65,13 @@ internal sealed class DomainGroupViewModel : ObservableObject
         get
         {
             var current = _current();
-            return IsCustom
-                ? Strings.Format(nameof(Strings.GroupCustomCountFormat), current.Custom.Count(c => c.Enabled), current.Custom.Count)
-                : Strings.Format(nameof(Strings.GroupCountFormat), DomainCatalog.For(Group).Count);
+            if (IsCustom)
+                return Strings.Format(nameof(Strings.GroupCustomCountFormat), current.Custom.Count(c => c.Enabled), current.Custom.Count);
+            var catalog = _catalog();
+            var added = catalog.Added(Group).Count;
+            return added == 0
+                ? Strings.Format(nameof(Strings.GroupCountFormat), catalog.For(Group).Count)
+                : Strings.Format(nameof(Strings.GroupCountWithUpdateFormat), catalog.For(Group).Count, added);
         }
     }
 

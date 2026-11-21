@@ -67,6 +67,7 @@ Khác bản Windows:
 - Giao diện hỏi lại dịch vụ nền mỗi 2 giây, nên bật/tắt bằng `lunadns on|off` trong Terminal cũng hiện lên giao diện.
 - **Thoát & khôi phục** (menu bar, hoặc Cmd+Q, hoặc đăng xuất) gửi lệnh tắt hết cho dịch vụ nền, giống nghĩa nút trên Windows. Kể cả khi tính năng được bật bằng `lunadns on`. Muốn để LunaDNS tiếp tục chạy thì chỉ đóng cửa sổ (nút đỏ): app vẫn ở biểu tượng trên thanh menu.
 - Nút **Tìm cấu hình hợp mạng** có trên macOS: dịch vụ nền tự kiểm, áp và lưu kết quả. Dịch vụ nền bản cũ cần **Cài lại dịch vụ nền** mới áp được. Chưa có ô Tự nhập DoH.
+- Dòng **Tự cập nhật danh sách tên miền** có trên macOS: dịch vụ nền tự xác minh chữ ký, áp và lưu (`DomainListUpdates` nằm trong `/Library/Application Support/LunaDNS/settings.json`). Dòng không hiện nghĩa là dịch vụ nền bản cũ: bấm **Cài lại dịch vụ nền**.
 - Chưa có mục **Nâng cao** (kiểu cắt gói, độ trễ, DoH): dịch vụ nền đang dùng cài đặt mặc định.
 - Không có nút **Gỡ khỏi máy**: gỡ bằng `sudo lunadns uninstall`.
 - Settings và log của giao diện ở `~/Library/Application Support/LunaDNS` (kèm `gui.lock`, `gui.sock` để chỉ một bản giao diện chạy; mở lần hai thì cửa sổ đang chạy hiện lên).

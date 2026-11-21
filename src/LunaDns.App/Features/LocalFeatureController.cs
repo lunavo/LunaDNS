@@ -17,9 +17,11 @@ internal sealed partial class LocalFeatureController : IFeatureController
 {
     private readonly ILogger _logger;
     private readonly Func<AppSettings> _settings;
+    private readonly Action<AppSettings> _saveSettings;
 
+    /// <param name="saveSettings">Lưu settings.json; gọi trong cổng của DomainListService, sau khi áp xong (áp trước, lưu sau).</param>
     public LocalFeatureController(AppPaths paths, INetworkConfigurator configurator, Func<AppSettings> settings,
-        ILoggerFactory loggerFactory, TimeProvider? time = null)
+        ILoggerFactory loggerFactory, TimeProvider? time = null, Action<AppSettings>? saveSettings = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(configurator);
@@ -27,6 +29,7 @@ internal sealed partial class LocalFeatureController : IFeatureController
         ArgumentNullException.ThrowIfNull(loggerFactory);
         var clock = time ?? TimeProvider.System;
         _settings = settings;
+        _saveSettings = saveSettings ?? (_ => { });
         _logger = loggerFactory.CreateLogger<LocalFeatureController>();
 
         Journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile), SystemChanges.Reverters(configurator), clock);
@@ -34,10 +37,14 @@ internal sealed partial class LocalFeatureController : IFeatureController
         if (StartupRollback.Reverted > 0) LogStartupReverted(_logger, StartupRollback.Reverted);
         if (!StartupRollback.Success) LogStartupLeftovers(_logger, StartupRollback.Failed.Count);
 
+        // Service dựng trước FeatureSet để Routed ban đầu đã có lớp 2; lambda đọc Features lúc chạy, sau khi ctor gán xong.
+        DomainList = new DomainListService(new DomainListStore(paths.DomainListFile, DomainListKeys.Production), DomainListKeys.Production,
+            settings().DomainListUpdates, () => settings().Domains, (domains, ct) => Features!.ReapplyAsync(domains, ct),
+            clock, loggerFactory.CreateLogger<DomainListService>());
         var services = new CoreFeatureServices(() => settings().DohServers(), loggerFactory);
         Features = new FeatureSet(Journal, new SystemChanges(Journal, configurator), services,
             () => settings().Tuning(), clock, loggerFactory.CreateLogger<FeatureSet>(),
-            routedDomains: FeatureDomains.Routed(settings().Domains));
+            routedDomains: FeatureDomains.Routed(settings().Domains, DomainList.Catalog));
     }
 
     public event EventHandler<FeatureStoppedEventArgs>? FeatureStopped
@@ -49,6 +56,9 @@ internal sealed partial class LocalFeatureController : IFeatureController
     public ChangeJournal Journal { get; }
 
     public FeatureSet Features { get; }
+
+    /// <summary>Lớp 2 của danh sách tên miền (D4). Controller sở hữu, Dispose cùng controller.</summary>
+    public DomainListService DomainList { get; }
 
     public ControllerAvailability Availability => ControllerAvailability.Local;
 
@@ -72,11 +82,24 @@ internal sealed partial class LocalFeatureController : IFeatureController
     public async Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        var result = await Features.ReapplyAsync(FeatureDomains.Routed(selection)).ConfigureAwait(false);
+        // Lưu trong cùng cổng: lượt Offer hay bật/tắt lớp 2 đọc settings().Domains sẽ thấy đúng danh sách vừa áp.
+        var result = await DomainList.WithCatalogAsync(async c =>
+        {
+            var applied = await Features.ReapplyAsync(FeatureDomains.Routed(selection, c)).ConfigureAwait(false);
+            if (applied.Success) _saveSettings(_settings() with { Domains = selection });
+            return applied;
+        }).ConfigureAwait(false);
         if (result.Success) return new(true, null);
         var message = ErrorMessages.For(result.Error);
         return new(false, result.PreviousRestored ? message : $"{message} {Strings.ChangesLeftBehind}", result.Error);
     }
+
+    public Task<DomainListState?> GetDomainListAsync() => Task.FromResult<DomainListState?>(DomainList.State);
+
+    public Task<DomainListOfferResult> OfferDomainListAsync(byte[] file) => DomainList.OfferAsync(file);
+
+    public Task<DomainListOfferResult> SetDomainListEnabledAsync(bool enabled) =>
+        DomainList.SetEnabledAsync(enabled, () => _saveSettings(_settings() with { DomainListUpdates = enabled }));
 
     public Task<TuningState?> GetTuningAsync()
     {

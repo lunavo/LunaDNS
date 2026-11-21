@@ -10,6 +10,8 @@ internal sealed record AppPaths(string DataDirectory, string LogDirectory, strin
 {
     public string JournalFile => Path.Combine(DataDirectory, "journal.json");
 
+    public string DomainListFile => Path.Combine(DataDirectory, "domain-list.json");
+
     public string SettingsFile => Path.Combine(DataDirectory, "settings.json");
 
     public static AppPaths Default()

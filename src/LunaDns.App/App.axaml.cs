@@ -178,6 +178,7 @@ internal sealed partial class App : Application, IDisposable
     private void CloseTray()
     {
         _viewModel?.Stop();
+        _viewModel?.Dispose();
         if (_viewModel is not null) _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         if (_tray is null) return;
         _tray.IsVisible = false;

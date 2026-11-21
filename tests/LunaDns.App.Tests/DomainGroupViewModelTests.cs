@@ -12,7 +12,7 @@ public sealed class DomainGroupViewModelTests
     {
         DomainSelection? applied = null;
         var selection = new DomainSelection();
-        var vm = new DomainGroupViewModel(DomainGroup.Reddit, () => selection,
+        var vm = new DomainGroupViewModel(DomainGroup.Reddit, () => selection, () => EffectiveCatalog.Builtin,
             s => { applied = s; selection = s; return Task.FromResult(new DomainApplyResult(true, null)); }, _ => { });
 
         await vm.SetEnabledAsync(true);
@@ -25,7 +25,7 @@ public sealed class DomainGroupViewModelTests
     public async Task Failed_toggle_reverts_switch_and_reports_message()
     {
         string? shown = null;
-        var vm = new DomainGroupViewModel(DomainGroup.Steam, () => new DomainSelection(),
+        var vm = new DomainGroupViewModel(DomainGroup.Steam, () => new DomainSelection(), () => EffectiveCatalog.Builtin,
             _ => Task.FromResult(new DomainApplyResult(false, "lỗi giả lập")), m => shown = m);
 
         await vm.SetEnabledAsync(false);
@@ -38,7 +38,7 @@ public sealed class DomainGroupViewModelTests
     public void Count_text_for_custom_shows_enabled_over_total()
     {
         var selection = new DomainSelection { Custom = [new("a.example.org"), new("b.example.org", Enabled: false)] };
-        var vm = new DomainGroupViewModel(DomainGroup.Custom, () => selection, _ => Task.FromResult(new DomainApplyResult(true, null)), _ => { });
+        var vm = new DomainGroupViewModel(DomainGroup.Custom, () => selection, () => EffectiveCatalog.Builtin, _ => Task.FromResult(new DomainApplyResult(true, null)), _ => { });
 
         Assert.Equal("1/2 đang bật", vm.CountText);
     }
@@ -83,7 +83,7 @@ public sealed class DomainGroupViewModelTests
     [Fact]
     public async Task Refusing_the_last_group_marks_row_kept_back()
     {
-        var vm = new DomainGroupViewModel(DomainGroup.Steam, () => new DomainSelection { EnabledGroups = [DomainGroup.Steam] },
+        var vm = new DomainGroupViewModel(DomainGroup.Steam, () => new DomainSelection { EnabledGroups = [DomainGroup.Steam] }, () => EffectiveCatalog.Builtin,
             _ => Task.FromResult(new DomainApplyResult(false, "bất kỳ câu nào", FeatureError.NoDomains)), _ => { });
 
         await vm.SetEnabledAsync(false);
@@ -96,7 +96,7 @@ public sealed class DomainGroupViewModelTests
     [Fact]
     public async Task Old_daemon_marks_row_not_applied()
     {
-        var vm = new DomainGroupViewModel(DomainGroup.Reddit, () => new DomainSelection(),
+        var vm = new DomainGroupViewModel(DomainGroup.Reddit, () => new DomainSelection(), () => EffectiveCatalog.Builtin,
             _ => Task.FromResult(new DomainApplyResult(false, Strings.DaemonNeedsUpdate)), _ => { });
 
         await vm.SetEnabledAsync(true);
@@ -110,7 +110,7 @@ public sealed class DomainGroupViewModelTests
     public async Task Open_command_runs_open_callback()
     {
         DomainGroupViewModel? opened = null;
-        var vm = new DomainGroupViewModel(DomainGroup.Steam, () => new DomainSelection(),
+        var vm = new DomainGroupViewModel(DomainGroup.Steam, () => new DomainSelection(), () => EffectiveCatalog.Builtin,
             _ => Task.FromResult(new DomainApplyResult(true, null)), _ => { },
             open: row => { opened = row; return Task.CompletedTask; });
 
@@ -123,5 +123,24 @@ public sealed class DomainGroupViewModelTests
     }
 
     private static DomainGroupViewModel Create(DomainGroup group, DomainSelection selection) =>
-        new(group, () => selection, _ => Task.FromResult(new DomainApplyResult(true, null)), _ => { });
+        new(group, () => selection, () => EffectiveCatalog.Builtin, _ => Task.FromResult(new DomainApplyResult(true, null)), _ => { });
+
+    [Fact]
+    public void Count_text_mentions_layer_two_domains_when_present()
+    {
+        var catalog = EffectiveCatalog.From(new Dictionary<DomainGroup, IReadOnlyList<string>> { [DomainGroup.Steam] = ["a.example.net", "b.example.net", "c.example.net"] }, null);
+        var vm = new DomainGroupViewModel(DomainGroup.Steam, () => new DomainSelection(), () => catalog,
+            _ => Task.FromResult(new DomainApplyResult(true, null)), _ => { });
+
+        Assert.Equal(Strings.Format(nameof(Strings.GroupCountWithUpdateFormat), DomainCatalog.For(DomainGroup.Steam).Count + 3, 3), vm.CountText);
+    }
+
+    [Fact]
+    public void Count_text_without_layer_two_is_the_plain_count()
+    {
+        var vm = new DomainGroupViewModel(DomainGroup.Steam, () => new DomainSelection(), () => EffectiveCatalog.Builtin,
+            _ => Task.FromResult(new DomainApplyResult(true, null)), _ => { });
+
+        Assert.Equal(Strings.Format(nameof(Strings.GroupCountFormat), DomainCatalog.For(DomainGroup.Steam).Count), vm.CountText);
+    }
 }

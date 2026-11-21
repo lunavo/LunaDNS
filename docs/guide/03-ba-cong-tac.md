@@ -22,6 +22,31 @@ Mọi thay đổi hệ thống được **ghi vào journal trước khi làm**, 
 - Watchdog: proxy chết sẽ được mở lại đúng cổng cũ; lỗi quá 3 lần trong 1 phút thì tính năng tự tắt và báo.
 - Hết cổng: *"Không còn cổng trống cho Proxy SNI."*
 
+## Tên miền
+
+Mục **TÊN MIỀN** liệt kê các nhóm tên miền mà hai công tắc định tuyến. Mỗi nhóm hiện số tên miền; **Xem** mở danh sách kèm cột nguồn (*"Có sẵn"* hoặc *"Bản cập nhật dd/MM"*). Danh sách có ba lớp:
+
+1. **Có sẵn:** đóng kèm app, luôn có.
+2. **Bản cập nhật:** tên miền bổ sung do LunaDNS phát hành, có chữ ký số. App chỉ nhận bản có chữ ký đúng; lớp này chỉ **thêm** tên miền vào nhóm có sẵn, không xoá gì. Nhóm có thêm tên miền thì hiện *"N tên miền (M từ bản cập nhật)"*.
+3. **Tuỳ chỉnh:** tên miền bạn tự thêm. Bản cập nhật **không bao giờ ghi đè** lớp này. Tên miền đã có trong một nhóm đang bật thì hiện ghi chú xám *"Cũng có trong nhóm …"*.
+
+### Tự cập nhật danh sách
+
+Dòng **Tự cập nhật danh sách tên miền** có công tắc và nút **Cập nhật ngay**. Khi bật, app kiểm bản mới 30 giây sau khi mở rồi mỗi 24 giờ (lỗi mạng thì thử lại sau 1 giờ). Bản mới được áp vào các công tắc đang bật trước, áp xong mới lưu. Tắt công tắc thì app quay về danh sách có sẵn và gỡ tên miền lớp 2 khỏi luật đang chạy.
+
+| Dòng trạng thái | Nghĩa |
+|---|---|
+| *Bản dd/MM · kiểm lúc HH:mm* | Đang dùng bản cập nhật phát hành ngày dd/MM. |
+| *Chưa tải bản nào* | Chưa có bản cập nhật nào hợp lệ; đang dùng danh sách có sẵn. |
+| *Đang dùng danh sách có sẵn* | Công tắc đang tắt. |
+| *Đã là bản mới nhất* / *Đã thêm N tên miền* | Kết quả của lần bấm **Cập nhật ngay**. |
+| *Không tải được, thử lại sau* | Lỗi mạng; app tự thử lại. |
+| *Không kiểm được lúc HH:mm, giữ bản dd/MM* | Lần kiểm lỗi; vẫn giữ bản đã có (hoặc *"dùng danh sách có sẵn"* nếu chưa có). |
+| *Chữ ký không hợp lệ, giữ bản cũ* | File tải về hỏng, sai chữ ký hoặc ký bằng khoá lạ; bị bỏ qua. |
+| *Cần bản LunaDNS mới hơn để đọc danh sách này* | Bản danh sách dùng định dạng mà bản app này chưa đọc được. |
+| *Không lưu được cài đặt, giữ như cũ* | Bật/tắt công tắc nhưng không ghi được settings.json; app trả cấu hình về như trước. |
+| *Không áp được bản dd/MM, xem Chẩn đoán* | Áp vào công tắc đang bật bị lỗi; app giữ cấu hình cũ. **Chẩn đoán** có khối "Danh sách tên miền cập nhật". |
+
 ## Chế độ PUBG: chưa hỗ trợ
 
 LunaDNS hiện **không hỗ trợ PUBG**; giao diện không có công tắc hay ô kiểm tra nào cho PUBG. Nếu file hosts còn dòng `# LunaDNS` từ bản thử nghiệm cũ, "Tắt hết & khôi phục" hoặc `--cleanup` sẽ hoàn tác.

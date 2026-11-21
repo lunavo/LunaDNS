@@ -43,7 +43,7 @@ internal sealed partial class AppServices : IAsyncDisposable
 
     /// <summary>Bản tại chỗ (Windows, và test): FeatureSet đọc settings hiện tại của chính AppServices này.</summary>
     public AppServices(AppPaths paths, INetworkConfigurator configurator, ILoggerFactory loggerFactory, TimeProvider? time = null)
-        : this(paths, s => new LocalFeatureController(paths, configurator, () => s.Settings, loggerFactory, time), loggerFactory, time)
+        : this(paths, s => new LocalFeatureController(paths, configurator, () => s.Settings, loggerFactory, time, v => s.Settings = v), loggerFactory, time)
     {
     }
 
@@ -84,15 +84,26 @@ internal sealed partial class AppServices : IAsyncDisposable
 
     public Task<DomainSelection?> GetDomainsAsync() => Features.GetDomainsAsync();
 
-    /// <summary>Áp rồi mới lưu (spec KH8 3.1): settings.json chỉ ghi khi máy đã chạy theo danh sách mới.</summary>
-    public async Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection)
+    /// <summary>
+    /// Áp rồi mới lưu (spec KH8 3.1): settings.json chỉ ghi khi máy đã chạy theo danh sách mới. Windows: controller lưu
+    /// trong cổng của DomainListService (D4); macOS: daemon tự lưu.
+    /// </summary>
+    public Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        var result = await Features.ApplyDomainsAsync(selection).ConfigureAwait(false);
-        if (result.Success && Features.Availability == ControllerAvailability.Local)
-            Settings = Settings with { Domains = selection };
-        return result;
+        return Features.ApplyDomainsAsync(selection);
     }
+
+    public Task<DomainListState?> GetDomainListAsync() => Features.GetDomainListAsync();
+
+    public Task<DomainListOfferResult> OfferDomainListAsync(byte[] file) => Features.OfferDomainListAsync(file);
+
+    /// <summary>Áp rồi mới lưu DomainListUpdates, trong cổng của DomainListService (Windows) hoặc daemon (macOS). Lưu lỗi thì áp ngược lại.</summary>
+    public Task<DomainListOfferResult> SetDomainListEnabledAsync(bool enabled) => Features.SetDomainListEnabledAsync(enabled);
+
+    /// <summary>Catalog đang có hiệu lực ở nơi giữ thật; hỏi không được thì chỉ lớp 1.</summary>
+    public async Task<EffectiveCatalog> CatalogAsync() =>
+        await GetDomainListAsync().ConfigureAwait(false) is { } state ? EffectiveCatalog.From(state.Added, state.Issued) : EffectiveCatalog.Builtin;
 
     /// <summary>Lấy IP cho URL DoH tự nhập qua chuỗi DoH dựng sẵn (D2), không qua DNS hệ thống.</summary>
     public async Task<CustomDoh> ResolveCustomDohAsync(CustomDoh custom, CancellationToken cancellationToken)
@@ -238,9 +249,10 @@ internal sealed partial class AppServices : IAsyncDisposable
     public async Task<ProbeSummary> ProbeAsync(CancellationToken cancellationToken)
     {
         var selection = await ProbeSelectionAsync();
+        var catalog = await CatalogAsync();
         var results = await _probes.RunAsync(selection, cancellationToken);
         LastProbe = results;
-        return ProbeSummary.Create(results, _time.GetLocalNow(), h => ProbeTargets.GroupOf(h, selection));
+        return ProbeSummary.Create(results, _time.GetLocalNow(), h => ProbeTargets.GroupOf(h, selection, catalog));
     }
 
     /// <summary>Kiểm tra theo lựa chọn của nơi giữ thật (macOS: dịch vụ nền); hỏi không được thì dùng settings.json của app.</summary>

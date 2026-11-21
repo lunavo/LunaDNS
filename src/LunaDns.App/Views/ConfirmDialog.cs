@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using LunaDns.App.ViewModels;
+using LunaDns.Core.Domains;
 
 namespace LunaDns.App.Views;
 
@@ -62,8 +63,8 @@ internal sealed class DialogPrompts(Func<Window> showOwner) : IUserPrompts
     public Task InformAsync(string title, string message) =>
         new ConfirmDialog(title, message, Strings.ConfirmYes, cancelText: null).ShowDialog<bool>(showOwner());
 
-    public Task ShowDomainListAsync(string title, IReadOnlyList<string> domains) =>
-        new DomainListWindow(title, domains).ShowDialog(showOwner());
+    public Task ShowDomainListAsync(string title, IReadOnlyList<CatalogEntry> entries, DateTimeOffset? issued) =>
+        new DomainListWindow(title, entries, issued).ShowDialog(showOwner());
 
     public Task<bool> EditCustomDomainsAsync(CustomDomainsViewModel vm) =>
         new CustomDomainsWindow { DataContext = vm }.ShowDialog<bool>(showOwner());

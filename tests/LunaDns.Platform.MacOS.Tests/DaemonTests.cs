@@ -82,6 +82,15 @@ public sealed class DaemonServerTests : IAsyncLifetime
         Assert.Null(_last);
     }
 
+    [Fact]
+    public async Task Line_of_100_kilobytes_is_read()
+    {
+        // Envelope base64 ~88 KB: trước D4 bị cắt ở 65 536 byte và trả "Yêu cầu rỗng hoặc quá dài."
+        var request = new DaemonRequest(DaemonProtocol.SetDomainList, Envelope: new string('A', 100_000));
+        var response = await Raw(System.Text.Json.JsonSerializer.Serialize(request, DaemonProtocol.Json) + "\n");
+        Assert.DoesNotContain("quá dài", response.Message ?? string.Empty, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("""{"command":"set-domains","domains":{"custom":null}}""")]
     [InlineData("""{"command":"set-domains","domains":{"custom":[null]}}""")]
@@ -155,6 +164,7 @@ internal sealed class RealDaemon : IAsyncDisposable
     private readonly TempDirectory _tmp = new();
     private readonly FeatureSet _features;
     private readonly DaemonServer _server;
+    private readonly DomainListService _domainList;
 
     public RealDaemon()
     {
@@ -164,7 +174,8 @@ internal sealed class RealDaemon : IAsyncDisposable
             new UnixHostsFileStore(_tmp.Combine("hosts")), ns);
         var journal = new ChangeJournal(new JsonFileJournalStore(_tmp.Combine("journal.json")), SystemChanges.Reverters(cfg));
         _features = new FeatureSet(journal, new SystemChanges(journal, cfg), new DaemonCommandsTests.IdleServices());
-        var commands = new DaemonCommands(_features, journal, "1.2.3", new JsonFileSettingsStore(_tmp.Combine("settings.json")));
+        _domainList = DaemonHarness.Idle(_features, _tmp.Path);
+        var commands = new DaemonCommands(_features, journal, "1.2.3", new JsonFileSettingsStore(_tmp.Combine("settings.json")), _domainList);
         _server = DaemonServer.Start(Socket, commands.HandleAsync, _ => true);
     }
 
@@ -188,6 +199,7 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
     private ChangeJournal _journal = null!;
     private DaemonCommands _commands = null!;
     private MacNetworkConfigurator _cfg = null!;
+    private DomainListService _domainList = null!;
 
     public Task InitializeAsync()
     {
@@ -196,7 +208,8 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
             new UnixHostsFileStore(_tmp.Combine("hosts")), _ns);
         _journal = new ChangeJournal(new JsonFileJournalStore(_tmp.Combine("journal.json")), SystemChanges.Reverters(_cfg));
         _features = new FeatureSet(_journal, new SystemChanges(_journal, _cfg), new IdleServices());
-        _commands = new DaemonCommands(_features, _journal, "1.2.3", new JsonFileSettingsStore(_tmp.Combine("settings.json")));
+        _domainList = DaemonHarness.Idle(_features, _tmp.Path);
+        _commands = new DaemonCommands(_features, _journal, "1.2.3", new JsonFileSettingsStore(_tmp.Combine("settings.json")), _domainList);
         return Task.CompletedTask;
     }
 
@@ -250,7 +263,7 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
         Assert.Equal("1.2.3", (await Send(DaemonProtocol.Ping)).Version);
     }
 
-    private DaemonCommands CreateCommands(JsonFileSettingsStore store) => new(_features, _journal, "test", store);
+    private DaemonCommands CreateCommands(JsonFileSettingsStore store) => new(_features, _journal, "test", store, _domainList);
 
     [Fact]
     public async Task Set_domains_validates_applies_and_persists()
@@ -448,7 +461,8 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
         using var dir = new TempDirectory();
         var services = new FlakyDnsServices();
         await using var features = new FeatureSet(_journal, new SystemChanges(_journal, _cfg), services);
-        var commands = new DaemonCommands(features, _journal, "test", new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json")));
+        var domainList = DaemonHarness.Idle(features, dir.Path);
+        var commands = new DaemonCommands(features, _journal, "test", new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json")), domainList);
         Assert.True((await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.DnsRouting), CancellationToken.None)).Ok);
         Assert.True((await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.SniProxy), CancellationToken.None)).Ok);
         services.FailNextDnsStart = true;

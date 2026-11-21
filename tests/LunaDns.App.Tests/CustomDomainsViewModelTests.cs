@@ -15,8 +15,11 @@ public sealed class CustomDomainsViewModelTests
     private DomainSelection? _applied;
     private DomainApplyResult _applyResult = new(true, null);
 
+    private EffectiveCatalog _catalog = EffectiveCatalog.Builtin;
+
     private CustomDomainsViewModel Create(params string[] domains) => new(
         new DomainSelection { EnabledGroups = [DomainGroup.Steam, DomainGroup.Custom], Custom = [.. domains.Select(d => new CustomDomain(d))] },
+        _catalog,
         s => { _applied = s; return Task.FromResult(_applyResult); },
         (hosts, _) => Task.FromResult<IReadOnlyList<ProbeResult>>(
             [.. hosts.Select(h => new ProbeResult(h, h.StartsWith("bad", StringComparison.Ordinal) ? ProbeVerdict.Unreachable : ProbeVerdict.SniFiltered, [], [], false))]),
@@ -256,7 +259,7 @@ public sealed class CustomDomainsViewModelTests
     [Fact]
     public async Task Save_exception_becomes_message_not_crash()
     {
-        var vm = new CustomDomainsViewModel(new DomainSelection(),
+        var vm = new CustomDomainsViewModel(new DomainSelection(), EffectiveCatalog.Builtin,
             _ => throw new InvalidOperationException("hỏng"),
             (_, _) => Task.FromResult<IReadOnlyList<ProbeResult>>([]), _time);
         vm.AddText = "reddit.com";
@@ -273,7 +276,7 @@ public sealed class CustomDomainsViewModelTests
     {
         var gate = new TaskCompletionSource<DomainApplyResult>();
         var calls = 0;
-        var vm = new CustomDomainsViewModel(new DomainSelection(),
+        var vm = new CustomDomainsViewModel(new DomainSelection(), EffectiveCatalog.Builtin,
             _ => { calls++; return gate.Task; },
             (_, _) => Task.FromResult<IReadOnlyList<ProbeResult>>([]), _time);
         vm.AddText = "reddit.com";
@@ -308,5 +311,44 @@ public sealed class CustomDomainsViewModelTests
         await vm.SaveAsync();
 
         Assert.Equal("Cổng bận. Máy vẫn đang chạy theo danh sách cũ; sửa xong bấm Lưu lại.", vm.SaveErrorText);
+    }
+
+    [Fact]
+    public void Custom_row_also_in_an_enabled_group_is_flagged_and_kept()
+    {
+        _catalog = EffectiveCatalog.From(new Dictionary<DomainGroup, IReadOnlyList<string>> { [DomainGroup.Steam] = ["cdn.example.net"] }, null);
+
+        var vm = Create("cdn.example.net", "other.example.org");
+
+        Assert.Equal(2, vm.Rows.Count);
+        Assert.Equal(Strings.GroupSteam, vm.Rows[0].AlsoInGroup);
+        Assert.Null(vm.Rows[1].AlsoInGroup);
+    }
+
+    [Fact]
+    public void Adding_a_domain_from_the_layer_two_list_is_a_duplicate()
+    {
+        _catalog = EffectiveCatalog.From(new Dictionary<DomainGroup, IReadOnlyList<string>> { [DomainGroup.Steam] = ["cdn.example.net"] }, null);
+        var vm = Create();
+        vm.AddText = "cdn.example.net";
+
+        vm.Add();
+
+        Assert.Empty(vm.Rows);
+        Assert.Single(vm.AddErrors);
+    }
+
+    [Fact]
+    public void Committing_an_unchanged_row_also_in_a_group_is_not_a_duplicate()
+    {
+        _catalog = EffectiveCatalog.From(new Dictionary<DomainGroup, IReadOnlyList<string>> { [DomainGroup.Steam] = ["cdn.example.net"] }, null);
+        var vm = Create("cdn.example.net");
+        var row = vm.Rows[0];
+        row.IsEditing = true;
+        row.EditText = "cdn.example.net";
+
+        Assert.True(vm.CommitEdit(row));
+        Assert.Null(row.EditError);
+        Assert.False(row.IsEditing);
     }
 }

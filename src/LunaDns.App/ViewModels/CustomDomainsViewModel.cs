@@ -18,6 +18,7 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan UndoTick = TimeSpan.FromSeconds(1);
 
     private readonly DomainSelection _initial;
+    private readonly EffectiveCatalog _catalog;
     private readonly Func<DomainSelection, Task<DomainApplyResult>> _apply;
     private readonly Func<IReadOnlyList<string>, CancellationToken, Task<IReadOnlyList<ProbeResult>>> _probe;
     private readonly TimeProvider _time;
@@ -37,17 +38,19 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
 
     public CustomDomainsViewModel(
         DomainSelection initial,
+        EffectiveCatalog catalog,
         Func<DomainSelection, Task<DomainApplyResult>> apply,
         Func<IReadOnlyList<string>, CancellationToken, Task<IReadOnlyList<ProbeResult>>> probe,
         TimeProvider time,
         Action<Action>? post = null)
     {
         _initial = initial ?? throw new ArgumentNullException(nameof(initial));
+        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _apply = apply ?? throw new ArgumentNullException(nameof(apply));
         _probe = probe ?? throw new ArgumentNullException(nameof(probe));
         _time = time ?? throw new ArgumentNullException(nameof(time));
         _post = post ?? (a => a());
-        _enabledCatalog = [.. DomainCatalog.Selectable.Where(initial.IsEnabled).SelectMany(DomainCatalog.For)];
+        _enabledCatalog = [.. DomainCatalog.Selectable.Where(initial.IsEnabled).SelectMany(catalog.For)];
         Rows = [.. initial.Custom.Select(c => Track(new CustomDomainRowViewModel(c.Domain, c.Enabled)))];
         Rows.CollectionChanged += (_, _) => RaiseListChanged();
     }
@@ -130,7 +133,7 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
 
     public Tone ReportTone { get => _reportTone; private set => SetProperty(ref _reportTone, value); }
 
-    public string ApplyingDetail => Strings.Format(nameof(Strings.CustomApplyingDetailFormat), FeatureDomains.Routed(Current).Count);
+    public string ApplyingDetail => Strings.Format(nameof(Strings.CustomApplyingDetailFormat), FeatureDomains.Routed(Current, _catalog).Count);
 
     public bool CanProbe => !_isBusy && Rows.Count > 0;
 
@@ -196,6 +199,13 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
     public bool CommitEdit(CustomDomainRowViewModel row)
     {
         ArgumentNullException.ThrowIfNull(row);
+        // Không đổi chữ thì giữ nguyên dòng: lớp 2 có thể vừa thêm đúng tên này vào nhóm đang bật (chỉ hiện ghi chú, không báo trùng).
+        if (string.Equals(row.EditText.Trim(), row.Domain, StringComparison.OrdinalIgnoreCase))
+        {
+            row.EditError = null;
+            row.IsEditing = false;
+            return true;
+        }
         var others = Rows.Where(r => !ReferenceEquals(r, row)).Select(r => r.Domain).ToList();
         var check = DomainPolicy.Check(row.EditText, others, _enabledCatalog);
         if (!check.Ok)
@@ -207,6 +217,7 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
         if (!string.Equals(row.Domain, check.Domain, StringComparison.Ordinal))
         {
             row.Domain = check.Domain!;
+            row.AlsoInGroup = AlsoInGroup(row.Domain);
             row.ProbeText = null;
             row.ProbeTone = null;
             row.ProbeDetail = null;
@@ -355,8 +366,14 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
         row.ProbeDetail = null;
     }
 
+    /// <summary>Nhóm dựng sẵn đang bật đầu tiên đã có tên miền này (lớp 1 ∪ lớp 2).</summary>
+    private string? AlsoInGroup(string domain) =>
+        DomainCatalog.Selectable.Where(_initial.IsEnabled).Where(g => DomainMatcher.Matches(domain, _catalog.For(g)))
+            .Select(Strings.GroupName).FirstOrDefault();
+
     private CustomDomainRowViewModel Track(CustomDomainRowViewModel row)
     {
+        row.AlsoInGroup = AlsoInGroup(row.Domain);
         row.Changed += (_, _) => RaiseListChanged();
         row.PropertyChanged += (_, e) =>
         {

@@ -139,4 +139,29 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         Assert.Empty(settings.CustomDoh.ResolvedAddresses);
         Assert.Equal("Cloudflare", settings.DohServers()[0].Name);
     }
+
+    [Fact]
+    public void Old_settings_without_domain_list_switch_load_as_enabled()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "SplitMode": "FirstByte" }""");
+        Assert.True(new JsonFileSettingsStore(path).Load().DomainListUpdates);
+    }
+
+    [Fact]
+    public void Domain_list_switch_round_trips()
+    {
+        var store = new JsonFileSettingsStore(PathOf("settings.json"));
+        store.Save(new AppSettings { DomainListUpdates = false });
+        Assert.False(store.Load().DomainListUpdates);
+    }
+
+    [Fact]
+    public void Settings_with_utf8_bom_load_instead_of_being_moved_aside()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "DomainListUpdates": false }""", new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        Assert.False(new JsonFileSettingsStore(path).Load().DomainListUpdates);
+        Assert.Empty(Directory.GetFiles(_dir, "settings.json.corrupt-*"));
+    }
 }

@@ -14,7 +14,10 @@ internal sealed class AsyncCommand(Func<Task> execute, Action<Exception> onError
 
     public bool CanExecute(object? parameter) => !_running && (canExecute?.Invoke() ?? true);
 
-    public async void Execute(object? parameter)
+    public async void Execute(object? parameter) => await ExecuteAsync(parameter);
+
+    /// <summary>Như Execute nhưng trả Task để test và code gọi chờ được; lỗi vẫn đi qua onError.</summary>
+    public async Task ExecuteAsync(object? parameter = null)
     {
         if (!CanExecute(parameter)) return;
         _running = true;

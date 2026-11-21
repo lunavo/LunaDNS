@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
+using LunaDns.Core.Domains;
 
 namespace LunaDns.Core.Diagnostics;
 
@@ -33,6 +34,17 @@ public static class DiagnosticReport
                 sb.AppendLine(CultureInfo.InvariantCulture,
                     $"{r.Host}: {r.Verdict} | DNS hệ thống: {Addresses(r.SystemAddresses)}{blocked} | DoH: {Addresses(r.DohAddresses)}");
             }
+        }
+
+        Section(sb, "Danh sách tên miền cập nhật");
+        if (input.DomainList is not { } list)
+        {
+            sb.AppendLine("(không có)");
+        }
+        else
+        {
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Công tắc: {(list.Enabled ? "bật" : "tắt")} | serial: {list.Serial} | bản: {list.Issued:O} | kiểm: {list.CheckedAt:O}");
+            foreach (var (group, domains) in list.Added) sb.AppendLine(CultureInfo.InvariantCulture, $"{group}: {domains.Count} tên miền lớp 2");
         }
 
         Section(sb, string.Create(CultureInfo.InvariantCulture, $"Journal ({input.Journal.Count} mục)"));

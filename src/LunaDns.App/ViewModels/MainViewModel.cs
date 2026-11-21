@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
+using LunaDns.App.DomainList;
 using LunaDns.App.Features;
 using LunaDns.App.Updates;
 using LunaDns.Core.Dns;
@@ -18,10 +19,11 @@ namespace LunaDns.App.ViewModels;
 /// Timer 2 giây hỏi lại trạng thái (macOS: hỏi dịch vụ nền, nên bắt được cả "lunadns on/off" từ Terminal).
 /// Overall (huy hiệu header, icon khay) tính lại mỗi khi trạng thái, việc đang chạy hoặc thông báo đổi.
 /// </summary>
-internal sealed partial class MainViewModel : ObservableObject
+internal sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(30);
     private static readonly HttpClient UpdateHttp = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly HttpClient DomainListHttp = new() { Timeout = TimeSpan.FromSeconds(15) };
     private static readonly TimeSpan StatusInterval = TimeSpan.FromSeconds(2);
 
     /// <summary>Tự kiểm cập nhật sau khi khởi động xong, để không tranh mạng với lần kiểm kết nối đầu.</summary>
@@ -46,6 +48,10 @@ internal sealed partial class MainViewModel : ObservableObject
     private int _busyCount;
     private OverallState _overall;
     private DomainSelection _domains = new();
+    private EffectiveCatalog _catalog = EffectiveCatalog.Builtin;
+    private readonly DomainListUpdater _domainListUpdater;
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _disposed;
     private bool _applyingDomains;
     private bool _daemonNeedsUpdate;
     private bool _showProbeCustomHint;
@@ -84,6 +90,24 @@ internal sealed partial class MainViewModel : ObservableObject
         _customDohUrl = _services.Settings.CustomDoh?.Endpoint ?? string.Empty;
         _customDohAddresses = string.Join(", ", _services.Settings.CustomDoh?.ManualAddresses ?? []);
         RefreshCustomDohStatus();
+        _domainListUpdater = new DomainListUpdater(DomainListHttp, DomainListUpdater.DefaultUrl(AppInfo.Repository), _services.Features,
+            TimeProvider.System, _services.LoggerFactory.CreateLogger<DomainListUpdater>());
+        DomainList = new DomainListRowViewModel(_services.GetDomainListAsync, _services.SetDomainListEnabledAsync, _domainListUpdater.CheckNowAsync,
+            () => _domainListUpdater.LastCheck, () => _domainListUpdater.IsChecking, () => _domainListUpdater.ReapplyFailures,
+            () => _busyCount > 0 || _applyingDomains, TimeProvider.System, a => Dispatcher.UIThread.Post(a), OnError);
+        DomainList.CatalogChanged += async (_, _) =>
+        {
+            try
+            {
+                await ReloadCatalogAsync();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                OnError(ex);
+            }
+        };
+        _domainListUpdater.Changed += (_, _) => Dispatcher.UIThread.Post(() => DomainList.OnBackgroundCheckAsync().ContinueWith(
+            t => OnError(t.Exception!.GetBaseException()), CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default));
         _services.Features.FeatureStopped += OnFeatureStopped;
         _timer = new DispatcherTimer(StatusInterval, DispatcherPriority.Background, async (_, _) => await PollAsync());
         _overall = OverallState.From(_services.Features.Status, busy: false, attention: false);
@@ -97,7 +121,10 @@ internal sealed partial class MainViewModel : ObservableObject
     /// <summary>Khu "Tên miền" (spec KH8 5.1): ba nhóm dựng sẵn rồi Tuỳ chỉnh.</summary>
     public ObservableCollection<DomainGroupViewModel> DomainGroups { get; } = [];
 
-    public string RoutedCountText => Strings.Format(nameof(Strings.DomainsRoutedCountFormat), FeatureDomains.Routed(_domains).Count);
+    /// <summary>Dòng "Tự cập nhật danh sách tên miền" dưới ba nhóm dựng sẵn (spec D4); tự ẩn khi dịch vụ nền là bản cũ.</summary>
+    public DomainListRowViewModel DomainList { get; }
+
+    public string RoutedCountText => Strings.Format(nameof(Strings.DomainsRoutedCountFormat), FeatureDomains.Routed(_domains, _catalog).Count);
 
     /// <summary>Huy hiệu "MỚI" và viền vàng cho tới lần đầu bấm Xem/Sửa hoặc bật/tắt một nhóm.</summary>
     public bool ShowDomainsIntro => !_services.Settings.DomainsIntroSeen;
@@ -411,6 +438,7 @@ internal sealed partial class MainViewModel : ObservableObject
         _timer.Start();
         _ = PollAsync();
         _ = LoadDomainsSafeAsync();
+        _ = StartDomainListAsync();
         CheckCommand.Execute(null);
         _ = CheckUpdateSilentlyAsync();
     }
@@ -421,9 +449,35 @@ internal sealed partial class MainViewModel : ObservableObject
         _domains = await Task.Run(_services.GetDomainsAsync) ?? _services.Settings.Domains;
         DomainGroups.Clear();
         foreach (var group in DomainCatalog.Selectable.Append(DomainGroup.Custom))
-            DomainGroups.Add(new DomainGroupViewModel(group, () => _domains, ApplyDomainsAsync, ShowDomainError, OpenGroupAsync, OnError));
+            DomainGroups.Add(new DomainGroupViewModel(group, () => _domains, () => _catalog, ApplyDomainsAsync, ShowDomainError, OpenGroupAsync, OnError));
         if (_summary is not null) ShowGroupProbes(_summary); // "Kiểm tra" lúc mở app có thể xong trước
         OnPropertyChanged(nameof(RoutedCountText));
+    }
+
+    /// <summary>Nạp catalog đang có hiệu lực (lớp 1 ∪ lớp 2) rồi vẽ lại số đếm của các nhóm.</summary>
+    private async Task ReloadCatalogAsync()
+    {
+        _catalog = await Task.Run(_services.CatalogAsync);
+        RefreshDomainRows();
+    }
+
+    /// <summary>Lúc mở app: nạp catalog và trạng thái dòng cập nhật, rồi chạy vòng hẹn giờ tải (30 giây đầu, 24 giờ/lần).</summary>
+    private async Task StartDomainListAsync()
+    {
+        try
+        {
+            await ReloadCatalogAsync();
+            await DomainList.RefreshAsync();
+            await _domainListUpdater.RunAsync(_lifetime.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Đóng app: vòng hẹn giờ dừng.
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            OnError(ex);
+        }
     }
 
     /// <summary>Nhóm dựng sẵn: cửa sổ chỉ đọc. Tuỳ chỉnh: hộp thoại sửa; chỉ nút Lưu mới áp.</summary>
@@ -433,10 +487,10 @@ internal sealed partial class MainViewModel : ObservableObject
         MarkDomainsIntroSeen();
         if (!row.IsCustom)
         {
-            await _prompts.ShowDomainListAsync(row.Title, DomainCatalog.For(row.Group));
+            await _prompts.ShowDomainListAsync(row.Title, _catalog.Entries(row.Group), _catalog.Issued);
             return;
         }
-        using var vm = new CustomDomainsViewModel(_domains, ApplyDomainsAsync, _services.ProbeDomainsAsync, TimeProvider.System, a => Dispatcher.UIThread.Post(a));
+        using var vm = new CustomDomainsViewModel(_domains, _catalog, ApplyDomainsAsync, _services.ProbeDomainsAsync, TimeProvider.System, a => Dispatcher.UIThread.Post(a));
         await _prompts.EditCustomDomainsAsync(vm);
         RefreshDomainRows();
     }
@@ -450,10 +504,20 @@ internal sealed partial class MainViewModel : ObservableObject
     /// <summary>Gọi khi thoát: dừng timer, bỏ đăng ký FeatureStopped.</summary>
     public void Stop()
     {
+        if (_disposed) return;
         _timer.Stop();
+        _lifetime.Cancel();
         _cancelDoh?.Invoke();
         _cancelTune?.Invoke();
         _services.Features.FeatureStopped -= OnFeatureStopped;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _lifetime.Dispose();
+        DomainList.Dispose();
     }
 
     private void RaiseTuneCommands()
@@ -737,7 +801,8 @@ internal sealed partial class MainViewModel : ObservableObject
         ShowMessage(Strings.DiagnosticsRunning, Tone.Info);
         try
         {
-            var path = await Task.Run(() => ReportWriter.Write(_services.Paths, _services.LastProbe, PlatformInfo.CreateDiagnostics(_services)));
+            var domainList = await Task.Run(_services.GetDomainListAsync);
+            var path = await Task.Run(() => ReportWriter.Write(_services.Paths, _services.LastProbe, PlatformInfo.CreateDiagnostics(_services), domainList: domainList));
             ShowMessage(Strings.Format(nameof(Strings.ReportSavedFormat), path), Tone.Info);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

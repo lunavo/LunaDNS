@@ -198,6 +198,55 @@ public sealed class DaemonFeatureControllerTests
     }
 
     [Fact]
+    public async Task Get_domain_list_maps_the_daemon_state_and_old_daemon_gives_null()
+    {
+        var added = new Dictionary<string, string[]> { ["steam"] = ["cdn.example.net"] };
+        var issued = new DateTimeOffset(2026, 11, 21, 14, 2, 0, TimeSpan.Zero);
+        _daemon.Reply = r => r.Command == DaemonProtocol.GetDomainList
+            ? new DaemonResponse(true, DomainList: new DaemonDomainList(true, 7, issued, null, added))
+            : null;
+        await using var controller = Create();
+
+        var state = await controller.GetDomainListAsync();
+
+        Assert.True(state!.Enabled);
+        Assert.Equal(7, state.Serial);
+        Assert.Equal(["cdn.example.net"], state.Added[DomainGroup.Steam]);
+
+        _daemon.Reply = r => new DaemonResponse(false, $"Lệnh lạ: {r.Command}");
+        Assert.Null(await controller.GetDomainListAsync());
+    }
+
+    [Fact]
+    public async Task Offer_domain_list_sends_the_exact_bytes_as_base64()
+    {
+        byte[] file = [1, 2, 3, 250];
+        _daemon.Reply = r => r.Command == DaemonProtocol.SetDomainList
+            ? new DaemonResponse(true, DomainListResult: new DaemonDomainListResult("Accepted", 3, 0, null, true))
+            : null;
+        await using var controller = Create();
+
+        var result = await controller.OfferDomainListAsync(file);
+
+        Assert.Equal(Convert.ToBase64String(file), _daemon.LastRequest!.Envelope);
+        Assert.Equal(DomainListOutcome.Accepted, result.Outcome);
+        Assert.Equal(3, result.Added);
+    }
+
+    [Fact]
+    public async Task Domain_list_calls_report_unavailable_when_the_daemon_is_silent_or_old()
+    {
+        _daemon.Down = true;
+        await using var controller = Create();
+        Assert.Equal(DomainListOutcome.Unavailable, (await controller.OfferDomainListAsync([1])).Outcome);
+        Assert.Equal(DomainListOutcome.Unavailable, (await controller.SetDomainListEnabledAsync(false)).Outcome);
+
+        _daemon.Down = false;
+        _daemon.Reply = r => new DaemonResponse(false, $"Lệnh lạ: {r.Command}");
+        Assert.Equal(DomainListOutcome.Unavailable, (await controller.OfferDomainListAsync([1])).Outcome);
+    }
+
+    [Fact]
     public async Task Apply_domains_passes_selection_and_daemon_message()
     {
         _daemon.Reply = r => r.Command == DaemonProtocol.SetDomains

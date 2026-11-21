@@ -29,4 +29,28 @@ public sealed class FeatureDomainsTests
             Assert.NotEqual("accounts.pubg.com", entry.Host);
         }
     }
+
+    [Fact]
+    public void Routed_includes_layer_two_of_enabled_groups_only()
+    {
+        var catalog = EffectiveCatalog.From(new Dictionary<DomainGroup, IReadOnlyList<string>>
+        {
+            [DomainGroup.Steam] = ["cdn.example.net"],
+            [DomainGroup.Reddit] = ["redditblog.com"],
+        }, DateTimeOffset.UnixEpoch);
+
+        var routed = FeatureDomains.Routed(new DomainSelection(), catalog);
+
+        Assert.Contains("cdn.example.net", routed);
+        Assert.DoesNotContain("redditblog.com", routed);
+    }
+
+    [Fact]
+    public void Custom_domain_also_in_layer_two_is_routed_once()
+    {
+        var catalog = EffectiveCatalog.From(new Dictionary<DomainGroup, IReadOnlyList<string>> { [DomainGroup.Steam] = ["cdn.example.net"] }, DateTimeOffset.UnixEpoch);
+        var selection = new DomainSelection { Custom = [new CustomDomain("cdn.example.net")] };
+
+        Assert.Single(FeatureDomains.Routed(selection, catalog), d => d == "cdn.example.net");
+    }
 }

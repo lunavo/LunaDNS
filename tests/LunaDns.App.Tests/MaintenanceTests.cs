@@ -1,5 +1,6 @@
 using LunaDns.App.Updates;
 using LunaDns.App.ViewModels;
+using LunaDns.Core.Domains;
 
 namespace LunaDns.App.Tests;
 
@@ -144,7 +145,7 @@ public sealed class MaintenanceTests
             return Task.CompletedTask;
         }
 
-        public Task ShowDomainListAsync(string title, IReadOnlyList<string> domains) => Task.CompletedTask;
+        public Task ShowDomainListAsync(string title, IReadOnlyList<CatalogEntry> entries, DateTimeOffset? issued) => Task.CompletedTask;
 
         public Task<bool> EditCustomDomainsAsync(CustomDomainsViewModel vm) => Task.FromResult(false);
     }

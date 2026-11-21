@@ -33,11 +33,14 @@ public static class ProbeTargets
         return targets;
     }
 
-    public static DomainGroup GroupOf(string host, DomainSelection selection)
+    public static DomainGroup GroupOf(string host, DomainSelection selection) => GroupOf(host, selection, EffectiveCatalog.Builtin);
+
+    public static DomainGroup GroupOf(string host, DomainSelection selection, EffectiveCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(selection);
+        ArgumentNullException.ThrowIfNull(catalog);
         foreach (var group in DomainCatalog.Selectable)
-            if (DomainMatcher.Matches(host, DomainCatalog.For(group))) return group;
+            if (DomainMatcher.Matches(host, catalog.For(group))) return group;
         if (DomainMatcher.Matches(host, DomainCatalog.For(DomainGroup.Pubg))) return DomainGroup.Pubg;
         return DomainGroup.Custom;
     }
