@@ -34,10 +34,14 @@ internal sealed partial class LocalFeatureController : IFeatureController
         if (StartupRollback.Reverted > 0) LogStartupReverted(_logger, StartupRollback.Reverted);
         if (!StartupRollback.Success) LogStartupLeftovers(_logger, StartupRollback.Failed.Count);
 
+        // Service dựng trước FeatureSet để Routed ban đầu đã có lớp 2; lambda đọc Features lúc chạy, sau khi ctor gán xong.
+        DomainList = new DomainListService(new DomainListStore(paths.DomainListFile, DomainListKeys.Production), DomainListKeys.Production,
+            settings().DomainListUpdates, () => settings().Domains, (domains, ct) => Features!.ReapplyAsync(domains, ct),
+            clock, loggerFactory.CreateLogger<DomainListService>());
         var services = new CoreFeatureServices(() => settings().DohServers(), loggerFactory);
         Features = new FeatureSet(Journal, new SystemChanges(Journal, configurator), services,
             () => settings().Tuning(), clock, loggerFactory.CreateLogger<FeatureSet>(),
-            routedDomains: FeatureDomains.Routed(settings().Domains));
+            routedDomains: FeatureDomains.Routed(settings().Domains, DomainList.Catalog));
     }
 
     public event EventHandler<FeatureStoppedEventArgs>? FeatureStopped
@@ -49,6 +53,9 @@ internal sealed partial class LocalFeatureController : IFeatureController
     public ChangeJournal Journal { get; }
 
     public FeatureSet Features { get; }
+
+    /// <summary>Lớp 2 của danh sách tên miền (D4). Controller sở hữu, Dispose cùng controller.</summary>
+    public DomainListService DomainList { get; }
 
     public ControllerAvailability Availability => ControllerAvailability.Local;
 
@@ -72,11 +79,17 @@ internal sealed partial class LocalFeatureController : IFeatureController
     public async Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        var result = await Features.ReapplyAsync(FeatureDomains.Routed(selection)).ConfigureAwait(false);
+        var result = await DomainList.WithCatalogAsync(c => Features.ReapplyAsync(FeatureDomains.Routed(selection, c))).ConfigureAwait(false);
         if (result.Success) return new(true, null);
         var message = ErrorMessages.For(result.Error);
         return new(false, result.PreviousRestored ? message : $"{message} {Strings.ChangesLeftBehind}", result.Error);
     }
+
+    public Task<DomainListState?> GetDomainListAsync() => Task.FromResult<DomainListState?>(DomainList.State);
+
+    public Task<DomainListOfferResult> OfferDomainListAsync(byte[] file) => DomainList.OfferAsync(file);
+
+    public Task<DomainListOfferResult> SetDomainListEnabledAsync(bool enabled) => DomainList.SetEnabledAsync(enabled);
 
     public Task<TuningState?> GetTuningAsync()
     {
@@ -95,7 +108,11 @@ internal sealed partial class LocalFeatureController : IFeatureController
 
     public async Task<int> ShutdownAsync() => (await Features.ShutdownAsync().ConfigureAwait(false)).Failed.Count;
 
-    public ValueTask DisposeAsync() => Features.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await Features.DisposeAsync().ConfigureAwait(false);
+        DomainList.Dispose();
+    }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Đã hoàn tác {Count} thay đổi còn sót từ lần chạy trước.")]
     private static partial void LogStartupReverted(ILogger logger, int count);

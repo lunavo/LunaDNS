@@ -125,6 +125,26 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         return new(false, response.Message, error);
     }
 
+    /// <summary>null khi daemon không trả lời hoặc là bản cũ chưa biết get-domain-list ("Lệnh lạ:"): giao diện ẩn dòng mới.</summary>
+    public async Task<DomainListState?> GetDomainListAsync() =>
+        (await SendAsync(new DaemonRequest(DaemonProtocol.GetDomainList)).ConfigureAwait(false)) is { Ok: true, DomainList: { } list }
+            ? list.ToState()
+            : null;
+
+    /// <summary>Gửi nguyên byte file đã tải; daemon xác minh lại từ đầu. Không trả lời hoặc daemon cũ thì Unavailable.</summary>
+    public async Task<DomainListOfferResult> OfferDomainListAsync(byte[] file)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        var response = await SendAsync(new DaemonRequest(DaemonProtocol.SetDomainList, Envelope: Convert.ToBase64String(file))).ConfigureAwait(false);
+        return response?.DomainListResult?.ToResult() ?? new DomainListOfferResult(DomainListOutcome.Unavailable);
+    }
+
+    public async Task<DomainListOfferResult> SetDomainListEnabledAsync(bool enabled)
+    {
+        var response = await SendAsync(new DaemonRequest(DaemonProtocol.SetDomainListEnabled, Enabled: enabled)).ConfigureAwait(false);
+        return response?.DomainListResult?.ToResult() ?? new DomainListOfferResult(DomainListOutcome.Unavailable);
+    }
+
     /// <summary>Không có gì bật thì không làm phiền daemon; daemon không chạy thì không còn gì để giao diện hoàn tác.</summary>
     public async Task<int> ShutdownAsync()
     {

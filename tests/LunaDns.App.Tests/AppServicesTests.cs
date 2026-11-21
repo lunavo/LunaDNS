@@ -193,6 +193,12 @@ public sealed class AppServicesTests : IDisposable
 
         public Task<DisableAllResult> DisableAllAsync() => throw new NotSupportedException();
 
+        public Task<DomainListState?> GetDomainListAsync() => Task.FromResult<DomainListState?>(DomainListState.Empty(true));
+
+        public Task<DomainListOfferResult> OfferDomainListAsync(byte[] file) => Task.FromResult(new DomainListOfferResult(DomainListOutcome.Accepted));
+
+        public Task<DomainListOfferResult> SetDomainListEnabledAsync(bool enabled) => Task.FromResult(new DomainListOfferResult(DomainListOutcome.Accepted));
+
         public Task<int> ShutdownAsync() => Task.FromResult(0);
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

@@ -94,6 +94,32 @@ internal sealed partial class AppServices : IAsyncDisposable
         return result;
     }
 
+    public Task<DomainListState?> GetDomainListAsync() => Features.GetDomainListAsync();
+
+    public Task<DomainListOfferResult> OfferDomainListAsync(byte[] file) => Features.OfferDomainListAsync(file);
+
+    /// <summary>Áp rồi mới lưu: Windows lưu DomainListUpdates; daemon tự lưu. Lưu lỗi thì bật/tắt ngược lại.</summary>
+    public async Task<DomainListOfferResult> SetDomainListEnabledAsync(bool enabled)
+    {
+        var result = await Features.SetDomainListEnabledAsync(enabled).ConfigureAwait(false);
+        if (!result.Success || Features.Availability != ControllerAvailability.Local) return result;
+        try
+        {
+            Settings = Settings with { DomainListUpdates = enabled };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogSettingsSaveFailed(_logger, ex);
+            await Features.SetDomainListEnabledAsync(!enabled).ConfigureAwait(false);
+            return new DomainListOfferResult(DomainListOutcome.SaveFailed);
+        }
+        return result;
+    }
+
+    /// <summary>Catalog đang có hiệu lực ở nơi giữ thật; hỏi không được thì chỉ lớp 1.</summary>
+    public async Task<EffectiveCatalog> CatalogAsync() =>
+        await GetDomainListAsync().ConfigureAwait(false) is { } state ? EffectiveCatalog.From(state.Added, state.Issued) : EffectiveCatalog.Builtin;
+
     /// <summary>Lấy IP cho URL DoH tự nhập qua chuỗi DoH dựng sẵn (D2), không qua DNS hệ thống.</summary>
     public async Task<CustomDoh> ResolveCustomDohAsync(CustomDoh custom, CancellationToken cancellationToken)
     {
@@ -238,9 +264,10 @@ internal sealed partial class AppServices : IAsyncDisposable
     public async Task<ProbeSummary> ProbeAsync(CancellationToken cancellationToken)
     {
         var selection = await ProbeSelectionAsync();
+        var catalog = await CatalogAsync();
         var results = await _probes.RunAsync(selection, cancellationToken);
         LastProbe = results;
-        return ProbeSummary.Create(results, _time.GetLocalNow(), h => ProbeTargets.GroupOf(h, selection));
+        return ProbeSummary.Create(results, _time.GetLocalNow(), h => ProbeTargets.GroupOf(h, selection, catalog));
     }
 
     /// <summary>Kiểm tra theo lựa chọn của nơi giữ thật (macOS: dịch vụ nền); hỏi không được thì dùng settings.json của app.</summary>
