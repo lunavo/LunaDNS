@@ -36,6 +36,9 @@ public sealed record AppSettings
     /// <summary>Đã bấm Xem/Sửa hoặc bật/tắt nhóm lần đầu: khu Tên miền thôi hiện huy hiệu "MỚI" (spec KH8 5.1).</summary>
     public bool DomainsIntroSeen { get; init; }
 
+    /// <summary>D4: công tắc "Tự cập nhật danh sách tên miền". Tắt = ngừng tải và bỏ lớp 2 khỏi định tuyến.</summary>
+    public bool DomainListUpdates { get; init; } = true;
+
     /// <summary>Hàm chứ không phải thuộc tính, để không bị ghi ra settings.json.</summary>
     public DohProvider EffectiveDoh() =>
         Doh is { } doh && Enum.IsDefined(doh)

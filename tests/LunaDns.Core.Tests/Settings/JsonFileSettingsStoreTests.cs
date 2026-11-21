@@ -139,4 +139,20 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         Assert.Empty(settings.CustomDoh.ResolvedAddresses);
         Assert.Equal("Cloudflare", settings.DohServers()[0].Name);
     }
+
+    [Fact]
+    public void Old_settings_without_domain_list_switch_load_as_enabled()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "SplitMode": "FirstByte" }""");
+        Assert.True(new JsonFileSettingsStore(path).Load().DomainListUpdates);
+    }
+
+    [Fact]
+    public void Domain_list_switch_round_trips()
+    {
+        var store = new JsonFileSettingsStore(PathOf("settings.json"));
+        store.Save(new AppSettings { DomainListUpdates = false });
+        Assert.False(store.Load().DomainListUpdates);
+    }
 }

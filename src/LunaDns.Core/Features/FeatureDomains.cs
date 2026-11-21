@@ -7,15 +7,19 @@ namespace LunaDns.Core.Features;
 /// <summary>Domain mà mỗi tính năng tác động (KH5 quyết định 1 và 3).</summary>
 public static class FeatureDomains
 {
-    /// <summary>Tên miền mà Định tuyến DNS (stub + NRPT/resolver) và Proxy SNI (PAC, CONNECT) áp dụng (spec KH8 3.1).</summary>
-    public static IReadOnlyList<string> Routed(DomainSelection selection)
+    /// <summary>Tên miền mà Định tuyến DNS (stub + NRPT/resolver) và Proxy SNI (PAC, CONNECT) áp dụng, chỉ lớp 1 (spec KH8 3.1).</summary>
+    public static IReadOnlyList<string> Routed(DomainSelection selection) => Routed(selection, EffectiveCatalog.Builtin);
+
+    /// <summary>Như trên, nhóm dựng sẵn lấy từ <paramref name="catalog"/> (lớp 1 ∪ lớp 2, spec D4).</summary>
+    public static IReadOnlyList<string> Routed(DomainSelection selection, EffectiveCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(selection);
+        ArgumentNullException.ThrowIfNull(catalog);
         var groups = selection.EnabledGroups.Where(DomainCatalog.Selectable.Contains).Distinct();
         var custom = selection.IsEnabled(DomainGroup.Custom)
             ? selection.Custom.Where(c => c.Enabled).Select(c => c.Domain)
             : [];
-        var all = groups.SelectMany(DomainCatalog.For).Concat(custom)
+        var all = groups.SelectMany(catalog.For).Concat(custom)
             .Select(DomainMatcher.Normalize)
             .Where(DomainPolicy.IsRoutable)
             .Distinct(StringComparer.Ordinal)
