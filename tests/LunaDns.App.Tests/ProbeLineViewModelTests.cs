@@ -27,4 +27,43 @@ public sealed class ProbeLineViewModelTests
         Assert.Equal(tone, line.Tone.ToString());
         Assert.Equal($"Steam: {detail}", line.AutomationName);
     }
+
+    [Fact]
+    public void Custom_group_counts_helped_and_unhelped_domains()
+    {
+        var group = new ProbeGroupSummary(DomainGroup.Custom,
+        [
+            new ProbeResult("a.example.org", ProbeVerdict.SniFiltered, [], [], false),
+            new ProbeResult("b.example.org", ProbeVerdict.DnsPoisoned, [], [], false),
+            new ProbeResult("c.example.org", ProbeVerdict.Unreachable, [], [], false),
+            new ProbeResult("d.example.org", ProbeVerdict.Ok, [], [], false),
+        ]);
+
+        var line = ProbeLineViewModel.From(group, new FeatureStatus(true, true, false, null, 0));
+
+        Assert.Equal("Tuỳ chỉnh", line.Group);
+        Assert.Equal("2 tên miền giúp được, 1 tên miền LunaDNS không giúp được", line.Detail);
+        Assert.Equal("Error", line.Tone.ToString());
+    }
+
+    [Fact]
+    public void Custom_group_all_ok_uses_normal_line()
+    {
+        var group = new ProbeGroupSummary(DomainGroup.Custom, [new ProbeResult("a.example.org", ProbeVerdict.Ok, [], [], false)]);
+
+        var line = ProbeLineViewModel.From(group, new FeatureStatus(false, false, false, null, 0));
+
+        Assert.Equal("Bình thường", line.Detail);
+        Assert.Equal("Good", line.Tone.ToString());
+    }
+
+    [Theory]
+    [InlineData(DomainGroup.OtherGames, "Nền tảng game khác")]
+    [InlineData(DomainGroup.Reddit, "Reddit")]
+    public void New_groups_have_names(DomainGroup group, string name)
+    {
+        var line = ProbeLineViewModel.From(new ProbeGroupSummary(group, []), new FeatureStatus(false, false, false, null, 0));
+
+        Assert.Equal(name, line.Group);
+    }
 }

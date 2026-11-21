@@ -12,5 +12,8 @@ internal static class ToneConverters
     public static readonly IValueConverter IsError = Is(Tone.Error);
     public static readonly IValueConverter IsBusy = Is(Tone.Busy);
 
+    /// <summary>Ẩn icon khi mức là Neutral (dòng chữ thường, không kèm icon).</summary>
+    public static readonly IValueConverter IsNotNeutral = new FuncValueConverter<Tone, bool>(value => value != Tone.Neutral);
+
     private static FuncValueConverter<Tone, bool> Is(Tone tone) => new(value => value == tone);
 }

@@ -67,7 +67,7 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
     public void Save_then_load_round_trips()
     {
         var store = new JsonFileSettingsStore(PathOf("sub/settings.json"));
-        var settings = new AppSettings { SplitMode = SplitMode.MidSni, SplitDelayMs = 5, PreferGoogleDoh = true, CheckPubg = true, PubgWarningAccepted = true };
+        var settings = new AppSettings { SplitMode = SplitMode.MidSni, SplitDelayMs = 5, PreferGoogleDoh = true, CheckPubg = true, PubgWarningAccepted = true, DomainsIntroSeen = true };
 
         store.Save(settings);
 

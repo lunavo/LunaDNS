@@ -98,6 +98,10 @@ public sealed class MaintenanceTests
             InformMessages.Add(message);
             return Task.CompletedTask;
         }
+
+        public Task ShowDomainListAsync(string title, IReadOnlyList<string> domains) => Task.CompletedTask;
+
+        public Task<bool> EditCustomDomainsAsync(CustomDomainsViewModel vm) => Task.FromResult(false);
     }
 
     private sealed class FakeShell : ISystemShell

@@ -109,6 +109,60 @@ internal static class Strings
     public static string ServiceCliMissing => Get(nameof(ServiceCliMissing));
     public static string DaemonNeedsUpdate => Get(nameof(DaemonNeedsUpdate));
 
+    public static string DomainsSectionTitle => Get(nameof(DomainsSectionTitle));
+    public static string GroupSteam => Get(nameof(GroupSteam));
+    public static string GroupOtherGames => Get(nameof(GroupOtherGames));
+    public static string GroupReddit => Get(nameof(GroupReddit));
+    public static string GroupCustom => Get(nameof(GroupCustom));
+    public static string GroupCountFormat => Get(nameof(GroupCountFormat));
+    public static string GroupCustomCountFormat => Get(nameof(GroupCustomCountFormat));
+    public static string GroupViewButton => Get(nameof(GroupViewButton));
+    public static string GroupEditButton => Get(nameof(GroupEditButton));
+    public static string CustomDialogTitle => Get(nameof(CustomDialogTitle));
+    public static string CustomAddWatermark => Get(nameof(CustomAddWatermark));
+    public static string CustomAddButton => Get(nameof(CustomAddButton));
+    public static string CustomProbeSelected => Get(nameof(CustomProbeSelected));
+    public static string CustomProbeAll => Get(nameof(CustomProbeAll));
+    public static string CustomImport => Get(nameof(CustomImport));
+    public static string CustomExport => Get(nameof(CustomExport));
+    public static string CustomUndo => Get(nameof(CustomUndo));
+    public static string CustomSave => Get(nameof(CustomSave));
+    public static string CustomCancel => Get(nameof(CustomCancel));
+    public static string CustomApplying => Get(nameof(CustomApplying));
+    public static string CustomDiscardQuestion => Get(nameof(CustomDiscardQuestion));
+    public static string CustomNotChecked => Get(nameof(CustomNotChecked));
+    public static string DomainsNewBadge => Get(nameof(DomainsNewBadge));
+    public static string DomainsRoutedCountFormat => Get(nameof(DomainsRoutedCountFormat));
+    public static string DomainsFootnote => Get(nameof(DomainsFootnote));
+    public static string GroupNotChecked => Get(nameof(GroupNotChecked));
+    public static string GroupCustomEmpty => Get(nameof(GroupCustomEmpty));
+    public static string GroupKeptBack => Get(nameof(GroupKeptBack));
+    public static string GroupNotApplied => Get(nameof(GroupNotApplied));
+    public static string CustomAddLabel => Get(nameof(CustomAddLabel));
+    public static string CustomAddHint => Get(nameof(CustomAddHint));
+    public static string CustomAddedFormat => Get(nameof(CustomAddedFormat));
+    public static string CustomAddedAllFormat => Get(nameof(CustomAddedAllFormat));
+    public static string CustomEmptyTitle => Get(nameof(CustomEmptyTitle));
+    public static string CustomEmptyBody => Get(nameof(CustomEmptyBody));
+    public static string CustomApplyingDetailFormat => Get(nameof(CustomApplyingDetailFormat));
+    public static string CustomSaveFailedTitle => Get(nameof(CustomSaveFailedTitle));
+    public static string CustomSaveFailedSuffix => Get(nameof(CustomSaveFailedSuffix));
+    public static string CustomDiscardBody => Get(nameof(CustomDiscardBody));
+    public static string CustomDiscardKeepEditing => Get(nameof(CustomDiscardKeepEditing));
+    public static string CustomDiscardConfirm => Get(nameof(CustomDiscardConfirm));
+    public static string CustomEditLabel => Get(nameof(CustomEditLabel));
+    public static string CustomEditHintFormat => Get(nameof(CustomEditHintFormat));
+    public static string CustomProbeSelectedFormat => Get(nameof(CustomProbeSelectedFormat));
+    public static string CustomDeleteFormat => Get(nameof(CustomDeleteFormat));
+    public static string CustomFileFailedFormat => Get(nameof(CustomFileFailedFormat));
+    public static string GroupListTitleFormat => Get(nameof(GroupListTitleFormat));
+    public static string GroupListHeaderFormat => Get(nameof(GroupListHeaderFormat));
+    public static string GroupListSubtitle => Get(nameof(GroupListSubtitle));
+    public static string GroupListNote => Get(nameof(GroupListNote));
+    public static string CloseButton => Get(nameof(CloseButton));
+    public static string ProbeCustomSummaryFormat => Get(nameof(ProbeCustomSummaryFormat));
+    public static string ProbeCustomHint => Get(nameof(ProbeCustomHint));
+
     /// <summary>Hậu tố khoá cho câu riêng của macOS (vd. "RestoreFailed_Mac"): có thì dùng thay câu chung.</summary>
     public const string MacSuffix = "_Mac";
 
@@ -132,5 +186,12 @@ internal static class Strings
 
     public static string FeatureDescription(Feature feature) => Get("FeatureDesc_" + feature);
 
-    public static string GroupName(DomainGroup group) => Get("Group_" + group);
+    public static string GroupName(DomainGroup group) => group switch
+    {
+        DomainGroup.Steam => GroupSteam,
+        DomainGroup.OtherGames => GroupOtherGames,
+        DomainGroup.Reddit => GroupReddit,
+        DomainGroup.Custom => GroupCustom,
+        _ => Get("Group_" + group),
+    };
 }

@@ -16,6 +16,7 @@ public sealed class AppSettingsTests
         Assert.False(settings.PreferGoogleDoh);
         Assert.False(settings.CheckPubg);
         Assert.False(settings.PubgWarningAccepted);
+        Assert.False(settings.DomainsIntroSeen);
         Assert.Equal(FeatureTuning.Default, settings.Tuning());
     }
 

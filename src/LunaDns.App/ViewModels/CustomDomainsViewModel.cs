@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text;
 using LunaDns.App.Features;
 using LunaDns.Core.Domains;
+using LunaDns.Core.Features;
 using LunaDns.Core.Probing;
 
 namespace LunaDns.App.ViewModels;
@@ -26,10 +27,13 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
     private IReadOnlyList<string> _addErrors = [];
     private bool _isBusy;
     private string? _errorMessage;
+    private string? _reportText;
+    private Tone _reportTone;
     private (int Index, CustomDomainRowViewModel Row)? _lastDeleted;
     private ITimer? _undoTimer;
     private int _undoGeneration;
     private int _undoLeft;
+    private bool _saving;
 
     public CustomDomainsViewModel(
         DomainSelection initial,
@@ -50,14 +54,96 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<CustomDomainRowViewModel> Rows { get; }
 
-    public string AddText { get => _addText; set => SetProperty(ref _addText, value); }
+    public string AddText
+    {
+        get => _addText;
+        set
+        {
+            if (SetProperty(ref _addText, value)) OnPropertyChanged(nameof(CanAdd));
+        }
+    }
+
+    /// <summary>Nút Thêm mờ khi ô rỗng hoặc đang bận.</summary>
+    public bool CanAdd => !_isBusy && !string.IsNullOrWhiteSpace(_addText);
 
     /// <summary>Lỗi của lần Thêm gần nhất, mỗi mục "chữ nhập: câu báo" (spec KH8 4.2).</summary>
-    public IReadOnlyList<string> AddErrors { get => _addErrors; private set => SetProperty(ref _addErrors, value); }
+    public IReadOnlyList<string> AddErrors
+    {
+        get => _addErrors;
+        private set
+        {
+            if (SetProperty(ref _addErrors, value)) OnPropertyChanged(nameof(HasAddErrors));
+        }
+    }
 
-    public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
+    public bool HasAddErrors => _addErrors.Count > 0;
 
-    public string? ErrorMessage { get => _errorMessage; private set => SetProperty(ref _errorMessage, value); }
+    /// <summary>Đang kiểm tra hoặc đang áp: hộp thoại khoá mọi nút, ô nhập và nút đóng.</summary>
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set
+        {
+            if (!SetProperty(ref _isBusy, value)) return;
+            OnPropertyChanged(nameof(IsIdle));
+            OnPropertyChanged(nameof(CanAdd));
+            OnPropertyChanged(nameof(CanProbe));
+            OnPropertyChanged(nameof(CanSave));
+            OnPropertyChanged(nameof(IsSaving));
+            OnPropertyChanged(nameof(ApplyingDetail));
+        }
+    }
+
+    public bool IsIdle => !_isBusy;
+
+    /// <summary>Đang chạy SaveAsync (khác với đang kiểm tra): hiện khung "Đang áp dụng…".</summary>
+    public bool IsSaving => _isBusy && _saving;
+
+    /// <summary>Lỗi của lần Lưu gần nhất (câu của DomainApplyResult).</summary>
+    public string? ErrorMessage
+    {
+        get => _errorMessage;
+        private set
+        {
+            if (!SetProperty(ref _errorMessage, value)) return;
+            OnPropertyChanged(nameof(SaveErrorText));
+            OnPropertyChanged(nameof(HasSaveError));
+        }
+    }
+
+    /// <summary>Nội dung khung "Chưa lưu được": câu lỗi nối với lời nhắc máy vẫn chạy danh sách cũ (mockup 2.5).</summary>
+    public string? SaveErrorText => _errorMessage is null ? null : $"{_errorMessage} {Strings.CustomSaveFailedSuffix}";
+
+    public bool HasSaveError => _errorMessage is not null;
+
+    /// <summary>Câu tổng kết của lần Thêm hoặc Nhập .txt gần nhất.</summary>
+    public string? ReportText
+    {
+        get => _reportText;
+        private set
+        {
+            if (SetProperty(ref _reportText, value)) OnPropertyChanged(nameof(HasReport));
+        }
+    }
+
+    public bool HasReport => _reportText is not null;
+
+    public Tone ReportTone { get => _reportTone; private set => SetProperty(ref _reportTone, value); }
+
+    public string ApplyingDetail => Strings.Format(nameof(Strings.CustomApplyingDetailFormat), FeatureDomains.Routed(Current).Count);
+
+    public bool CanProbe => !_isBusy && Rows.Count > 0;
+
+    public bool CanSave => !_isBusy && IsDirty;
+
+    public string ProbeSelectedText
+    {
+        get
+        {
+            var selected = Rows.Count(r => r.IsSelected);
+            return selected == 0 ? Strings.CustomProbeSelected : Strings.Format(nameof(Strings.CustomProbeSelectedFormat), selected);
+        }
+    }
 
     public string? UndoText => _lastDeleted is { } d
         ? Strings.Format(nameof(Strings.CustomDeletedFormat), d.Row.Domain)
@@ -82,6 +168,7 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
     {
         var rejected = new List<string>();
         var errors = new List<string>();
+        var added = 0;
         foreach (var item in DomainPolicy.SplitInput(AddText))
         {
             var check = DomainPolicy.Check(item, Domains(), _enabledCatalog);
@@ -89,6 +176,7 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
             if (check.Ok)
             {
                 Rows.Add(Track(new CustomDomainRowViewModel(check.Domain, true)));
+                added++;
             }
             else
             {
@@ -98,9 +186,13 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
         }
         AddText = string.Join('\n', rejected);
         AddErrors = errors;
+        ReportText = rejected.Count == 0
+            ? Strings.Format(nameof(Strings.CustomAddedAllFormat), added)
+            : Strings.Format(nameof(Strings.CustomAddedFormat), added, rejected.Count);
+        ReportTone = added > 0 ? Tone.Good : Tone.Neutral;
     }
 
-    /// <summary>Nhận chữ đang sửa của dòng (Enter). Sai thì giữ tên cũ, báo ở ErrorMessage và trả false.</summary>
+    /// <summary>Nhận chữ đang sửa của dòng (Enter). Sai thì giữ tên cũ, báo ở EditError của chính dòng đó và trả false.</summary>
     public bool CommitEdit(CustomDomainRowViewModel row)
     {
         ArgumentNullException.ThrowIfNull(row);
@@ -108,10 +200,10 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
         var check = DomainPolicy.Check(row.EditText, others, _enabledCatalog);
         if (!check.Ok)
         {
-            ErrorMessage = $"{row.EditText}: {Explain(check)}";
+            row.EditError = $"{row.EditText}: {Explain(check)}";
             return false;
         }
-        ErrorMessage = null;
+        row.EditError = null;
         if (!string.Equals(row.Domain, check.Domain, StringComparison.Ordinal))
         {
             row.Domain = check.Domain!;
@@ -168,7 +260,9 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
                 skipped++;
             }
         }
-        return Strings.Format(nameof(Strings.CustomImportReportFormat), added, skipped);
+        ReportText = Strings.Format(nameof(Strings.CustomImportReportFormat), added, skipped);
+        ReportTone = Tone.Neutral;
+        return ReportText;
     }
 
     /// <summary>Mỗi dòng một tên miền; dòng đang tắt có tiền tố "# off: " để Import đọc lại được.</summary>
@@ -215,18 +309,35 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
     /// <summary>Áp danh sách mới. true = đóng hộp thoại; false = giữ mở, lỗi ở ErrorMessage, trên máy vẫn là danh sách cũ.</summary>
     public async Task<bool> SaveAsync()
     {
+        if (IsBusy) return false; // nút Lưu mờ khi bận; chặn cả Enter/bấm đúp gọi chồng
+        _saving = true;
         IsBusy = true;
         ErrorMessage = null;
         try
         {
             var result = await _apply(Current);
-            if (!result.Success) ErrorMessage = result.Message;
+            if (!result.Success) ErrorMessage = result.Message ?? Strings.UnexpectedError;
             return result.Success;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Ranh giới của nút Lưu (như AsyncCommand): exception thành câu báo trong hộp thoại, không làm sập giao diện.
+            ErrorMessage = Strings.UnexpectedError;
+            return false;
         }
         finally
         {
+            _saving = false;
             IsBusy = false;
+            OnPropertyChanged(nameof(IsSaving));
         }
+    }
+
+    /// <summary>Nhập/Xuất .txt lỗi đọc ghi: báo ở dòng tổng kết.</summary>
+    public void ShowFileError(string detail)
+    {
+        ReportText = Strings.Format(nameof(Strings.CustomFileFailedFormat), detail);
+        ReportTone = Tone.Error;
     }
 
     public void Dispose()
@@ -247,6 +358,10 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
     private CustomDomainRowViewModel Track(CustomDomainRowViewModel row)
     {
         row.Changed += (_, _) => RaiseListChanged();
+        row.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(CustomDomainRowViewModel.IsSelected)) OnPropertyChanged(nameof(ProbeSelectedText));
+        };
         return row;
     }
 
@@ -273,6 +388,9 @@ internal sealed class CustomDomainsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CountText));
         OnPropertyChanged(nameof(IsDirty));
         OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(CanProbe));
+        OnPropertyChanged(nameof(CanSave));
+        OnPropertyChanged(nameof(ProbeSelectedText));
     }
 
     private static string Explain(DomainCheck check) => check.Domain is null ? Strings.DomainRejectSyntax : check.Rejection switch

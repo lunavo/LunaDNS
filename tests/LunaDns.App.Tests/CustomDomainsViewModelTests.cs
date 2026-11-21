@@ -3,6 +3,7 @@ using LunaDns.App;
 using LunaDns.App.Features;
 using LunaDns.App.ViewModels;
 using LunaDns.Core.Domains;
+using LunaDns.Core.Features;
 using LunaDns.Core.Probing;
 using Microsoft.Extensions.Time.Testing;
 
@@ -140,5 +141,172 @@ public sealed class CustomDomainsViewModelTests
         vm.Rows[1].Enabled = false;
 
         Assert.Equal("1/2 đang bật · tối đa 200", vm.CountText);
+    }
+
+    [Fact]
+    public void Edit_error_is_shown_on_the_row_not_as_save_error()
+    {
+        var vm = Create("reddit.com", "redd.it");
+        var row = vm.Rows[1];
+        row.IsEditing = true;
+        row.EditText = "reddit.com";
+
+        Assert.False(vm.CommitEdit(row));
+
+        Assert.StartsWith("reddit.com: ", row.EditError, StringComparison.Ordinal);
+        Assert.Null(vm.ErrorMessage);
+        Assert.True(row.IsEditing);
+
+        row.EditText = "i.redd.it";
+        Assert.True(vm.CommitEdit(row));
+        Assert.Null(row.EditError);
+    }
+
+    [Fact]
+    public void Edit_hint_shows_normalized_name()
+    {
+        var row = Create("reddit.com").Rows[0];
+        row.IsEditing = true;
+
+        row.EditText = "https://News.Example.org/tin-moi";
+
+        Assert.Equal("Enter để nhận · Esc để huỷ · sẽ lưu thành news.example.org", row.EditHint);
+    }
+
+    [Fact]
+    public void Cancel_edit_restores_row()
+    {
+        var vm = Create("reddit.com");
+        var row = vm.Rows[0];
+        row.IsEditing = true;
+        row.EditText = "com";
+        vm.CommitEdit(row);
+
+        row.CancelEdit();
+
+        Assert.False(row.IsEditing);
+        Assert.Null(row.EditError);
+        Assert.Equal("reddit.com", row.Domain);
+    }
+
+    [Fact]
+    public void Add_reports_added_and_left_over_lines()
+    {
+        var vm = Create();
+        vm.AddText = "reddit.com\nredd.it\ncom.vn";
+
+        vm.Add();
+
+        Assert.Equal("Đã thêm 2 tên miền. 1 dòng còn lại trong ô để bạn sửa.", vm.ReportText);
+
+        vm.AddText = "example.org";
+        vm.Add();
+        Assert.Equal("Đã thêm 1 tên miền.", vm.ReportText);
+    }
+
+    [Fact]
+    public void Import_report_is_shown()
+    {
+        var vm = Create();
+
+        var report = vm.Import("reddit.com\n");
+
+        Assert.Equal(report, vm.ReportText);
+    }
+
+    [Fact]
+    public void Can_add_only_with_text_and_when_idle()
+    {
+        var vm = Create();
+        Assert.False(vm.CanAdd);
+
+        vm.AddText = "  ";
+        Assert.False(vm.CanAdd);
+
+        vm.AddText = "reddit.com";
+        Assert.True(vm.CanAdd);
+    }
+
+    [Fact]
+    public void Probe_selected_text_counts_selection()
+    {
+        var vm = Create("reddit.com", "redd.it");
+        Assert.Equal("Kiểm tra đã chọn", vm.ProbeSelectedText);
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        vm.Rows[0].IsSelected = true;
+        vm.Rows[1].IsSelected = true;
+
+        Assert.Equal("Kiểm tra đã chọn (2)", vm.ProbeSelectedText);
+        Assert.Contains(nameof(CustomDomainsViewModel.ProbeSelectedText), changed);
+    }
+
+    [Fact]
+    public void Can_save_only_when_dirty()
+    {
+        var vm = Create("reddit.com");
+        Assert.False(vm.CanSave);
+
+        vm.Rows[0].Enabled = false;
+
+        Assert.True(vm.CanSave);
+    }
+
+    [Fact]
+    public async Task Save_exception_becomes_message_not_crash()
+    {
+        var vm = new CustomDomainsViewModel(new DomainSelection(),
+            _ => throw new InvalidOperationException("hỏng"),
+            (_, _) => Task.FromResult<IReadOnlyList<ProbeResult>>([]), _time);
+        vm.AddText = "reddit.com";
+        vm.Add();
+
+        Assert.False(await vm.SaveAsync());
+
+        Assert.Equal(Strings.UnexpectedError, vm.ErrorMessage);
+        Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task Save_does_not_reenter_while_busy()
+    {
+        var gate = new TaskCompletionSource<DomainApplyResult>();
+        var calls = 0;
+        var vm = new CustomDomainsViewModel(new DomainSelection(),
+            _ => { calls++; return gate.Task; },
+            (_, _) => Task.FromResult<IReadOnlyList<ProbeResult>>([]), _time);
+        vm.AddText = "reddit.com";
+        vm.Add();
+
+        var first = vm.SaveAsync();
+        Assert.False(await vm.SaveAsync());
+        gate.SetResult(new DomainApplyResult(true, null));
+
+        Assert.True(await first);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void Save_error_text_appends_suffix_and_applying_detail_counts_domains()
+    {
+        var vm = Create("reddit.com");
+
+        Assert.Null(vm.SaveErrorText);
+        Assert.Equal(
+            $"Tắt rồi bật lại Định tuyến DNS và Proxy SNI với {FeatureDomains.Routed(vm.Current).Count} tên miền. Lỗi thì LunaDNS tự quay về danh sách cũ.",
+            vm.ApplyingDetail);
+    }
+
+    [Fact]
+    public async Task Save_error_text_after_failure()
+    {
+        _applyResult = new DomainApplyResult(false, "Cổng bận.");
+        var vm = Create("reddit.com");
+        vm.Rows[0].Enabled = false;
+
+        await vm.SaveAsync();
+
+        Assert.Equal("Cổng bận. Máy vẫn đang chạy theo danh sách cũ; sửa xong bấm Lưu lại.", vm.SaveErrorText);
     }
 }

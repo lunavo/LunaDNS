@@ -6,7 +6,7 @@ Hình logo (trăng lưỡi liềm, vệt mạch, khiên) lấy từ mã SVG do P
 
 ## Fluent UI System Icons
 
-Path data của 12 icon trong `src/LunaDns.App/Assets/Icons.axaml` chép từ <https://github.com/microsoft/fluentui-system-icons> (bản 24 regular).
+Path data của 13 icon trong `src/LunaDns.App/Assets/Icons.axaml` chép từ <https://github.com/microsoft/fluentui-system-icons> (bản 24 regular).
 
 ```text
 MIT License
