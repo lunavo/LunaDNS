@@ -4,9 +4,9 @@
 
 <p align="center"><a href="README.md">English</a> · <b>Tiếng Việt</b></p>
 
-LunaDNS là ứng dụng Windows và macOS giúp vào **Steam** khi nhà mạng chặn DNS hoặc lọc SNI. Giao diện tiếng Việt, chạy ở khay hệ thống / thanh menu, chỉ đụng tên miền Steam, mọi thay đổi vào hệ thống đều được ghi lại để hoàn tác.
+LunaDNS là ứng dụng Windows và macOS giúp vào **Steam** khi nhà mạng chặn DNS hoặc lọc SNI. Giao diện tiếng Việt, chạy ở khay hệ thống / thanh menu, chỉ đụng các tên miền được định tuyến (mặc định nhóm Steam, thêm nhóm khác hoặc tên miền tự nhập nếu bạn chọn), mọi thay đổi vào hệ thống đều được ghi lại để hoàn tác.
 
-> **Trạng thái: bản thử 0.9.x (prerelease).** Bản chưa ký số nên Windows SmartScreen và macOS Gatekeeper cảnh báo ở lần chạy đầu.
+> **Trạng thái: bản thử 0.10.x (prerelease).** Bản chưa ký số nên Windows SmartScreen và macOS Gatekeeper cảnh báo ở lần chạy đầu.
 
 **Mục lục:** [Cho người dùng](#cho-người-dùng) · [Cách hoạt động](#cách-hoạt-động) · [Hướng dẫn](#hướng-dẫn) · [Cho lập trình viên](#cho-lập-trình-viên) · [Những gì chưa có](#những-gì-chưa-có)
 
@@ -33,7 +33,9 @@ Mở [Releases](https://github.com/lunavo/LunaDNS/releases), chọn bản mới 
 
 ### 3. Dùng
 
-Mở app là app tự chạy **Kiểm tra**. Bấm **Áp dụng đề xuất**, hoặc tự bật **Định tuyến DNS** và **Proxy SNI** nếu được đề xuất. Rồi mở Steam.
+Mở app là app tự chạy **Kiểm tra**. Bấm **Áp dụng đề xuất**, hoặc tự bật **Định tuyến DNS** và **Proxy SNI** nếu được đề xuất. Rồi mở Steam. Vẫn không vào được thì bấm **Tìm cấu hình hợp mạng**: app tự thử các tổ hợp điểm cắt, độ trễ, máy chủ DoH và áp tổ hợp đầu tiên chạy được.
+
+Cửa sổ chia bốn vùng: **Kiểm tra**, **Trạng thái**, **Cập nhật**, **Gỡ & dọn**. Xem [Các công tắc](docs/guide/03-ba-cong-tac.md).
 
 Nút X chỉ thu cửa sổ xuống khay. Muốn tắt và hoàn tác hết: biểu tượng khay → **Thoát & khôi phục**. Có bản mới thì app hiện dải báo kèm nút **Tải**.
 
@@ -43,10 +45,12 @@ Từng bước và câu hỏi hay gặp: **[Bắt đầu nhanh](docs/guide/00-ba
 
 | Công tắc | Việc làm | Khi nào cần |
 |---|---|---|
-| **Định tuyến DNS** | Chỉ tên miền Steam được hỏi qua DoH nội bộ (Cloudflare, dự phòng Google) thay cho DNS nhà mạng. Windows: một luật NRPT → `127.0.0.1:53`. macOS: mỗi domain Steam một file `/etc/resolver/<domain>` → `127.0.0.1:15353`. | Đăng nhập Steam lỗi, tên miền Steam phân giải sai. |
-| **Proxy SNI** | Bật proxy nội bộ ở `127.0.0.1:18080` (bận thì thử đến `18090`) và trỏ PAC hệ thống tới `http://127.0.0.1:18080/proxy.pac`. Proxy cắt gói mở kết nối TLS để qua bộ lọc SNI. Không giải mã TLS, không cài chứng chỉ. | Store, Community của Steam không tải được dù DNS đã đúng. |
+| **Định tuyến DNS** | Chỉ các tên miền được định tuyến được hỏi qua DoH nội bộ thay cho DNS nhà mạng. Máy chủ: Cloudflare (mặc định), Google, Quad9, AdGuard hoặc URL DoH tự nhập, có hai máy dự phòng và nút **Đo** để chọn máy nhanh nhất. Windows: một luật NRPT → `127.0.0.1:53`. macOS: mỗi tên miền một file `/etc/resolver/<domain>` → `127.0.0.1:15353`. | Đăng nhập Steam lỗi, tên miền Steam phân giải sai. |
+| **Proxy SNI** | Bật proxy nội bộ ở `127.0.0.1:18080` (bận thì thử đến `18090`) và trỏ PAC hệ thống tới `http://127.0.0.1:18080/proxy.pac`. Proxy cắt gói mở kết nối TLS để qua bộ lọc SNI; gặp bộ lọc biết ghép lại TCP thì bật thêm **Tách TLS record** để gửi ClientHello thành hai TLS record. Không giải mã TLS, không cài chứng chỉ. | Store, Community của Steam không tải được dù DNS đã đúng. |
 
-DNS của card mạng, mạng LAN, các trang khác và UDP của game giữ nguyên. Proxy từ chối host không thuộc Steam nên không bao giờ là proxy mở. App bị kill hay mất điện thì lần mở sau, `LunaDNS.exe --cleanup`, tác vụ dọn dẹp Windows (bản Setup) hoặc dịch vụ nền macOS sẽ hoàn tác phần còn sót.
+DNS của card mạng, mạng LAN, các trang khác và UDP của game giữ nguyên. Proxy từ chối host ngoài danh sách định tuyến nên không bao giờ là proxy mở.
+
+**Danh sách tên miền ba lớp:** lớp có sẵn (luôn có), lớp cập nhật có ký số app tải từ GitHub mỗi 24 giờ (chỉ thêm tên miền, lỗi thì giữ bản cũ, tắt được), và tên miền tuỳ chỉnh của bạn, không bao giờ bị bản cập nhật ghi đè. Xem [Các công tắc](docs/guide/03-ba-cong-tac.md). App bị kill hay mất điện thì lần mở sau, `LunaDNS.exe --cleanup`, tác vụ dọn dẹp Windows (bản Setup) hoặc dịch vụ nền macOS sẽ hoàn tác phần còn sót.
 
 **Yêu cầu:** Windows 10 1809+ / Windows 11 64-bit, có quyền Administrator (hỏi qua UAC); hoặc macOS 12+ chip Apple hay Intel, nhập mật khẩu admin một lần.
 
@@ -112,7 +116,7 @@ Spec và kế hoạch thiết kế: `docs/superpowers/`.
 - **Tự cập nhật:** app báo có bản mới và mở trang tải; chưa tự tải hay tự cài.
 - **PUBG:** chưa hỗ trợ.
 - **Báo cáo chẩn đoán** hiện ghi ra Desktop.
-- **macOS:** chưa có mục Nâng cao. Chưa kiểm chứng mọi kết nối Steam trên macOS có theo PAC hệ thống.
+- **macOS:** chưa có mục Nâng cao (điểm cắt, độ trễ, máy chủ DoH dùng mặc định; nút **Tìm cấu hình hợp mạng** thì đã có). Chưa kiểm chứng mọi kết nối Steam trên macOS có theo PAC hệ thống.
 - Đăng xuất/tắt máy: chưa đo xong thời gian hoàn tác. Không kịp thì tác vụ dọn dẹp (bản Setup) hoặc dịch vụ nền (macOS), lần mở app sau, hoặc `--cleanup` sẽ hoàn tác.
 
 ## Giấy phép

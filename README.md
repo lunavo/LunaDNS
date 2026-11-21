@@ -4,9 +4,9 @@
 
 <p align="center"><b>English</b> · <a href="README.vi.md">Tiếng Việt</a></p>
 
-LunaDNS is a Windows and macOS app that gets you into **Steam** when your ISP poisons DNS or filters TLS by SNI. It runs in the system tray / menu bar, only touches Steam domains, and every change it makes to the system is journaled so it can be undone.
+LunaDNS is a Windows and macOS app that gets you into **Steam** when your ISP poisons DNS or filters TLS by SNI. It runs in the system tray / menu bar, only touches the domains you route (the Steam group by default, plus optional groups and your own domains), and every change it makes to the system is journaled so it can be undone.
 
-> **Status: preview (0.9.x, prerelease).** Builds are not code-signed yet, so Windows SmartScreen and macOS Gatekeeper warn on first launch. The app's interface is in Vietnamese; this documentation explains each label in English.
+> **Status: preview (0.10.x, prerelease).** Builds are not code-signed yet, so Windows SmartScreen and macOS Gatekeeper warn on first launch. The app's interface is in Vietnamese; this documentation explains each label in English.
 
 **Contents:** [For users](#for-users) · [How it works](#how-it-works) · [User guide](#user-guide) · [For developers](#for-developers) · [What's missing](#whats-missing)
 
@@ -33,7 +33,9 @@ Do **not** pick `Source code (zip)`: that is the source for developers and has n
 
 ### 3. Use
 
-The app runs **Kiểm tra** (Check) when it opens. Click **Áp dụng đề xuất** (Apply suggestions), or turn on **Định tuyến DNS** (DNS routing) and, if suggested, **Proxy SNI**. Then open Steam.
+The app runs **Kiểm tra** (Check) when it opens. Click **Áp dụng đề xuất** (Apply suggestions), or turn on **Định tuyến DNS** (DNS routing) and, if suggested, **Proxy SNI**. Then open Steam. Still blocked? Click **Tìm cấu hình hợp mạng** (Find a configuration that works): the app tries split point, delay and DoH server combinations and applies the first one that gets through.
+
+The window has four zones: **Kiểm tra** (Check), **Trạng thái** (Status), **Cập nhật** (Update), **Gỡ & dọn** (Remove & clean up). See [The four zones of the window](docs/guide/en/03-switches.md#the-four-zones-of-the-window).
 
 The X button only hides the window to the tray. To stop and undo everything: tray icon → **Thoát & khôi phục** (Quit & restore). When a new version is out, the app shows a banner with a **Tải** (Download) button.
 
@@ -43,10 +45,12 @@ Step-by-step guide and FAQ: **[Quick start](docs/guide/en/00-quick-start.md)**. 
 
 | Switch | What it does | When you need it |
 |---|---|---|
-| **Định tuyến DNS** (DNS routing) | Sends only Steam domains to a local DNS-over-HTTPS stub (Cloudflare, Google as fallback) instead of the ISP resolver. Windows: an NRPT rule → `127.0.0.1:53`. macOS: one `/etc/resolver/<domain>` file per Steam domain → `127.0.0.1:15353`. | Steam login fails, Steam domains resolve to wrong IPs. |
-| **Proxy SNI** (SNI proxy) | Starts a local proxy on `127.0.0.1:18080` (up to `18090` if busy) and points the system PAC at `http://127.0.0.1:18080/proxy.pac`. The proxy splits the TLS ClientHello so SNI filters miss it. Never decrypts TLS, installs no certificates. | Steam Store / Community still won't load even though DNS is correct. |
+| **Định tuyến DNS** (DNS routing) | Sends only the routed domains to a local DNS-over-HTTPS stub instead of the ISP resolver. Servers: Cloudflare (default), Google, Quad9, AdGuard or your own DoH URL, with two fallbacks and a **Đo** (Measure) button to pick the fastest. Windows: an NRPT rule → `127.0.0.1:53`. macOS: one `/etc/resolver/<domain>` file per domain → `127.0.0.1:15353`. | Steam login fails, Steam domains resolve to wrong IPs. |
+| **Proxy SNI** (SNI proxy) | Starts a local proxy on `127.0.0.1:18080` (up to `18090` if busy) and points the system PAC at `http://127.0.0.1:18080/proxy.pac`. The proxy splits the TLS ClientHello so SNI filters miss it; for filters that reassemble TCP it can also send the ClientHello as two TLS records (**Tách TLS record**, Split TLS records). Never decrypts TLS, installs no certificates. | Steam Store / Community still won't load even though DNS is correct. |
 
-Adapter DNS settings, LAN, other sites and game UDP traffic stay as they are. The proxy refuses non-Steam hosts, so it is never an open proxy. If the app is killed or the power goes out, the next launch, `LunaDNS.exe --cleanup`, the Windows cleanup task (Setup only) or the macOS daemon undoes the leftovers.
+Adapter DNS settings, LAN, other sites and game UDP traffic stay as they are. The proxy refuses hosts outside the routed domains, so it is never an open proxy.
+
+**Domain list in three layers:** built in (always present), a signed update the app downloads from GitHub every 24 hours (it only adds domains, keeps the old list on any error, and can be switched off), and your own custom domains, which updates never overwrite. See [Domains](docs/guide/en/03-switches.md#domains). If the app is killed or the power goes out, the next launch, `LunaDNS.exe --cleanup`, the Windows cleanup task (Setup only) or the macOS daemon undoes the leftovers.
 
 **Requirements:** Windows 10 1809+ / Windows 11 64-bit with Administrator rights (asked via UAC), or macOS 12+ on Apple Silicon or Intel with your admin password once.
 
@@ -112,7 +116,7 @@ Design specs and implementation plans (Vietnamese): `docs/superpowers/`.
 - **Auto-update:** the app reports a new version and opens the download page; it does not download or install by itself.
 - **PUBG mode:** not supported.
 - **Diagnostics report** is written to the Desktop for now.
-- **macOS:** no Advanced section yet. Not yet confirmed whether every Steam connection on macOS honours the system PAC.
+- **macOS:** no Advanced section yet (split point, delay and DoH server use the defaults; **Find a configuration that works** is available). Not yet confirmed whether every Steam connection on macOS honours the system PAC.
 - Sign-out/shutdown timing is not fully measured. If the app cannot restore in time, the cleanup task (Windows Setup) or daemon (macOS), the next launch, or `--cleanup` will.
 
 ## License
