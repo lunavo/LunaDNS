@@ -25,7 +25,7 @@ public sealed class SniForwarderTests : IAsyncLifetime
     public async Task DisposeAsync() => await _forwarder.DisposeAsync();
 
     private SniForwarder Start(IPEndPoint endPoint) =>
-        SniForwarder.Start(endPoint, new SniForwarderOptions { Domains = GameDomains.For(DomainGroup.Pubg) }, _connector);
+        SniForwarder.Start(endPoint, new SniForwarderOptions { Domains = DomainCatalog.For(DomainGroup.Pubg) }, _connector);
 
     private async Task<NetworkStream> ConnectAsync()
     {

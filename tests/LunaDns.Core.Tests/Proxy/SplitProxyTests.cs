@@ -26,7 +26,7 @@ public sealed class SplitProxyTests : IAsyncLifetime
 
     private SplitProxy Start(SplitMode mode = SplitMode.FirstByte, int firstPort = 0, int lastPort = 0) =>
         SplitProxy.Start(
-            new SplitProxyOptions { Domains = GameDomains.All, FirstPort = firstPort, LastPort = lastPort, SplitMode = mode },
+            new SplitProxyOptions { Domains = DomainCatalog.All, FirstPort = firstPort, LastPort = lastPort, SplitMode = mode },
             _connector);
 
     private RecordingStream UseRecordingUpstream()
@@ -106,7 +106,7 @@ public sealed class SplitProxyTests : IAsyncLifetime
 
         Assert.StartsWith("HTTP/1.1 200 OK\r\n", response, StringComparison.Ordinal);
         Assert.Contains("Content-Type: application/x-ns-proxy-autoconfig\r\n", response, StringComparison.Ordinal);
-        Assert.EndsWith("\r\n\r\n" + PacBuilder.Build(_proxy.Port, GameDomains.All), response, StringComparison.Ordinal);
+        Assert.EndsWith("\r\n\r\n" + PacBuilder.Build(_proxy.Port, DomainCatalog.All), response, StringComparison.Ordinal);
     }
 
     [Theory]

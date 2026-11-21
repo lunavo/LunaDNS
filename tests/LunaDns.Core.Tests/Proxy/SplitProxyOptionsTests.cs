@@ -9,7 +9,7 @@ public class SplitProxyOptionsTests
     [Fact]
     public void Defaults_follow_spec_4_3()
     {
-        var options = new SplitProxyOptions { Domains = GameDomains.All };
+        var options = new SplitProxyOptions { Domains = DomainCatalog.All };
 
         Assert.Equal(18080, options.FirstPort);
         Assert.Equal(18090, options.LastPort);
@@ -28,7 +28,7 @@ public class SplitProxyOptionsTests
     {
         var options = new SplitProxyOptions
         {
-            Domains = GameDomains.All,
+            Domains = DomainCatalog.All,
             FirstPort = firstPort,
             LastPort = lastPort,
             SplitDelay = TimeSpan.FromMilliseconds(delayMs),

@@ -7,7 +7,7 @@ public sealed class FeatureDomainsTests
 {
     [Fact]
     public void Routed_is_the_steam_group() =>
-        Assert.Equal(GameDomains.For(DomainGroup.Steam), FeatureDomains.Routed);
+        Assert.Equal(DomainCatalog.For(DomainGroup.Steam), FeatureDomains.Routed);
 
     [Fact]
     public void Pubg_hosts_are_loopback_pubg_hosts_without_anticheat()

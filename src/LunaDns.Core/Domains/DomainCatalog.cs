@@ -1,0 +1,49 @@
+namespace LunaDns.Core.Domains;
+
+/// <summary>
+/// Nhóm tên miền dựng sẵn (spec KH8 mục 6). Không bao giờ chứa domain anti-cheat (spec v1 4.4, DomainDenyList).
+/// Danh sách OtherGames và Reddit là ứng viên; Task 13 chốt sau khi thử thật trên mạng VN.
+/// </summary>
+public static class DomainCatalog
+{
+    private static readonly string[] Steam =
+    [
+        "steampowered.com", "steamcommunity.com", "steamstatic.com", "steam-chat.com",
+        "steamusercontent.com", "steamgames.com", "steamcontent.com", "steamserver.net",
+        "counter-strike.net", "dota2.com", "valvesoftware.com",
+    ];
+
+    // Chỉ là lobby/web; *xenuine* và accounts.pubg.com cố ý không có (spec v1 4.4).
+    private static readonly string[] Pubg =
+    [
+        "playbattlegrounds.com", "pubg.com", "krafton.com", "pubgapp.com", "pubgesports.com",
+    ];
+
+    // Gộp nhóm Other cũ với store/launcher. Không có tên miền anti-cheat; xem DomainDenyList.
+    private static readonly string[] OtherGames =
+    [
+        "narakathegame.com", "24entertainment.net", "playdeltaforce.com", "levelinfinite.com",
+        "epicgames.com", "epicgames.dev", "unrealengine.com",
+        "battle.net", "blizzard.com",
+        "ea.com",
+    ];
+
+    private static readonly string[] Reddit =
+    [
+        "reddit.com", "redd.it", "redditmedia.com", "redditstatic.com", "reddituploads.com",
+    ];
+
+    public static IReadOnlyList<DomainGroup> Selectable { get; } = [DomainGroup.Steam, DomainGroup.OtherGames, DomainGroup.Reddit];
+
+    public static IReadOnlyList<string> For(DomainGroup group) => group switch
+    {
+        DomainGroup.Steam => Steam,
+        DomainGroup.Pubg => Pubg,
+        DomainGroup.OtherGames => OtherGames,
+        DomainGroup.Reddit => Reddit,
+        DomainGroup.Custom => [],
+        _ => throw new ArgumentOutOfRangeException(nameof(group), group, null),
+    };
+
+    public static IReadOnlyList<string> All { get; } = [.. Steam.Concat(Pubg).Concat(OtherGames).Concat(Reddit).Distinct()];
+}

@@ -54,7 +54,7 @@ public class NrptCimStoreTests
     {
         var before = AllRules();
         using var doh = DohClient.Create(DohServer.Defaults);
-        var handler = new DnsQueryHandler(GameDomains.All, doh, new DnsCache());
+        var handler = new DnsQueryHandler(DomainCatalog.All, doh, new DnsCache());
         await using var stub = DohStubServer.Start(DohStubServer.DefaultEndPoint, handler);
         var router = new NrptDnsRouter(_store);
         var snapshot = router.Plan(SteamApex, IPAddress.Loopback);

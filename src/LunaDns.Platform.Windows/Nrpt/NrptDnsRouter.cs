@@ -25,7 +25,7 @@ public sealed class NrptDnsRouter(INrptStore store)
         foreach (var domain in domains)
         {
             var host = DomainMatcher.Normalize(domain);
-            if (!DomainMatcher.Matches(host, GameDomains.All))
+            if (!DomainMatcher.Matches(host, DomainCatalog.All))
                 throw new ArgumentException("Có domain không thuộc danh sách domain game.", nameof(domains));
             wanted.Add("." + host); // mọi subdomain
             wanted.Add(host);       // chính tên gốc: luật hậu tố không chắc khớp tên gốc

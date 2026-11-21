@@ -25,5 +25,5 @@ public class ProbeTargetsTests
 
     [Fact]
     public void Every_target_is_a_game_domain() =>
-        Assert.All(ProbeTargets.For(includePubg: true), host => Assert.True(DomainMatcher.Matches(host, GameDomains.All)));
+        Assert.All(ProbeTargets.For(includePubg: true), host => Assert.True(DomainMatcher.Matches(host, DomainCatalog.All)));
 }

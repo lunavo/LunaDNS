@@ -126,7 +126,7 @@ public sealed class ResolverDnsRouter
         host.Length > 0
         && host.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '-' or '.')
         && !host.StartsWith('.') && !host.Contains("..", StringComparison.Ordinal)
-        && DomainMatcher.Matches(host, GameDomains.All);
+        && DomainMatcher.Matches(host, DomainCatalog.All);
 
     private static void EnsureSnapshot(DnsRouteSnapshot snapshot)
     {

@@ -31,7 +31,7 @@ public class DomainMatcherTests
     [Fact]
     public void Steam_group_contains_core_domains()
     {
-        var steam = GameDomains.For(DomainGroup.Steam);
+        var steam = DomainCatalog.For(DomainGroup.Steam);
         Assert.Contains("steampowered.com", steam);
         Assert.Contains("steamcommunity.com", steam);
         Assert.Contains("steamstatic.com", steam);
@@ -40,14 +40,14 @@ public class DomainMatcherTests
     [Fact]
     public void No_group_contains_anti_cheat_domains()
     {
-        Assert.DoesNotContain(GameDomains.All, d => d.Contains("xenuine", StringComparison.Ordinal));
-        Assert.DoesNotContain("accounts.pubg.com", GameDomains.All);
+        Assert.DoesNotContain(DomainCatalog.All, d => d.Contains("xenuine", StringComparison.Ordinal));
+        Assert.DoesNotContain("accounts.pubg.com", DomainCatalog.All);
     }
 
     [Fact]
     public void All_is_union_of_groups_without_duplicates()
     {
-        var expected = Enum.GetValues<DomainGroup>().SelectMany(GameDomains.For).Distinct().Count();
-        Assert.Equal(expected, GameDomains.All.Count);
+        var expected = Enum.GetValues<DomainGroup>().SelectMany(DomainCatalog.For).Distinct().Count();
+        Assert.Equal(expected, DomainCatalog.All.Count);
     }
 }

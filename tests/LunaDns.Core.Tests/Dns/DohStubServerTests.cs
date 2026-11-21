@@ -23,7 +23,7 @@ public sealed class DohStubServerTests : IAsyncLifetime
 
     private static DohStubServer StartOn(int port, IDnsUpstream upstream) =>
         DohStubServer.Start(new IPEndPoint(IPAddress.Loopback, port),
-            new DnsQueryHandler(GameDomains.All, upstream, new DnsCache()));
+            new DnsQueryHandler(DomainCatalog.All, upstream, new DnsCache()));
 
     private static Socket ExclusiveSocket(SocketType type, ProtocolType protocol, int port)
     {
@@ -119,14 +119,14 @@ public sealed class DohStubServerTests : IAsyncLifetime
     [Fact]
     public void Start_rejects_non_loopback_endpoint() =>
         Assert.Throws<ArgumentException>(() => DohStubServer.Start(new IPEndPoint(IPAddress.Any, 0),
-            new DnsQueryHandler(GameDomains.All, _upstream, new DnsCache())));
+            new DnsQueryHandler(DomainCatalog.All, _upstream, new DnsCache())));
 
     [Fact]
     public async Task Udp_drops_packets_beyond_in_flight_limit()
     {
         var upstream = new GatedUpstream();
         await using var server = DohStubServer.Start(new IPEndPoint(IPAddress.Loopback, 0),
-            new DnsQueryHandler(GameDomains.All, upstream, new DnsCache()), logger: null, maxUdpInFlight: 1);
+            new DnsQueryHandler(DomainCatalog.All, upstream, new DnsCache()), logger: null, maxUdpInFlight: 1);
         using var client = new UdpClient(AddressFamily.InterNetwork);
         client.Connect(server.LocalEndPoint);
 
