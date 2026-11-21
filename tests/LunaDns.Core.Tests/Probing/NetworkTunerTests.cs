@@ -190,6 +190,27 @@ public class NetworkTunerTests
     }
 
     [Fact]
+    public async Task Cancellation_swallowed_by_handshake_still_throws()
+    {
+        // Bắt tay đổi huỷ thành "lỗi" (IOException → false): không được báo NothingWorked thay cho Huỷ.
+        IntactOk = _ => false;
+        using var cts = new CancellationTokenSource();
+        var tuner = new NetworkTuner(
+            (_, _) => Task.FromResult(Latencies), _system, _ => _doh,
+            _ => new FakeTlsProbe
+            {
+                RespondAsync = async (_, _, split, _) =>
+                {
+                    if (split) await cts.CancelAsync();
+                    return false;
+                },
+            },
+            checkTimeout: TimeSpan.FromSeconds(30));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => tuner.RunAsync(Hosts, Choices, Current, null, cts.Token));
+    }
+
+    [Fact]
     public async Task Progress_reports_stages_in_order()
     {
         IntactOk = _ => false;

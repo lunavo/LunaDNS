@@ -36,6 +36,7 @@
   <data name="TuneNothingWorkedFormat" xml:space="preserve"><value>Không cấu hình nào vào được hết Steam. Vẫn lỗi: {0}. Cài đặt giữ nguyên.</value></data>
   <data name="TuneCancelled" xml:space="preserve"><value>Đã dừng, cài đặt giữ nguyên.</value></data>
   <data name="TuneFoundNotAppliedFormat" xml:space="preserve"><value>Tìm được {0}. {1}</value></data>
+  <data name="SettingsSaveFailedFormat" xml:space="preserve"><value>Không ghi được settings.json: {0}</value></data>
   <data name="NothingToApply" xml:space="preserve"><value>Các biện pháp đề xuất cho Steam đều đang bật.</value></data>
   <data name="StatusOff" xml:space="preserve"><value>Đang tắt</value></data>
   <data name="StatusOn" xml:space="preserve"><value>Đang bật</value></data>

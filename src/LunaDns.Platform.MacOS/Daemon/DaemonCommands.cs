@@ -125,10 +125,11 @@ public sealed partial class DaemonCommands
         var previous = _settings.Current;
         var updated = previous.WithTuning(wanted.Doh, wanted.ToCandidate());
         _settings.Current = updated;
-        var result = await features.ReapplyTuningAsync(cancellationToken).ConfigureAwait(false);
+        // Lỗi thì FeatureSet đặt lại settings cũ và bật lại đúng các tính năng đã chạy trước đó, trong cùng một lượt giữ cổng.
+        var result = await features.ReapplyTuningAsync(() => _settings.Current = previous, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
         {
-            var restored = await RestoreTuningAsync(previous).ConfigureAwait(false);
+            var restored = result.PreviousRestored;
             return Ok() with
             {
                 Ok = false,
@@ -159,7 +160,7 @@ public sealed partial class DaemonCommands
     private async Task<bool> RestoreTuningAsync(AppSettings previous)
     {
         _settings.Current = previous;
-        return (await features.ReapplyTuningAsync(CancellationToken.None).ConfigureAwait(false)).Success;
+        return (await features.ReapplyTuningAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false)).Success;
     }
 
     /// <summary>macOS không có ô Tự nhập DoH, nên không nhận Custom.</summary>

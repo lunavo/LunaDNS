@@ -77,7 +77,8 @@ internal sealed partial class MainViewModel : ObservableObject
         QuitCommand = new AsyncCommand(quit, OnError);
         InstallServiceCommand = new AsyncCommand(InstallServiceAsync, OnError);
         MeasureDohCommand = new AsyncCommand(MeasureDohAsync, OnError, () => !_isSavingCustomDoh && !_isTuning);
-        TuneCommand = new AsyncCommand(TuneAsync, OnError, () => !_isTuning);
+        // Không dò khi việc khác đang chạy: Đo/Lưu Tự nhập/thẻ/Kiểm tra có thể ghi settings giữa lúc áp cấu hình dò được.
+        TuneCommand = new AsyncCommand(TuneAsync, OnError, () => !_isTuning && !_isMeasuringDoh && !_isSavingCustomDoh && _busyCount == 0);
         StopTuneCommand = new AsyncCommand(StopTuneAsync, OnError, () => _isTuning && !_applyingTune);
         SaveCustomDohCommand = new AsyncCommand(SaveCustomDohAsync, OnError, () => !_isMeasuringDoh);
         _customDohUrl = _services.Settings.CustomDoh?.Endpoint ?? string.Empty;
@@ -317,6 +318,7 @@ internal sealed partial class MainViewModel : ObservableObject
     {
         _isMeasuringDoh = true;
         SaveCustomDohCommand.RaiseCanExecuteChanged();
+        TuneCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(DohMeasureLabel));
         // CTS chỉ để Stop() huỷ; hết giờ do meter tự lo, giữ kết quả từng phần.
         using var cts = new CancellationTokenSource();
@@ -352,6 +354,7 @@ internal sealed partial class MainViewModel : ObservableObject
             _cancelDoh = null;
             _isMeasuringDoh = false;
             SaveCustomDohCommand.RaiseCanExecuteChanged();
+            TuneCommand.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(DohMeasureLabel));
         }
     }
@@ -374,6 +377,7 @@ internal sealed partial class MainViewModel : ObservableObject
         CustomDohStatus = Strings.DohCustomResolving;
         _isSavingCustomDoh = true;
         MeasureDohCommand.RaiseCanExecuteChanged();
+        TuneCommand.RaiseCanExecuteChanged();
         using var timeout = new CancellationTokenSource(DohMeasureTimeout);
         try
         {
@@ -392,6 +396,7 @@ internal sealed partial class MainViewModel : ObservableObject
         {
             _isSavingCustomDoh = false;
             MeasureDohCommand.RaiseCanExecuteChanged();
+            TuneCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -490,6 +495,12 @@ internal sealed partial class MainViewModel : ObservableObject
                 run = await Task.Run(() => _services.TuneAsync(progress, token));
             }
             catch (OperationCanceledException)
+            {
+                TuneStatus = Strings.TuneCancelled;
+                return;
+            }
+            // Dừng (hoặc hết giờ) đúng lúc dò vừa xong mà chưa sang bước áp: vẫn coi là huỷ, không đổi gì.
+            if (token.IsCancellationRequested)
             {
                 TuneStatus = Strings.TuneCancelled;
                 return;
@@ -783,6 +794,7 @@ internal sealed partial class MainViewModel : ObservableObject
     private async Task RunBusyAsync(IReadOnlyList<FeatureViewModel> cards, Func<Task> work)
     {
         _busyCount++;
+        TuneCommand.RaiseCanExecuteChanged();
         foreach (var card in cards) card.IsBusy = true;
         UpdateOverall();
         try
@@ -793,6 +805,7 @@ internal sealed partial class MainViewModel : ObservableObject
         {
             foreach (var card in cards) card.IsBusy = false;
             _busyCount--;
+            TuneCommand.RaiseCanExecuteChanged();
             Refresh();
             ShowSummary();
         }

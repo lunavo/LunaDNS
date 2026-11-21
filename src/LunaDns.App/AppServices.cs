@@ -145,14 +145,21 @@ internal sealed partial class AppServices : IAsyncDisposable
     public async Task<TuneRun> TuneAsync(IProgress<TuneProgress>? progress, CancellationToken cancellationToken)
     {
         var current = await Features.GetTuningAsync().ConfigureAwait(false);
-        var resolved = await RefreshCustomDohAsync(TuneDohTimeout, cancellationToken).ConfigureAwait(false);
-        var choices = DohCatalog.Choices(resolved ?? Settings.CustomDoh);
+        var local = Features.Availability == ControllerAvailability.Local;
+        // Phân giải lại Tự nhập và đo chung một hạn 10 giây (như MeasureDohAsync).
+        var started = _time.GetTimestamp();
+        var resolved = local ? await RefreshCustomDohAsync(TuneDohTimeout, cancellationToken).ConfigureAwait(false) : null;
+        var choices = TuneChoices(Features.Availability, resolved ?? Settings.CustomDoh);
         var meter = DohLatencyMeter.Create(LoggerFactory);
         var clients = new List<DohClient>();
         try
         {
             var tuner = new NetworkTuner(
-                (c, token) => meter.MeasureAsync(c, TuneDohTimeout, token),
+                (c, token) =>
+                {
+                    var remaining = TuneDohTimeout - _time.GetElapsedTime(started);
+                    return meter.MeasureAsync(c, remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, token);
+                },
                 new SystemHostResolver(LoggerFactory.CreateLogger<SystemHostResolver>()),
                 server =>
                 {
@@ -179,9 +186,14 @@ internal sealed partial class AppServices : IAsyncDisposable
         }
     }
 
+    /// <summary>Máy DoH để dò: macOS chỉ 4 máy dựng sẵn, vì daemon không nhận Tự nhập (spec D3).</summary>
+    internal static IReadOnlyList<DohChoice> TuneChoices(ControllerAvailability availability, CustomDoh? custom) =>
+        DohCatalog.Choices(availability == ControllerAvailability.Local ? custom : null);
+
     /// <summary>
-    /// Windows: lưu trước (FeatureSet đọc settings lúc khởi động lại); lỗi thì lưu lại bản cũ và chạy lại lần nữa.
-    /// macOS: daemon tự áp và lưu; xong mới chép vào settings.json của app để Kiểm tra dùng cùng cấu hình.
+    /// Windows: lưu trước (FeatureSet đọc settings lúc khởi động lại); lỗi thì FeatureSet đặt lại bản cũ và bật lại đúng các
+    /// tính năng đang chạy. macOS: daemon tự áp và lưu; xong mới chép vào settings.json của app để Kiểm tra dùng cùng cấu hình.
+    /// Không ghi được settings.json thì báo lỗi thay vì ném.
     /// </summary>
     public async Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate)
     {
@@ -189,16 +201,38 @@ internal sealed partial class AppServices : IAsyncDisposable
         if (Features.Availability != ControllerAvailability.Local)
         {
             var remote = await Features.ApplyTuningAsync(doh, candidate).ConfigureAwait(false);
-            if (remote.Success) Settings = Settings.WithTuning(doh, candidate);
+            if (!remote.Success) return remote;
+            var copy = Settings.WithTuning(doh, candidate);
+            if (!TrySaveSettings(copy, out _)) _settings = copy; // daemon đã áp và lưu; bản chép của app chỉ giữ trong bộ nhớ
             return remote;
         }
         var previous = Settings;
-        Settings = previous.WithTuning(doh, candidate);
-        var result = await Features.ApplyTuningAsync(doh, candidate).ConfigureAwait(false);
-        if (result.Success) return result;
-        Settings = previous;
-        var back = await Features.ApplyTuningAsync(previous.EffectiveDoh(), previous.CurrentCandidate()).ConfigureAwait(false);
-        return back.Success ? result : result with { Message = $"{result.Message} {Strings.ChangesLeftBehind}" };
+        if (!TrySaveSettings(previous.WithTuning(doh, candidate), out var saveError))
+            return new TuningApplyResult(false, saveError); // chưa đổi gì
+        string? restoreError = null;
+        var result = await Features.ApplyTuningAsync(doh, candidate, () =>
+        {
+            // Ghi file lỗi thì vẫn đặt bản cũ trong bộ nhớ để lần chạy lại đọc đúng cấu hình cũ.
+            if (!TrySaveSettings(previous, out restoreError)) _settings = previous;
+        }).ConfigureAwait(false);
+        return result.Success || restoreError is null ? result : result with { Message = $"{result.Message} {restoreError}" };
+    }
+
+    /// <summary>Lưu settings.json; lỗi ghi file thì trả lời cho người dùng thay vì ném (Settings giữ nguyên).</summary>
+    private bool TrySaveSettings(AppSettings settings, out string? error)
+    {
+        try
+        {
+            Settings = settings;
+            error = null;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogSettingsSaveFailed(_logger, ex);
+            error = Strings.Format(nameof(Strings.SettingsSaveFailedFormat), ex.Message);
+            return false;
+        }
     }
 
     public async Task<ProbeSummary> ProbeAsync(CancellationToken cancellationToken)
@@ -222,6 +256,9 @@ internal sealed partial class AppServices : IAsyncDisposable
         await Features.DisposeAsync();
         LoggerFactory.Dispose();
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Không ghi được settings.json khi áp cấu hình dò được.")]
+    private static partial void LogSettingsSaveFailed(ILogger logger, Exception error);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "settings.json có {Count} tên miền tuỳ chỉnh không hợp lệ, đã bỏ qua.")]
     private static partial void LogDroppedDomains(ILogger logger, int count);

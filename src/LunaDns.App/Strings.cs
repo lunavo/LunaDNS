@@ -64,6 +64,7 @@ internal static class Strings
     public static string TuneNothingWorkedFormat => Get(nameof(TuneNothingWorkedFormat));
     public static string TuneCancelled => Get(nameof(TuneCancelled));
     public static string TuneFoundNotAppliedFormat => Get(nameof(TuneFoundNotAppliedFormat));
+    public static string SettingsSaveFailedFormat => Get(nameof(SettingsSaveFailedFormat));
     public static string NothingToApply => Get(nameof(NothingToApply));
     public static string StatusOff => Get(nameof(StatusOff));
     public static string StatusOn => Get(nameof(StatusOn));

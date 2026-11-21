@@ -111,8 +111,11 @@ internal sealed partial class DaemonFeatureController : IFeatureController
             ? new TuningState(tuning.Doh, tuning.ToCandidate())
             : null;
 
-    /// <summary>Dịch vụ nền tự kiểm, áp và lưu. Bản cũ chưa biết set-tuning trả "Lệnh lạ:" nên đề nghị cài lại.</summary>
-    public async Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate)
+    /// <summary>
+    /// Dịch vụ nền tự kiểm, áp, lưu và tự quay lại khi lỗi, nên bỏ qua restore. Bản cũ chưa biết set-tuning trả "Lệnh lạ:"
+    /// nên đề nghị cài lại.
+    /// </summary>
+    public async Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate, Action? restore = null)
     {
         var response = await SendAsync(new DaemonRequest(DaemonProtocol.SetTuning, Tuning: DaemonTuning.From(doh, candidate))).ConfigureAwait(false);
         if (response is null) return new(false, ErrorMessages.For(FeatureError.ServiceUnavailable));

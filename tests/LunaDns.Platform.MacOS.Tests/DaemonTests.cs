@@ -443,6 +443,48 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Set_tuning_failure_turns_every_running_feature_back_on()
+    {
+        using var dir = new TempDirectory();
+        var services = new FlakyDnsServices();
+        await using var features = new FeatureSet(_journal, new SystemChanges(_journal, _cfg), services);
+        var commands = new DaemonCommands(features, _journal, "test", new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json")));
+        Assert.True((await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.DnsRouting), CancellationToken.None)).Ok);
+        Assert.True((await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.SniProxy), CancellationToken.None)).Ok);
+        services.FailNextDnsStart = true;
+
+        var response = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.SetTuning, Tuning: Quad9MidSni), CancellationToken.None);
+
+        Assert.False(response.Ok);
+        Assert.Contains("đã giữ cấu hình cũ", response.Message, StringComparison.Ordinal);
+        Assert.True(response.Status!.DnsRouting);
+        Assert.NotNull(response.Status.ProxyPort);
+        var read = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.GetTuning), CancellationToken.None);
+        Assert.Equal(DohProvider.Cloudflare, read.Tuning!.Doh);
+    }
+
+    /// <summary>Stub DNS khởi động lỗi đúng một lần khi FailNextDnsStart bật (giả lập cổng cũ chưa nhả).</summary>
+    private sealed class FlakyDnsServices : IFeatureServices
+    {
+        private readonly IdleServices _idle = new();
+
+        public bool FailNextDnsStart { get; set; }
+
+        public IRunningService StartDnsStub(IReadOnlyList<string> domains)
+        {
+            if (!FailNextDnsStart) return _idle.StartDnsStub(domains);
+            FailNextDnsStart = false;
+            throw new DnsStubException("giả lập cổng bận");
+        }
+
+        public IRunningProxy StartSniProxy(IReadOnlyList<string> domains, int? port, FeatureTuning tuning) =>
+            _idle.StartSniProxy(domains, port, tuning);
+
+        public IRunningService StartPubgForwarder(IReadOnlyList<string> domains, FeatureTuning tuning) =>
+            _idle.StartPubgForwarder(domains, tuning);
+    }
+
+    [Fact]
     public async Task Set_domains_after_set_tuning_keeps_tuning()
     {
         using var dir = new TempDirectory();

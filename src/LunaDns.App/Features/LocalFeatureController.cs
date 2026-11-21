@@ -85,10 +85,12 @@ internal sealed partial class LocalFeatureController : IFeatureController
     }
 
     /// <summary>FeatureSet đọc tuning và DoH qua settings() lúc khởi động lại; AppServices đã lưu bản mới.</summary>
-    public async Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate)
+    public async Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate, Action? restore = null)
     {
-        var result = await Features.ReapplyTuningAsync().ConfigureAwait(false);
-        return result.Success ? new(true, null) : new(false, ErrorMessages.For(result.Error), result.Error);
+        var result = await Features.ReapplyTuningAsync(restore).ConfigureAwait(false);
+        if (result.Success) return new(true, null);
+        var message = ErrorMessages.For(result.Error);
+        return new(false, restore is null || result.PreviousRestored ? message : $"{message} {Strings.ChangesLeftBehind}", result.Error);
     }
 
     public async Task<int> ShutdownAsync() => (await Features.ShutdownAsync().ConfigureAwait(false)).Failed.Count;

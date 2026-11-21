@@ -63,6 +63,7 @@ public sealed partial class NetworkTuner
         progress?.Report(new TuneProgress(TuneStage.Classifying, 0, 0, current));
         var prober = new Prober(_system, _dohResolver(choice.Server), _tls(current), _checkTimeout, _loggers.CreateLogger<Prober>());
         var probe = await prober.RunAsync(hosts, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (probe.All(r => r.Verdict is ProbeVerdict.Ok or ProbeVerdict.DnsPoisoned))
             return new TuneResult(TuneOutcome.SplitNotNeeded, choice.Provider, current, ProbeAdvisor.Recommend(probe), probe, []);
 
@@ -73,6 +74,8 @@ public sealed partial class NetworkTuner
             var candidate = candidates[i];
             progress?.Report(new TuneProgress(TuneStage.TryingSplit, i + 1, candidates.Count, candidate));
             var failing = await FailingHostsAsync(probe, candidate, cancellationToken).ConfigureAwait(false);
+            // Bắt tay có thể đổi huỷ thành "lỗi" (IOException → false): kiểm lại để báo Huỷ, không báo NothingWorked.
+            cancellationToken.ThrowIfCancellationRequested();
             LogCandidate(_logger, candidate, failing.Count);
             if (failing.Count == 0)
                 return new TuneResult(TuneOutcome.Found, choice.Provider, candidate,

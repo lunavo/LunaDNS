@@ -58,10 +58,11 @@ internal interface IFeatureController : IAsyncDisposable
     Task<TuningState?> GetTuningAsync();
 
     /// <summary>
-    /// Áp cấu hình D3 cho tính năng đang chạy. Bản daemon tự kiểm, áp và lưu. Bản Local chạy lại FeatureSet,
-    /// vì AppServices đã lưu settings mới trước khi gọi.
+    /// Áp cấu hình D3 cho tính năng đang chạy. Bản daemon tự kiểm, áp, lưu và tự quay lại khi lỗi (bỏ qua restore).
+    /// Bản Local chạy lại FeatureSet, vì AppServices đã lưu settings mới trước khi gọi; lỗi thì gọi restore (đặt lại settings cũ)
+    /// rồi bật lại đúng các tính năng đã chạy.
     /// </summary>
-    Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate);
+    Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate, Action? restore = null);
 
     /// <summary>"Thoát &amp; khôi phục" và đăng xuất. Trả số thay đổi chưa hoàn tác được (0 = sạch).</summary>
     Task<int> ShutdownAsync();

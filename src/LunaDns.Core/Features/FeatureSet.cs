@@ -106,9 +106,11 @@ public sealed partial class FeatureSet : IAsyncDisposable
 
     /// <summary>
     /// D3: chạy lại mọi tính năng đang bật để chúng đọc tuning và máy DoH mới (dịch vụ chỉ đọc lúc khởi động).
-    /// Lỗi thì không tự quay lại: chỉ người gọi biết settings cũ, nên người gọi đặt lại settings rồi gọi lần nữa.
+    /// Lỗi thì gọi <paramref name="restore"/> (chỉ người gọi biết settings cũ) rồi chạy lại đúng các tính năng đã bật lúc đầu,
+    /// kể cả tính năng vừa tắt vì khởi động lại lỗi; vẫn giữ cổng nên không lệnh nào chen vào giữa.
+    /// Không có restore thì chỉ báo lỗi.
     /// </summary>
-    public async Task<ReapplyResult> ReapplyTuningAsync(CancellationToken cancellationToken = default)
+    public async Task<ReapplyResult> ReapplyTuningAsync(Action? restore = null, CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -117,7 +119,12 @@ public sealed partial class FeatureSet : IAsyncDisposable
             var failure = await RestartAsync(active).ConfigureAwait(false);
             if (failure is null) return new ReapplyResult(true, false);
             LogReapplyTuningFailed(_logger, failure.Feature, failure.Error);
-            return new ReapplyResult(false, false, failure.Error);
+            if (restore is null) return new ReapplyResult(false, false, failure.Error);
+
+            restore();
+            var restoreFailure = await RestartAsync(active).ConfigureAwait(false);
+            if (restoreFailure is not null) LogReapplyRestoreFailed(_logger, restoreFailure.Feature, restoreFailure.Error);
+            return new ReapplyResult(false, restoreFailure is null, failure.Error);
         }
         finally
         {
