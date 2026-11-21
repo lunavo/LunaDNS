@@ -58,7 +58,7 @@ Built-in domain groups get extra domains from a `domains.json` file signed with 
 Once:
 
 1. `dotnet run --project tools/DomainListSigner -- keygen --out ~/.lunadns/domain-list-2026a.pem`
-   (set a passphrase; back up the PEM file offline). Paste the printed public key into `DomainListKeys.Production` with keyId `2026a`, commit, merge, and ship an app release with that key. Until then every file is rejected (`UnknownKey`) and the app runs on the built-in list.
+   (run from the repo root; the folder is created with owner-only access. Type a passphrase of at least 12 characters twice, input is hidden; back up the PEM file offline). Paste the printed public key into `DomainListKeys.Production` with keyId `2026a`, commit, merge, and ship an app release with that key. Until then every file is rejected (`UnknownKey`) and the app runs on the built-in list.
 2. `gh release create domain-list --prerelease --title "Domain list" --notes "Signed domain list for LunaDNS (layer 2)."`
    Do not mark it *latest*. The tag is not vX.Y.Z, so the app's update checker ignores it.
 

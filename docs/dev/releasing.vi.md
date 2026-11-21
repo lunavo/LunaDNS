@@ -58,7 +58,7 @@ Nhóm tên miền dựng sẵn nhận thêm tên miền từ file `domains.json`
 Một lần:
 
 1. `dotnet run --project tools/DomainListSigner -- keygen --out ~/.lunadns/domain-list-2026a.pem`
-   (đặt mật khẩu; sao lưu file PEM ngoại tuyến). Dán khoá công khai in ra vào `DomainListKeys.Production` với keyId `2026a`, commit, merge, phát hành bản app có khoá này. Trước bước này mọi file đều bị từ chối (`UnknownKey`) và app chạy với danh sách có sẵn.
+   (chạy ở gốc repo; thư mục được tạo với quyền chỉ chủ sở hữu. Gõ mật khẩu ít nhất 12 ký tự hai lần, không hiện trên màn hình; sao lưu file PEM ngoại tuyến). Dán khoá công khai in ra vào `DomainListKeys.Production` với keyId `2026a`, commit, merge, phát hành bản app có khoá này. Trước bước này mọi file đều bị từ chối (`UnknownKey`) và app chạy với danh sách có sẵn.
 2. `gh release create domain-list --prerelease --title "Domain list" --notes "Signed domain list for LunaDNS (layer 2)."`
    Không đánh dấu *latest*. Tag không có dạng vX.Y.Z nên trình kiểm cập nhật app bỏ qua.
 
