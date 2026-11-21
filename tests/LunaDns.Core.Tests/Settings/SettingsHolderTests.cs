@@ -28,7 +28,9 @@ public sealed class SettingsHolderTests : IDisposable
         Directory.CreateDirectory(path); // settings.json là thư mục: ghi sẽ lỗi
         var holder = new SettingsHolder(new JsonFileSettingsStore(path));
 
-        Assert.ThrowsAny<IOException>(() => holder.Save(holder.Current with { SplitDelayMs = 10 }));
+        // Windows báo ghi vào thư mục là UnauthorizedAccessException, macOS/Linux là IOException.
+        var error = Assert.ThrowsAny<SystemException>(() => holder.Save(holder.Current with { SplitDelayMs = 10 }));
+        Assert.True(error is IOException or UnauthorizedAccessException, error.GetType().FullName);
         Assert.Equal(0, holder.Current.SplitDelayMs);
     }
 }
