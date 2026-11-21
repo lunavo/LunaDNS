@@ -51,6 +51,29 @@ GitHub also adds `Source code (zip)` and `Source code (tar.gz)` to every release
 - **A re-run needs a new tag** or deleting the old tag and draft first: `gh release create` fails if the release already exists.
 - The in-app checker compares against the highest version among non-draft releases, prerelease included.
 
+## Domain list (layer 2)
+
+Built-in domain groups get extra domains from a `domains.json` file signed with ECDSA P-256 and attached to the `domain-list` release. The app downloads it 30 seconds after launch and every 24 hours; the privileged side (the app running as Admin on Windows, the background service on macOS) verifies it before applying it. The source is `data/domain-list.json`; CI runs `verify-source` on it.
+
+Once:
+
+1. `dotnet run --project tools/DomainListSigner -- keygen --out ~/.lunadns/domain-list-2026a.pem`
+   (set a passphrase; back up the PEM file offline). Paste the printed public key into `DomainListKeys.Production` with keyId `2026a`, commit, merge, and ship an app release with that key. Until then every file is rejected (`UnknownKey`) and the app runs on the built-in list.
+2. `gh release create domain-list --prerelease --title "Domain list" --notes "Signed domain list for LunaDNS (layer 2)."`
+   Do not mark it *latest*. The tag is not vX.Y.Z, so the app's update checker ignores it.
+
+Every update:
+
+1. Edit `data/domain-list.json`, run `dotnet run --project tools/DomainListSigner -- verify-source data/domain-list.json`, merge.
+2. `dotnet run --project tools/DomainListSigner -- sign --key ~/.lunadns/domain-list-2026a.pem --key-id 2026a --in data/domain-list.json --out artifacts/domains.json`
+3. `gh release upload domain-list artifacts/domains.json --clobber`
+4. Download and check: `gh release download domain-list -p domains.json -D /tmp/dl --clobber && dotnet run --project tools/DomainListSigner -- verify /tmp/dl/domains.json`
+
+Limits: at most 64 KB per file, 200 domains per group, 1000 in total; the app only accepts a `serial` higher than the one it has. Layer 2 only adds to existing groups: it never removes built-in domains, never creates groups, and never touches domains the user added.
+
+- **Withdraw a domain added by mistake:** remove it from `data/domain-list.json`, then sign and upload again (the new serial is higher).
+- **Leaked key:** ship an app release that drops the old keyId and adds a new key.
+
 ## Signing (not done yet)
 
 - **Windows:** the exe and Setup are not Authenticode-signed, so SmartScreen warns and Smart App Control on Windows 11 blocks them. The workflow has a placeholder for SignPath: sign `LunaDNS.exe` before Inno Setup packages it, then sign the Setup.

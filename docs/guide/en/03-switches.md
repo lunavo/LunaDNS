@@ -22,6 +22,30 @@ Every system change is **written to the journal before it is made**, and undone 
 - Watchdog: if the proxy dies it is restarted on the same port; more than 3 failures in 1 minute and the feature turns itself off and tells you.
 - Out of ports: *"Không còn cổng trống cho Proxy SNI."* ("No free port left for Proxy SNI.")
 
+## Domains
+
+The **TÊN MIỀN** (Domains) section lists the domain groups the two switches route. Each group shows how many domains it has; **Xem** (View) opens the list with a source column (*"Có sẵn"*, built in, or *"Bản cập nhật dd/MM"*, update of dd/MM). The list has three layers:
+
+1. **Built in:** shipped with the app, always present.
+2. **Update:** extra domains published by LunaDNS with a digital signature. The app only accepts a correctly signed file; this layer only **adds** domains to existing groups and never removes any. A group with extra domains shows *"N tên miền (M từ bản cập nhật)"* (N domains, M from the update).
+3. **Tuỳ chỉnh (Custom):** domains you add yourself. Updates **never overwrite** this layer. A custom domain that is already in an enabled group shows a grey note *"Cũng có trong nhóm …"* (Also in group …).
+
+### Auto-update the domain list
+
+The **Tự cập nhật danh sách tên miền** (Auto-update domain list) row has a switch and an **Cập nhật ngay** (Update now) button. When it is on, the app checks for a new list 30 seconds after launch and every 24 hours (after a network error it retries in 1 hour). A new list is applied to the running switches first and saved only after that succeeds. Turning the switch off goes back to the built-in list and removes layer-2 domains from the running rules.
+
+| Status line | Meaning |
+|---|---|
+| *Bản dd/MM · kiểm lúc HH:mm* | Using the update issued on dd/MM, last checked at HH:mm. |
+| *Chưa tải bản nào* | No valid update yet; using the built-in list. |
+| *Đang dùng danh sách có sẵn* | The switch is off; using the built-in list. |
+| *Đã là bản mới nhất* / *Đã thêm N tên miền* | Result of **Cập nhật ngay**: already up to date / N domains added. |
+| *Không tải được, thử lại sau* | Network error; the app retries on its own. |
+| *Không kiểm được lúc HH:mm, giữ bản dd/MM* | The check failed; the existing update is kept (or *"dùng danh sách có sẵn"*, built-in list, if there is none). |
+| *Chữ ký không hợp lệ, giữ bản cũ* | The downloaded file is damaged, wrongly signed or signed with an unknown key; it is ignored. |
+| *Cần bản LunaDNS mới hơn để đọc danh sách này* | The list uses a format this app version cannot read. |
+| *Không áp được bản dd/MM, xem Chẩn đoán* | Applying it to the running switches failed; the old configuration stays. **Chẩn đoán** (Diagnostics) has a "Danh sách tên miền cập nhật" block. |
+
 ## PUBG mode: not supported
 
 LunaDNS currently **does not support PUBG**; the interface has no switch or check box for PUBG. If the hosts file still has `# LunaDNS` lines from an old test build, "Tắt hết & khôi phục" (Turn all off & restore) or `--cleanup` will undo them.

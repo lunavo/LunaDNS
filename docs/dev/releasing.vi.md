@@ -51,6 +51,29 @@ GitHub tự thêm `Source code (zip)` và `Source code (tar.gz)` vào mọi bả
 - **Chạy lại cần tag mới**, hoặc xoá tag cũ và bản nháp trước: `gh release create` lỗi nếu release đã có.
 - App so với phiên bản cao nhất trong các bản không phải nháp, kể cả prerelease.
 
+## Danh sách tên miền (lớp 2)
+
+Nhóm tên miền dựng sẵn nhận thêm tên miền từ file `domains.json` có chữ ký ECDSA P-256, đặt trên release `domain-list`. App tải 30 giây sau khi mở rồi mỗi 24 giờ; phía có quyền (app Admin trên Windows, dịch vụ nền trên macOS) tự xác minh rồi mới áp. Nguồn là `data/domain-list.json`; CI chạy `verify-source` trên file này.
+
+Một lần:
+
+1. `dotnet run --project tools/DomainListSigner -- keygen --out ~/.lunadns/domain-list-2026a.pem`
+   (đặt mật khẩu; sao lưu file PEM ngoại tuyến). Dán khoá công khai in ra vào `DomainListKeys.Production` với keyId `2026a`, commit, merge, phát hành bản app có khoá này. Trước bước này mọi file đều bị từ chối (`UnknownKey`) và app chạy với danh sách có sẵn.
+2. `gh release create domain-list --prerelease --title "Domain list" --notes "Signed domain list for LunaDNS (layer 2)."`
+   Không đánh dấu *latest*. Tag không có dạng vX.Y.Z nên trình kiểm cập nhật app bỏ qua.
+
+Mỗi lần cập nhật:
+
+1. Sửa `data/domain-list.json`, chạy `dotnet run --project tools/DomainListSigner -- verify-source data/domain-list.json`, merge.
+2. `dotnet run --project tools/DomainListSigner -- sign --key ~/.lunadns/domain-list-2026a.pem --key-id 2026a --in data/domain-list.json --out artifacts/domains.json`
+3. `gh release upload domain-list artifacts/domains.json --clobber`
+4. Tải lại và kiểm: `gh release download domain-list -p domains.json -D /tmp/dl --clobber && dotnet run --project tools/DomainListSigner -- verify /tmp/dl/domains.json`
+
+Giới hạn: file tối đa 64 KB, mỗi nhóm 200 tên miền, toàn file 1000; app chỉ nhận `serial` cao hơn bản đã có. Lớp 2 chỉ thêm vào nhóm có sẵn, không xoá tên miền dựng sẵn, không tạo nhóm, không đụng tên miền người dùng tự thêm.
+
+- **Thu hồi một tên miền thêm nhầm:** xoá khỏi `data/domain-list.json` rồi ký và upload lại (serial mới cao hơn).
+- **Lộ khoá:** phát hành bản app bỏ keyId cũ và thêm khoá mới.
+
 ## Ký số (chưa làm)
 
 - **Windows:** exe và Setup chưa ký Authenticode, nên SmartScreen cảnh báo và Smart App Control trên Windows 11 chặn hẳn. Workflow có sẵn chỗ cho SignPath: ký `LunaDNS.exe` trước khi Inno Setup đóng gói, rồi ký Setup.
