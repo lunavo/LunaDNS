@@ -20,4 +20,22 @@ public static class CustomDohBootstrap
         if (addresses.Count == 0) throw new DohException($"Không tìm thấy IP cho {host}.");
         return custom with { ResolvedAddresses = [.. addresses.Select(a => a.ToString())] };
     }
+
+    /// <summary>Bản nháp từ ô nhập. Cùng URL thì giữ IP cũ phòng khi phân giải lần này lỗi.</summary>
+    public static CustomDoh Draft(CustomDoh? old, string endpoint, IReadOnlyList<string> manualAddresses) => new()
+    {
+        Endpoint = endpoint,
+        ManualAddresses = manualAddresses,
+        ResolvedAddresses = old is not null && old.Endpoint == endpoint ? old.ResolvedAddresses : [],
+    };
+
+    /// <summary>
+    /// "Lưu" mà phân giải lỗi: cùng URL cũ hoặc có IP tay thì lưu bản nháp; URL mới không có IP nào thì null
+    /// (không ghi settings) để máy Tự nhập cũ vẫn dùng tiếp.
+    /// </summary>
+    public static CustomDoh? AfterFailedResolve(CustomDoh? old, CustomDoh draft)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        return (old is not null && old.Endpoint == draft.Endpoint) || draft.ManualAddresses.Count > 0 ? draft : null;
+    }
 }

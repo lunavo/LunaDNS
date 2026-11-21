@@ -1,4 +1,5 @@
 using LunaDns.Core.Dns;
+using Microsoft.Extensions.Time.Testing;
 
 namespace LunaDns.Core.Tests.Dns;
 
@@ -85,6 +86,42 @@ public sealed class DohLatencyMeterTests
         await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+    }
+
+    [Fact]
+    public async Task Overall_timeout_keeps_finished_results_and_marks_the_rest_failed()
+    {
+        var time = new FakeTimeProvider();
+        var meter = new DohLatencyMeter(s => s.Name == "Google" ? new HangingUpstream() : new InstantUpstream(), time);
+
+        var task = meter.MeasureAsync([Choice(DohProvider.Cloudflare), Choice(DohProvider.Google)], TimeSpan.FromSeconds(30), CancellationToken.None);
+        Assert.False(task.IsCompleted);
+        time.Advance(TimeSpan.FromSeconds(30));
+        var results = await task;
+
+        Assert.Equal([DohProvider.Cloudflare, DohProvider.Google], results.Select(r => r.Provider));
+        Assert.Equal(TimeSpan.Zero, results[0].Median);
+        Assert.Null(results[0].Error);
+        Assert.Null(results[1].Median);
+        Assert.False(string.IsNullOrEmpty(results[1].Error));
+    }
+
+    [Fact]
+    public async Task Caller_cancellation_still_throws_when_a_timeout_is_set()
+    {
+        using var cts = new CancellationTokenSource();
+        var meter = new DohLatencyMeter(_ => new HangingUpstream(), new FakeTimeProvider());
+
+        var task = meter.MeasureAsync([Choice(DohProvider.Cloudflare)], TimeSpan.FromSeconds(30), cts.Token);
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+    }
+
+    private sealed class InstantUpstream : IDnsUpstream
+    {
+        public Task<byte[]> QueryAsync(ReadOnlyMemory<byte> query, CancellationToken cancellationToken) =>
+            Task.FromResult(TestDnsMessage.Response(DohLatencyMeter.ProbeHost, 0, 300));
     }
 
     private sealed class HangingUpstream : IDnsUpstream

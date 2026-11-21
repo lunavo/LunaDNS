@@ -21,32 +21,45 @@ public sealed class DohLatencyMeter(Func<DohServer, IDnsUpstream> upstreamFor, T
     public static DohLatencyMeter Create(ILoggerFactory? loggers = null) =>
         new(server => DohClient.Create([server], loggers?.CreateLogger<DohClient>()));
 
-    public async Task<IReadOnlyList<DohLatency>> MeasureAsync(IReadOnlyList<DohChoice> choices, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<DohLatency>> MeasureAsync(IReadOnlyList<DohChoice> choices, CancellationToken cancellationToken) =>
+        MeasureAsync(choices, Timeout.InfiniteTimeSpan, cancellationToken);
+
+    /// <summary>
+    /// Hết <paramref name="timeout"/> tổng thì máy chưa xong ra "lỗi", máy đã đo xong vẫn giữ kết quả.
+    /// Chỉ ném <see cref="OperationCanceledException"/> khi người gọi huỷ thật (ví dụ đóng app).
+    /// </summary>
+    public async Task<IReadOnlyList<DohLatency>> MeasureAsync(IReadOnlyList<DohChoice> choices, TimeSpan timeout, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(choices);
-        var results = await Task.WhenAll(choices.Select(c => MeasureOneAsync(c, cancellationToken))).ConfigureAwait(false);
+        using var deadline = new CancellationTokenSource(timeout, _time);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        var results = await Task.WhenAll(choices.Select(c => MeasureOneAsync(c, linked.Token, cancellationToken))).ConfigureAwait(false);
         // OrderBy ổn định: máy bằng điểm giữ thứ tự danh mục.
         return [.. results.OrderBy(r => r.Median is null).ThenBy(r => r.Median ?? TimeSpan.Zero)];
     }
 
-    private async Task<DohLatency> MeasureOneAsync(DohChoice choice, CancellationToken cancellationToken)
+    private async Task<DohLatency> MeasureOneAsync(DohChoice choice, CancellationToken token, CancellationToken callerToken)
     {
         var upstream = upstreamFor(choice.Server);
         try
         {
-            await QueryAsync(upstream, cancellationToken).ConfigureAwait(false);
+            await QueryAsync(upstream, token).ConfigureAwait(false);
             var samples = new TimeSpan[MeasuredQueries];
             for (var i = 0; i < samples.Length; i++)
             {
                 var start = _time.GetTimestamp();
-                await QueryAsync(upstream, cancellationToken).ConfigureAwait(false);
+                await QueryAsync(upstream, token).ConfigureAwait(false);
                 samples[i] = _time.GetElapsedTime(start);
             }
             Array.Sort(samples);
             return new DohLatency(choice.Provider, samples[MeasuredQueries / 2], null);
         }
+        catch (OperationCanceledException) when (!callerToken.IsCancellationRequested && token.IsCancellationRequested)
+        {
+            return new DohLatency(choice.Provider, null, "Hết thời gian đo.");
+        }
         catch (Exception ex) when (ex is DohException or HttpRequestException or IOException
-                                   || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+                                   || (ex is OperationCanceledException && !callerToken.IsCancellationRequested))
         {
             return new DohLatency(choice.Provider, null, ex.Message);
         }
