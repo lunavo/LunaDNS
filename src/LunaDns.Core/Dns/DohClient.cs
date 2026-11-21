@@ -104,7 +104,8 @@ public sealed partial class DohClient : IDnsUpstream, IDisposable
         IReadOnlyList<DohServer> servers, SocketsHttpConnectionContext context, CancellationToken cancellationToken)
     {
         var host = context.DnsEndPoint.Host;
-        var server = servers.FirstOrDefault(s => string.Equals(s.Endpoint.Host, host, StringComparison.OrdinalIgnoreCase))
+        var server = servers.FirstOrDefault(s => string.Equals(s.Endpoint.Host, host, StringComparison.OrdinalIgnoreCase)
+                                                 || string.Equals(s.Endpoint.DnsSafeHost, host, StringComparison.OrdinalIgnoreCase))
                      ?? throw new DohException($"Host DoH lạ: {host}.");
         SocketException? last = null;
         foreach (var address in server.BootstrapAddresses)

@@ -1,4 +1,5 @@
 using LunaDns.App.Features;
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
@@ -93,6 +94,37 @@ internal sealed partial class AppServices : IAsyncDisposable
         return result;
     }
 
+    /// <summary>Lấy IP cho URL DoH tự nhập qua chuỗi DoH dựng sẵn (D2), không qua DNS hệ thống.</summary>
+    public async Task<CustomDoh> ResolveCustomDohAsync(CustomDoh custom, CancellationToken cancellationToken)
+    {
+        using var doh = DohClient.Create(Settings.BootstrapDohServers(), LoggerFactory.CreateLogger<DohClient>());
+        return await CustomDohBootstrap.ResolveAsync(custom, new DohHostResolver(doh), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Nút "Đo" (D2). Tự nhập phân giải lại trước; lỗi thì đo bằng IP cũ, máy đó có thể ra "lỗi".
+    /// Không ghi Settings (hàm chạy ở luồng nền): trả về CustomDoh đã phân giải lại để giao diện tự áp ở luồng UI.
+    /// </summary>
+    public async Task<DohMeasurement> MeasureDohAsync(CancellationToken cancellationToken)
+    {
+        var custom = Settings.CustomDoh;
+        CustomDoh? resolved = null;
+        if (custom is not null && CustomDohParser.TryParseEndpoint(custom.Endpoint, out _))
+        {
+            try
+            {
+                resolved = await ResolveCustomDohAsync(custom, cancellationToken).ConfigureAwait(false);
+            }
+            catch (DohException)
+            {
+                // Giữ IP cũ; kết quả đo của Tự nhập sẽ cho người dùng thấy máy đó có dùng được không.
+            }
+        }
+        var results = await DohLatencyMeter.Create(LoggerFactory)
+            .MeasureAsync(DohCatalog.Choices(resolved ?? custom), cancellationToken).ConfigureAwait(false);
+        return new DohMeasurement(results, resolved);
+    }
+
     public async Task<ProbeSummary> ProbeAsync(CancellationToken cancellationToken)
     {
         var selection = await ProbeSelectionAsync();
@@ -118,3 +150,6 @@ internal sealed partial class AppServices : IAsyncDisposable
     [LoggerMessage(Level = LogLevel.Warning, Message = "settings.json có {Count} tên miền tuỳ chỉnh không hợp lệ, đã bỏ qua.")]
     private static partial void LogDroppedDomains(ILogger logger, int count);
 }
+
+/// <summary>Kết quả nút "Đo": số đo từng máy và CustomDoh vừa phân giải lại (null nếu không có/không phân giải được).</summary>
+public sealed record DohMeasurement(IReadOnlyList<DohLatency> Results, CustomDoh? Resolved);

@@ -301,10 +301,18 @@
           <TextBlock Text="{x:Static app:Strings.SplitDelayLabel}" />
           <NumericUpDown Value="{Binding SplitDelayMs}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
           <TextBlock Text="{x:Static app:Strings.DohLabel}" />
-          <ComboBox SelectedIndex="{Binding DohIndex}" HorizontalAlignment="Stretch">
-            <ComboBoxItem Content="{x:Static app:Strings.DohCloudflareFirst}" />
-            <ComboBoxItem Content="{x:Static app:Strings.DohGoogleFirst}" />
-          </ComboBox>
+          <Grid ColumnDefinitions="*,Auto">
+            <ComboBox ItemsSource="{Binding DohItems}" SelectedIndex="{Binding DohIndex}" HorizontalAlignment="Stretch" />
+            <Button Grid.Column="1" Margin="8,0,0,0" Command="{Binding MeasureDohCommand}" Content="{Binding DohMeasureLabel}" />
+          </Grid>
+          <StackPanel Spacing="6" IsVisible="{Binding IsCustomDoh}">
+            <TextBlock Text="{x:Static app:Strings.DohCustomUrlLabel}" />
+            <TextBox Text="{Binding CustomDohUrl}" Watermark="https://dns.example.net/dns-query" />
+            <TextBlock Text="{x:Static app:Strings.DohCustomAddressesLabel}" />
+            <TextBox Text="{Binding CustomDohAddresses}" />
+            <Button Command="{Binding SaveCustomDohCommand}" Content="{x:Static app:Strings.DohCustomSave}" />
+            <TextBlock Classes="secondary" Text="{Binding CustomDohStatus}" TextWrapping="Wrap" />
+          </StackPanel>
           <TextBlock Classes="secondary" Text="{x:Static app:Strings.AdvancedHint}" TextWrapping="Wrap" />
         </StackPanel>
       </Expander>

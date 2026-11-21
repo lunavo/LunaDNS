@@ -58,8 +58,22 @@
   <data name="SplitRecordsHint" xml:space="preserve"><value>Gửi ClientHello thành hai TLS record, cắt tại điểm đã chọn ở trên. Thử khi Kiểm tra vẫn báo không vào được dù đã đổi điểm cắt.</value></data>
   <data name="SplitDelayLabel" xml:space="preserve"><value>Độ trễ giữa hai phần (ms, 0–20)</value></data>
   <data name="DohLabel" xml:space="preserve"><value>Máy chủ DoH</value></data>
-  <data name="DohCloudflareFirst" xml:space="preserve"><value>Cloudflare trước, Google dự phòng</value></data>
-  <data name="DohGoogleFirst" xml:space="preserve"><value>Google trước, Cloudflare dự phòng</value></data>
+  <data name="DohCustom" xml:space="preserve"><value>Tự nhập</value></data>
+  <data name="DohMeasureButton" xml:space="preserve"><value>Đo</value></data>
+  <data name="DohMeasuring" xml:space="preserve"><value>Đang đo…</value></data>
+  <data name="DohMeasureChosenFormat" xml:space="preserve"><value>Đã chọn {0} ({1} ms). Có hiệu lực ở lần bật tính năng kế tiếp.</value></data>
+  <data name="DohMeasureAllFailed" xml:space="preserve"><value>Không máy chủ DoH nào trả lời. Giữ lựa chọn cũ.</value></data>
+  <data name="DohLatencyFormat" xml:space="preserve"><value>{0} — {1} ms</value></data>
+  <data name="DohLatencyFailedFormat" xml:space="preserve"><value>{0} — lỗi</value></data>
+  <data name="DohCustomUrlLabel" xml:space="preserve"><value>URL DoH</value></data>
+  <data name="DohCustomAddressesLabel" xml:space="preserve"><value>IP (tuỳ chọn, ngăn bằng dấu phẩy)</value></data>
+  <data name="DohCustomSave" xml:space="preserve"><value>Lưu</value></data>
+  <data name="DohCustomResolving" xml:space="preserve"><value>Đang tìm IP qua DoH dựng sẵn…</value></data>
+  <data name="DohCustomUsingFormat" xml:space="preserve"><value>Dùng {0}.</value></data>
+  <data name="DohCustomNotSaved" xml:space="preserve"><value>Chưa có URL dùng được: đang dùng Cloudflare.</value></data>
+  <data name="DohCustomInvalidUrl" xml:space="preserve"><value>URL phải có dạng https://tên-máy/đường-dẫn.</value></data>
+  <data name="DohCustomInvalidAddresses" xml:space="preserve"><value>Ô IP có giá trị không phải địa chỉ IPv4/IPv6.</value></data>
+  <data name="DohCustomResolveFailed" xml:space="preserve"><value>Không tìm được IP qua DoH dựng sẵn. Hãy điền IP vào ô bên trên.</value></data>
   <data name="TrayTooltipOff" xml:space="preserve"><value>LunaDNS: đang tắt</value></data>
   <data name="TrayTooltipOnFormat" xml:space="preserve"><value>LunaDNS: đang bật {0}</value></data>
   <data name="TrayTooltipBusy" xml:space="preserve"><value>LunaDNS: đang xử lý…</value></data>

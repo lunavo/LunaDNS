@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using LunaDns.App.Features;
 using LunaDns.App.Updates;
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Probing;
@@ -75,6 +76,11 @@ internal sealed partial class MainViewModel : ObservableObject
         DismissMessageCommand = new AsyncCommand(DismissMessageAsync, OnError);
         QuitCommand = new AsyncCommand(quit, OnError);
         InstallServiceCommand = new AsyncCommand(InstallServiceAsync, OnError);
+        MeasureDohCommand = new AsyncCommand(MeasureDohAsync, OnError, () => !_isSavingCustomDoh);
+        SaveCustomDohCommand = new AsyncCommand(SaveCustomDohAsync, OnError, () => !_isMeasuringDoh);
+        _customDohUrl = _services.Settings.CustomDoh?.Endpoint ?? string.Empty;
+        _customDohAddresses = string.Join(", ", _services.Settings.CustomDoh?.ManualAddresses ?? []);
+        RefreshCustomDohStatus();
         _services.Features.FeatureStopped += OnFeatureStopped;
         _timer = new DispatcherTimer(StatusInterval, DispatcherPriority.Background, async (_, _) => await PollAsync());
         _overall = OverallState.From(_services.Features.Status, busy: false, attention: false);
@@ -196,10 +202,163 @@ internal sealed partial class MainViewModel : ObservableObject
         set => SaveSettings(s => s with { SplitDelayMs = (int)Math.Clamp(value ?? 0, 0, AppSettings.MaxSplitDelayMs) });
     }
 
+    /// <summary>Thứ tự mục trong combobox "Máy chủ DoH" (D2).</summary>
+    private static readonly DohProvider[] DohOrder =
+        [DohProvider.Cloudflare, DohProvider.Google, DohProvider.Quad9, DohProvider.AdGuard, DohProvider.Custom];
+
+    private static readonly TimeSpan DohMeasureTimeout = TimeSpan.FromSeconds(30);
+
+    private IReadOnlyDictionary<DohProvider, DohLatency> _dohLatencies = new Dictionary<DohProvider, DohLatency>();
+    private IReadOnlyList<string> _dohItems = BuildDohItems(new Dictionary<DohProvider, DohLatency>());
+    private bool _isMeasuringDoh;
+    private bool _isSavingCustomDoh;
+    private string _customDohUrl = string.Empty;
+    private string _customDohAddresses = string.Empty;
+    private string _customDohStatus = string.Empty;
+    private Action? _cancelDoh; // huỷ lượt đo đang chạy; không giữ CTS để khỏi phải làm VM thành IDisposable
+
+    public IReadOnlyList<string> DohItems
+    {
+        get => _dohItems;
+        private set => SetProperty(ref _dohItems, value);
+    }
+
     public int DohIndex
     {
-        get => _services.Settings.PreferGoogleDoh ? 1 : 0;
-        set => SaveSettings(s => s with { PreferGoogleDoh = value == 1 });
+        get => Array.IndexOf(DohOrder, _services.Settings.EffectiveDoh());
+        set
+        {
+            // ComboBox đặt -1 khi ItemsSource đổi: bỏ qua, không phải lựa chọn của người dùng.
+            if (value < 0 || value >= DohOrder.Length) return;
+            SaveSettings(s => s.WithDoh(DohOrder[value]));
+        }
+    }
+
+    public bool IsCustomDoh => _services.Settings.EffectiveDoh() == DohProvider.Custom;
+
+    public string CustomDohUrl
+    {
+        get => _customDohUrl;
+        set => SetProperty(ref _customDohUrl, value ?? string.Empty);
+    }
+
+    public string CustomDohAddresses
+    {
+        get => _customDohAddresses;
+        set => SetProperty(ref _customDohAddresses, value ?? string.Empty);
+    }
+
+    public string CustomDohStatus
+    {
+        get => _customDohStatus;
+        private set => SetProperty(ref _customDohStatus, value);
+    }
+
+    public string DohMeasureLabel => _isMeasuringDoh ? Strings.DohMeasuring : Strings.DohMeasureButton;
+
+    public AsyncCommand MeasureDohCommand { get; }
+
+    public AsyncCommand SaveCustomDohCommand { get; }
+
+    private static string DohName(DohProvider provider) =>
+        provider == DohProvider.Custom ? Strings.DohCustom : DohCatalog.Get(provider).Name;
+
+    private static IReadOnlyList<string> BuildDohItems(IReadOnlyDictionary<DohProvider, DohLatency> latencies) =>
+        [.. DohOrder.Select(p => latencies.TryGetValue(p, out var l)
+            ? l.Median is { } median
+                ? Strings.Format(nameof(Strings.DohLatencyFormat), DohName(p), (int)Math.Round(median.TotalMilliseconds))
+                : Strings.Format(nameof(Strings.DohLatencyFailedFormat), DohName(p))
+            : DohName(p))];
+
+    /// <summary>Dòng trạng thái khối Tự nhập: IP đang dùng, hoặc "đang dùng Cloudflare".</summary>
+    private void RefreshCustomDohStatus() =>
+        CustomDohStatus = CustomDohParser.ToServer(_services.Settings.CustomDoh) is { } server
+            ? Strings.Format(nameof(Strings.DohCustomUsingFormat), string.Join(", ", server.BootstrapAddresses))
+            : Strings.DohCustomNotSaved;
+
+    private async Task MeasureDohAsync()
+    {
+        _isMeasuringDoh = true;
+        SaveCustomDohCommand.RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(DohMeasureLabel));
+        using var cts = new CancellationTokenSource(DohMeasureTimeout);
+        _cancelDoh = cts.Cancel;
+        try
+        {
+            var token = cts.Token;
+            var measurement = await Task.Run(() => _services.MeasureDohAsync(token));
+            var results = measurement.Results;
+            // Ghi settings chỉ ở luồng UI; bỏ qua nếu URL Tự nhập đã đổi trong lúc đo.
+            if (measurement.Resolved is { } resolvedCustom)
+                SaveSettings(s => s.CustomDoh?.Endpoint == resolvedCustom.Endpoint ? s with { CustomDoh = resolvedCustom } : s);
+            _dohLatencies = results.ToDictionary(r => r.Provider);
+            DohItems = BuildDohItems(_dohLatencies);
+            if (results.FirstOrDefault(r => r.Median is not null) is { Median: { } median } best)
+            {
+                SaveSettings(s => s.WithDoh(best.Provider));
+                ShowMessage(Strings.Format(nameof(Strings.DohMeasureChosenFormat), DohName(best.Provider), (int)Math.Round(median.TotalMilliseconds)), Tone.Good);
+            }
+            else
+            {
+                OnPropertyChanged(nameof(DohIndex)); // ItemsSource vừa đổi: combobox cần đọc lại lựa chọn cũ
+                ShowMessage(Strings.DohMeasureAllFailed, Tone.Error);
+            }
+            if (IsCustomDoh) RefreshCustomDohStatus();
+        }
+        catch (OperationCanceledException)
+        {
+            ShowMessage(Strings.DohMeasureAllFailed, Tone.Error);
+        }
+        finally
+        {
+            _cancelDoh = null;
+            _isMeasuringDoh = false;
+            SaveCustomDohCommand.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(DohMeasureLabel));
+        }
+    }
+
+    private async Task SaveCustomDohAsync()
+    {
+        if (!CustomDohParser.TryParseEndpoint(CustomDohUrl, out _))
+        {
+            CustomDohStatus = Strings.DohCustomInvalidUrl;
+            return;
+        }
+        if (!CustomDohParser.TryParseAddresses(CustomDohAddresses, out var manual))
+        {
+            CustomDohStatus = Strings.DohCustomInvalidAddresses;
+            return;
+        }
+        var endpoint = CustomDohUrl.Trim();
+        var old = _services.Settings.CustomDoh;
+        var draft = new CustomDoh
+        {
+            Endpoint = endpoint,
+            ManualAddresses = [.. manual.Select(a => a.ToString())],
+            // Cùng URL thì giữ IP cũ phòng khi phân giải lần này lỗi.
+            ResolvedAddresses = old is not null && old.Endpoint == endpoint ? old.ResolvedAddresses : [],
+        };
+        CustomDohStatus = Strings.DohCustomResolving;
+        _isSavingCustomDoh = true;
+        MeasureDohCommand.RaiseCanExecuteChanged();
+        using var timeout = new CancellationTokenSource(DohMeasureTimeout);
+        try
+        {
+            var resolved = await Task.Run(() => _services.ResolveCustomDohAsync(draft, timeout.Token));
+            SaveSettings(s => s with { CustomDoh = resolved });
+            RefreshCustomDohStatus();
+        }
+        catch (Exception ex) when (ex is DohException or OperationCanceledException)
+        {
+            SaveSettings(s => s with { CustomDoh = draft });
+            CustomDohStatus = Strings.DohCustomResolveFailed;
+        }
+        finally
+        {
+            _isSavingCustomDoh = false;
+            MeasureDohCommand.RaiseCanExecuteChanged();
+        }
     }
 
     private bool HasAttention => _messageTone == Tone.Error || Features.Any(f => f.HasError);
@@ -253,6 +412,7 @@ internal sealed partial class MainViewModel : ObservableObject
     public void Stop()
     {
         _timer.Stop();
+        _cancelDoh?.Invoke();
         _services.Features.FeatureStopped -= OnFeatureStopped;
     }
 
@@ -550,6 +710,7 @@ internal sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SplitRecords));
         OnPropertyChanged(nameof(SplitDelayMs));
         OnPropertyChanged(nameof(DohIndex));
+        OnPropertyChanged(nameof(IsCustomDoh));
     }
 
     private void OnFeatureStopped(object? sender, FeatureStoppedEventArgs e) =>
