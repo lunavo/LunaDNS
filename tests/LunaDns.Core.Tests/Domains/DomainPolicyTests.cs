@@ -40,6 +40,8 @@ public sealed class DomainPolicyTests
     [InlineData("www.msftconnecttest.com", DomainRejection.Denied)]   // tên miền con của mục cấm
     [InlineData("cdn.xenuine.example.com", DomainRejection.Denied)]   // nhãn chứa "xenuine"
     [InlineData("pubg.com", DomainRejection.Denied)]                  // tên miền cha của accounts.pubg.com
+    [InlineData("eaanticheat.ac.ea.com", DomainRejection.Denied)]     // EA Javelin
+    [InlineData("ea.com", DomainRejection.Denied)]                    // tên miền cha của ac.ea.com
     public void Validate_follows_spec_table(string host, DomainRejection expected) =>
         Assert.Equal(expected, DomainPolicy.Validate(host));
 

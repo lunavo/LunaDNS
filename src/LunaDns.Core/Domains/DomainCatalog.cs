@@ -25,7 +25,9 @@ public static class DomainCatalog
         "narakathegame.com", "24entertainment.net", "playdeltaforce.com", "levelinfinite.com",
         "epicgames.com", "epicgames.dev", "unrealengine.com",
         "battle.net", "blizzard.com",
-        "ea.com",
+        // Không định tuyến cả ea.com: ac.ea.com (EA Javelin) bị cấm, DomainDenyList khớp cả tên cha.
+        // Tên con lấy từ thử thật www.ea.com 21/11/2026 (VNPT); EA app chưa thử.
+        "www.ea.com", "drop-assets.ea.com",
     ];
 
     private static readonly string[] Reddit =

@@ -14,11 +14,19 @@ Nguyên tắc: chỉ đưa vào `DomainDenyList` khi có URL nguồn đọc đư
 
 Đã có sẵn trong `DomainDenyList` (không đổi): `accounts.pubg.com`, `easyanticheat.net`, `battleye.com`, nhãn chứa `xenuine`.
 
-Hệ quả: Task 13 bước 2 và 3 không thêm tên miền nào, không đổi `DomainCatalog`, không có Theory mới (không có tên thật để điền `InlineData`).
+Bước 2–3 ban đầu không thêm gì. Sau đó PO quyết định (21/11/2026) cấm phòng xa `ac.ea.com` dựa trên dấu vết diễn đàn EA ở trên. Vì `DomainDenyList` khớp cả tên cha, `ea.com` trong `DomainCatalog.OtherGames` được thay bằng các tên con thấy được khi thử thật: `www.ea.com`, `drop-assets.ea.com`. EA app (đăng nhập, tải game) chưa thử, nên có thể còn thiếu tên con.
 
 ## Thử thật
 
-Chờ PO thử trên ≥2 nhà mạng.
+Thử ngày 21/11/2026 trên một nhà mạng (Wi-Fi VNPT, AS45899). PO cho phép chỉ thử một mạng. Dịch vụ nền bản `0.5.0+5624b47` (nhánh này, trước commit chặn `ac.ea.com`). Bật cả ba nhóm cùng lúc với Định tuyến DNS + Proxy SNI. Kết luận "trước khi bật" lấy từ `Prober` của Core (cùng bộ kiểm tra với nút Kiểm tra) khi LunaDNS tắt. "Vào được" đo bằng curl (trực tiếp sau khi định tuyến DNS và qua proxy 127.0.0.1:18080) và Chrome dùng PAC hệ thống.
 
 | Nhóm | Nhà mạng | Kết luận trước khi bật | Vào được sau khi bật | Tên miền thêm | Ghi chú |
 |---|---|---|---|---|---|
+| Steam | VNPT | store.steampowered.com, steamcommunity.com: SniFiltered; api.steampowered.com, cdn.akamai.steamstatic.com: DnsPoisoned | Có. curl qua proxy 200; Chrome tải đủ trang chủ (store/avatars/shared/cdn.fastly.steamstatic.com) | không | Không bật thì curl trực tiếp hết giờ (15 s). |
+| Nền tảng game khác | VNPT | store.epicgames.com, eu.battle.net, www.ea.com: Ok (không bị chặn) | Có, nhưng không bật cũng vào được | không | Epic trả 403 cho curl là chặn bot của Cloudflare, không phải nhà mạng. www.ea.com tải từ `www.ea.com`, `drop-assets.ea.com`. LunaDNS không giúp được gì trên mạng này. |
+| Reddit | VNPT | www.reddit.com, i.redd.it: DnsPoisoned | Có. curl trực tiếp và qua proxy 200 (i.redd.it gốc trả 404 như bình thường) | không | Chrome của extension không cho mở reddit.com nên chưa xem DevTools; chỉ DNS là đủ. |
+
+## Chốt
+
+- Steam, Reddit: giữ.
+- Nền tảng game khác: trên mạng đã thử, mọi host đều Ok nên LunaDNS không giúp được. Theo bước 5 là ứng viên bỏ khỏi `DomainCatalog.Selectable`. Chờ PO quyết.

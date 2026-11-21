@@ -18,6 +18,8 @@ public static class DomainDenyList
         new("accounts.pubg.com", AntiCheat),
         new("easyanticheat.net", AntiCheat),
         new("battleye.com", AntiCheat),
+        // EA Javelin (eaanticheat.ac.ea.com); cấm phòng xa theo quyết định PO 21/11/2026, nguồn: diễn đàn EA (chưa đọc được nguyên văn).
+        new("ac.ea.com", AntiCheat),
         new("cloudflare-dns.com", OwnDoh),
         new("one.one.one.one", OwnDoh),
         new("dns.google", OwnDoh),
