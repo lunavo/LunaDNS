@@ -276,17 +276,25 @@ internal sealed partial class MainViewModel : ObservableObject
             ? Strings.Format(nameof(Strings.DohCustomUsingFormat), string.Join(", ", server.BootstrapAddresses))
             : Strings.DohCustomNotSaved;
 
+    /// <summary>
+    /// Vừa chọn lại Tự nhập thì đọc lại dòng trạng thái (có thể cũ sau khi "Đo" chuyển máy chính đi).
+    /// Không đổi lúc đang "Lưu" hay khi vẫn ở Tự nhập, để không đè thông báo lỗi vừa hiện.
+    /// </summary>
+    internal static bool ShouldRefreshCustomDohStatus(AppSettings before, AppSettings after, bool savingCustomDoh) =>
+        !savingCustomDoh && before.EffectiveDoh() != DohProvider.Custom && after.EffectiveDoh() == DohProvider.Custom;
+
     private async Task MeasureDohAsync()
     {
         _isMeasuringDoh = true;
         SaveCustomDohCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(DohMeasureLabel));
-        using var cts = new CancellationTokenSource(DohMeasureTimeout);
+        // CTS chỉ để Stop() huỷ; hết giờ do meter tự lo, giữ kết quả từng phần.
+        using var cts = new CancellationTokenSource();
         _cancelDoh = cts.Cancel;
         try
         {
             var token = cts.Token;
-            var measurement = await Task.Run(() => _services.MeasureDohAsync(token));
+            var measurement = await Task.Run(() => _services.MeasureDohAsync(DohMeasureTimeout, token));
             var results = measurement.Results;
             // Ghi settings chỉ ở luồng UI; bỏ qua nếu URL Tự nhập đã đổi trong lúc đo.
             if (measurement.Resolved is { } resolvedCustom)
@@ -332,13 +340,7 @@ internal sealed partial class MainViewModel : ObservableObject
         }
         var endpoint = CustomDohUrl.Trim();
         var old = _services.Settings.CustomDoh;
-        var draft = new CustomDoh
-        {
-            Endpoint = endpoint,
-            ManualAddresses = [.. manual.Select(a => a.ToString())],
-            // Cùng URL thì giữ IP cũ phòng khi phân giải lần này lỗi.
-            ResolvedAddresses = old is not null && old.Endpoint == endpoint ? old.ResolvedAddresses : [],
-        };
+        var draft = CustomDohBootstrap.Draft(old, endpoint, [.. manual.Select(a => a.ToString())]);
         CustomDohStatus = Strings.DohCustomResolving;
         _isSavingCustomDoh = true;
         MeasureDohCommand.RaiseCanExecuteChanged();
@@ -351,7 +353,9 @@ internal sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is DohException or OperationCanceledException)
         {
-            SaveSettings(s => s with { CustomDoh = draft });
+            // URL mới không có IP thì không ghi: máy Tự nhập cũ vẫn dùng tiếp.
+            if (CustomDohBootstrap.AfterFailedResolve(old, draft) is { } keep)
+                SaveSettings(s => s with { CustomDoh = keep });
             CustomDohStatus = Strings.DohCustomResolveFailed;
         }
         finally
@@ -698,7 +702,9 @@ internal sealed partial class MainViewModel : ObservableObject
     {
         try
         {
-            _services.Settings = change(_services.Settings);
+            var before = _services.Settings;
+            _services.Settings = change(before);
+            if (ShouldRefreshCustomDohStatus(before, _services.Settings, _isSavingCustomDoh)) RefreshCustomDohStatus();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

@@ -63,4 +63,33 @@ public sealed class CustomDohBootstrapTests
 
         await Assert.ThrowsAsync<ArgumentException>(() => CustomDohBootstrap.ResolveAsync(custom, new FakeResolver(_ => []), CancellationToken.None));
     }
+    [Fact]
+    public void Failed_resolve_of_a_new_url_keeps_the_old_settings()
+    {
+        var old = new CustomDoh { Endpoint = "https://old.example.net/q", ResolvedAddresses = ["1.2.3.4"] };
+
+        var draft = CustomDohBootstrap.Draft(old, "https://new.example.net/q", []);
+
+        Assert.Empty(draft.ResolvedAddresses);
+        Assert.Null(CustomDohBootstrap.AfterFailedResolve(old, draft));
+    }
+
+    [Fact]
+    public void Failed_resolve_of_the_same_url_saves_the_draft_with_old_addresses()
+    {
+        var old = new CustomDoh { Endpoint = "https://dns.example.net/q", ResolvedAddresses = ["1.2.3.4"] };
+
+        var draft = CustomDohBootstrap.Draft(old, "https://dns.example.net/q", []);
+
+        Assert.Equal(["1.2.3.4"], draft.ResolvedAddresses);
+        Assert.Same(draft, CustomDohBootstrap.AfterFailedResolve(old, draft));
+    }
+
+    [Fact]
+    public void Failed_resolve_with_no_old_settings_saves_nothing()
+    {
+        var draft = CustomDohBootstrap.Draft(null, "https://new.example.net/q", []);
+
+        Assert.Null(CustomDohBootstrap.AfterFailedResolve(null, draft));
+    }
 }

@@ -105,23 +105,30 @@ internal sealed partial class AppServices : IAsyncDisposable
     /// Nút "Đo" (D2). Tự nhập phân giải lại trước; lỗi thì đo bằng IP cũ, máy đó có thể ra "lỗi".
     /// Không ghi Settings (hàm chạy ở luồng nền): trả về CustomDoh đã phân giải lại để giao diện tự áp ở luồng UI.
     /// </summary>
-    public async Task<DohMeasurement> MeasureDohAsync(CancellationToken cancellationToken)
+    /// <param name="timeout">Thời gian tổng cho cả phân giải lại lẫn đo; hết giờ thì máy chưa xong ra "lỗi".</param>
+    public async Task<DohMeasurement> MeasureDohAsync(TimeSpan timeout, CancellationToken cancellationToken)
     {
+        var started = _time.GetTimestamp();
         var custom = Settings.CustomDoh;
         CustomDoh? resolved = null;
         if (custom is not null && CustomDohParser.TryParseEndpoint(custom.Endpoint, out _))
         {
+            using var resolveTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            resolveTimeout.CancelAfter(timeout);
             try
             {
-                resolved = await ResolveCustomDohAsync(custom, cancellationToken).ConfigureAwait(false);
+                resolved = await ResolveCustomDohAsync(custom, resolveTimeout.Token).ConfigureAwait(false);
             }
-            catch (DohException)
+            catch (Exception ex) when (ex is DohException
+                                       || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
             {
                 // Giữ IP cũ; kết quả đo của Tự nhập sẽ cho người dùng thấy máy đó có dùng được không.
             }
         }
+        var remaining = timeout - _time.GetElapsedTime(started);
         var results = await DohLatencyMeter.Create(LoggerFactory)
-            .MeasureAsync(DohCatalog.Choices(resolved ?? custom), cancellationToken).ConfigureAwait(false);
+            .MeasureAsync(DohCatalog.Choices(resolved ?? custom), remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, cancellationToken)
+            .ConfigureAwait(false);
         return new DohMeasurement(results, resolved);
     }
 
