@@ -6,8 +6,8 @@ namespace LunaDns.Core.Tests.Domains;
 public sealed class DomainCatalogTests
 {
     [Fact]
-    public void Selectable_groups_are_steam_other_games_reddit() =>
-        Assert.Equal([DomainGroup.Steam, DomainGroup.OtherGames, DomainGroup.Reddit], DomainCatalog.Selectable);
+    public void Selectable_groups_are_steam_reddit() =>
+        Assert.Equal([DomainGroup.Steam, DomainGroup.Reddit], DomainCatalog.Selectable);
 
     [Fact]
     public void Custom_group_has_no_built_in_domains() =>

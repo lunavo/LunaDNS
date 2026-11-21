@@ -10,6 +10,14 @@ public sealed class FeatureDomainsTests
         Assert.Equal(DomainCatalog.For(DomainGroup.Steam), FeatureDomains.Routed(new DomainSelection()));
 
     [Fact]
+    public void Routed_ignores_groups_no_longer_selectable()
+    {
+        // settings.json cũ có thể còn bật OtherGames (bỏ ở Task 13) hoặc Pubg.
+        var selection = new DomainSelection { EnabledGroups = [DomainGroup.Steam, DomainGroup.OtherGames, DomainGroup.Pubg] };
+        Assert.Equal(DomainCatalog.For(DomainGroup.Steam), FeatureDomains.Routed(selection));
+    }
+
+    [Fact]
     public void Pubg_hosts_are_loopback_pubg_hosts_without_anticheat()
     {
         Assert.NotEmpty(FeatureDomains.PubgHosts);

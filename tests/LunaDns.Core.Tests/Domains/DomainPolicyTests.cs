@@ -57,7 +57,9 @@ public sealed class DomainPolicyTests
     [Fact]
     public void Routable_catalog_groups_never_hit_the_policy()
     {
-        foreach (var group in DomainCatalog.Selectable)
+        // OtherGames đã bỏ khỏi Selectable (Task 13) vẫn phải sạch, để bật lại không cần sửa danh sách.
+        // Pubg không đi qua định tuyến tên miền (chế độ hosts riêng) và cố ý chứa pubg.com, cha của accounts.pubg.com.
+        foreach (var group in Enum.GetValues<DomainGroup>().Where(g => g != DomainGroup.Pubg))
             foreach (var domain in DomainCatalog.For(group))
                 Assert.True(DomainPolicy.IsRoutable(domain), domain);
     }

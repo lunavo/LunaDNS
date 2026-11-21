@@ -2,7 +2,8 @@ namespace LunaDns.Core.Domains;
 
 /// <summary>
 /// Nhóm tên miền dựng sẵn (spec KH8 mục 6). Không bao giờ chứa domain anti-cheat (spec v1 4.4, DomainDenyList).
-/// Danh sách OtherGames và Reddit là ứng viên; Task 13 chốt sau khi thử thật trên mạng VN.
+/// Task 13 (thử thật VNPT 21/11/2026, docs/spikes/2026-11-preset-groups-field-test.md): OtherGames không bị chặn nên
+/// bỏ khỏi <see cref="Selectable"/> theo quyết định PO; code nhóm giữ lại để thử lại sau.
 /// </summary>
 public static class DomainCatalog
 {
@@ -35,7 +36,7 @@ public static class DomainCatalog
         "reddit.com", "redd.it", "redditmedia.com", "redditstatic.com", "reddituploads.com",
     ];
 
-    public static IReadOnlyList<DomainGroup> Selectable { get; } = [DomainGroup.Steam, DomainGroup.OtherGames, DomainGroup.Reddit];
+    public static IReadOnlyList<DomainGroup> Selectable { get; } = [DomainGroup.Steam, DomainGroup.Reddit];
 
     public static IReadOnlyList<string> For(DomainGroup group) => group switch
     {

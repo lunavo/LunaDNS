@@ -11,7 +11,7 @@ public static class FeatureDomains
     public static IReadOnlyList<string> Routed(DomainSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        var groups = selection.EnabledGroups.Where(g => g != DomainGroup.Pubg).Distinct();
+        var groups = selection.EnabledGroups.Where(DomainCatalog.Selectable.Contains).Distinct();
         var custom = selection.IsEnabled(DomainGroup.Custom)
             ? selection.Custom.Where(c => c.Enabled).Select(c => c.Domain)
             : [];

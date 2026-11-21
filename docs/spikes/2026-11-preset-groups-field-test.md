@@ -29,4 +29,4 @@ Thử ngày 21/11/2026 trên một nhà mạng (Wi-Fi VNPT, AS45899). PO cho ph�
 ## Chốt
 
 - Steam, Reddit: giữ.
-- Nền tảng game khác: trên mạng đã thử, mọi host đều Ok nên LunaDNS không giúp được. Theo bước 5 là ứng viên bỏ khỏi `DomainCatalog.Selectable`. Chờ PO quyết.
+- Nền tảng game khác: trên mạng đã thử, mọi host đều Ok nên LunaDNS không giúp được. PO quyết định (21/11/2026) bỏ khỏi `DomainCatalog.Selectable`. Code nhóm giữ lại; settings cũ còn bật nhóm này thì `FeatureDomains.Routed` bỏ qua.
