@@ -27,3 +27,14 @@ Nút **Áp dụng đề xuất** chỉ hiện khi còn biện pháp **cho Steam*
 
 - Nếu máy đang có proxy riêng, hộp hỏi thay cấu hình proxy vẫn hiện như khi bật tay.
 - Không thấy bị chặn: *"Không thấy bị chặn. Không cần bật gì."*
+
+## Tìm cấu hình hợp mạng
+
+Nút **Tìm cấu hình hợp mạng** tự dò một cấu hình chạy được trên mạng của bạn:
+
+- Đo các máy chủ DoH, rồi kiểm 4 host Steam.
+- Nếu còn bị chặn, thử tối đa 8 tổ hợp điểm cắt gói, tách record và độ trễ 0/10 ms, bắt đầu từ tổ hợp đang dùng. Dừng ở tổ hợp đầu tiên cho cả 4 host vào được.
+- Tìm được thì app **tự lưu** và bật Định tuyến DNS và/hoặc Proxy SNI nếu cần, không hỏi lại.
+- Bấm **Dừng** (hoặc đóng cửa sổ) trong lúc dò thì không đổi gì. Cả lượt dò tối đa 60 giây.
+- Trên Windows, kết quả hiện ở mục **Nâng cao** và vẫn sửa tay được.
+- Trong lúc dò, các nút Kiểm tra, Áp dụng đề xuất và Đo bị khoá.
