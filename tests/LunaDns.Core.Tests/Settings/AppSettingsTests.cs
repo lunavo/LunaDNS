@@ -1,5 +1,6 @@
 using LunaDns.Core.Dns;
 using LunaDns.Core.Features;
+using LunaDns.Core.Probing;
 using LunaDns.Core.Settings;
 using LunaDns.Core.Tls;
 
@@ -108,4 +109,25 @@ public sealed class AppSettingsTests
     [InlineData(50, 20)]
     public void Tuning_clamps_delay_to_0_20_ms(int input, int expectedMs) =>
         Assert.Equal(TimeSpan.FromMilliseconds(expectedMs), new AppSettings { SplitDelayMs = input }.Tuning().SplitDelay);
+
+    [Fact]
+    public void Current_candidate_reflects_split_settings_and_clamps_delay()
+    {
+        var settings = new AppSettings { SplitMode = SplitMode.MidSni, SplitRecords = true, SplitDelayMs = 99 };
+
+        Assert.Equal(new TuneCandidate(new HelloSplit(SplitMode.MidSni, true), AppSettings.MaxSplitDelayMs), settings.CurrentCandidate());
+    }
+
+    [Fact]
+    public void With_tuning_sets_doh_and_all_split_fields()
+    {
+        var tuned = new AppSettings { PreferGoogleDoh = true }
+            .WithTuning(DohProvider.Quad9, new TuneCandidate(new HelloSplit(SplitMode.MidSni, true), 10));
+
+        Assert.Equal(DohProvider.Quad9, tuned.EffectiveDoh());
+        Assert.False(tuned.PreferGoogleDoh);
+        Assert.Equal(SplitMode.MidSni, tuned.SplitMode);
+        Assert.True(tuned.SplitRecords);
+        Assert.Equal(10, tuned.SplitDelayMs);
+    }
 }
