@@ -7,8 +7,21 @@ namespace LunaDns.Core.Features;
 /// <summary>Domain mà mỗi tính năng tác động (KH5 quyết định 1 và 3).</summary>
 public static class FeatureDomains
 {
-    /// <summary>Định tuyến DNS (stub + NRPT) và Proxy SNI (PAC, CONNECT): chỉ nhóm Steam.</summary>
-    public static IReadOnlyList<string> Routed { get; } = DomainCatalog.For(DomainGroup.Steam);
+    /// <summary>Tên miền mà Định tuyến DNS (stub + NRPT/resolver) và Proxy SNI (PAC, CONNECT) áp dụng (spec KH8 3.1).</summary>
+    public static IReadOnlyList<string> Routed(DomainSelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        var groups = selection.EnabledGroups.Where(g => g != DomainGroup.Pubg).Distinct();
+        var custom = selection.IsEnabled(DomainGroup.Custom)
+            ? selection.Custom.Where(c => c.Enabled).Select(c => c.Domain)
+            : [];
+        var all = groups.SelectMany(DomainCatalog.For).Concat(custom)
+            .Select(DomainMatcher.Normalize)
+            .Where(DomainPolicy.IsRoutable)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        return [.. all.Where(d => !all.Any(p => p != d && DomainMatcher.Matches(d, [p])))];
+    }
 
     /// <summary>SNI mà listener của Chế độ PUBG chấp nhận.</summary>
     public static IReadOnlyList<string> Pubg { get; } = DomainCatalog.For(DomainGroup.Pubg);

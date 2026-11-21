@@ -1,3 +1,4 @@
+using LunaDns.Core.Domains;
 using LunaDns.Core.Dns;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
@@ -49,7 +50,7 @@ public sealed class FeatureSetTests : IAsyncLifetime
         Assert.Equal(new FeatureResult(Feature.DnsRouting, FeatureOutcome.Enabled), result);
         Assert.True(_features.IsEnabled(Feature.DnsRouting));
         Assert.Equal(1, _services.Starts(Feature.DnsRouting));
-        Assert.Equal(FeatureDomains.Routed, _services.LastDomains);
+        Assert.Equal(FeatureDomains.Routed(new DomainSelection()), _services.LastDomains);
         Assert.Equal(FeatureKeys.DnsRouting, Assert.Single(_journal.Entries).Feature);
         Assert.Equal(DnsEnableCalls, _configurator.Calls);
     }

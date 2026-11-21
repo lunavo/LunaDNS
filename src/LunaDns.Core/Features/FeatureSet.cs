@@ -1,3 +1,4 @@
+using LunaDns.Core.Domains;
 using System.Collections.Concurrent;
 using System.Net;
 using LunaDns.Core.Dns;
@@ -191,8 +192,8 @@ public sealed partial class FeatureSet : IAsyncDisposable
         var tuning = _tuning();
         return feature switch
         {
-            Feature.DnsRouting => _services.StartDnsStub(FeatureDomains.Routed),
-            Feature.SniProxy => _services.StartSniProxy(FeatureDomains.Routed, port, tuning),
+            Feature.DnsRouting => _services.StartDnsStub(FeatureDomains.Routed(new DomainSelection())),
+            Feature.SniProxy => _services.StartSniProxy(FeatureDomains.Routed(new DomainSelection()), port, tuning),
             Feature.PubgMode => _services.StartPubgForwarder(FeatureDomains.Pubg, tuning),
             _ => throw new ArgumentOutOfRangeException(nameof(feature), feature, null),
         };
@@ -204,7 +205,7 @@ public sealed partial class FeatureSet : IAsyncDisposable
         switch (feature)
         {
             case Feature.DnsRouting:
-                _changes.AddDnsRoute(key, FeatureDomains.Routed, IPAddress.Loopback);
+                _changes.AddDnsRoute(key, FeatureDomains.Routed(new DomainSelection()), IPAddress.Loopback);
                 break;
             case Feature.SniProxy:
                 _changes.SetAutoProxy(key, ((IRunningProxy)service).PacUrl, allowProxyOverride);

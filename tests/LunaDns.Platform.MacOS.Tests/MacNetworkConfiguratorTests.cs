@@ -1,3 +1,4 @@
+using LunaDns.Core.Domains;
 using System.Net;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
@@ -36,11 +37,11 @@ public sealed class MacNetworkConfiguratorTests : IDisposable
     {
         var journal = NewJournal();
         var changes = new SystemChanges(journal, _cfg);
-        changes.AddDnsRoute("dns", FeatureDomains.Routed, IPAddress.Loopback);
+        changes.AddDnsRoute("dns", FeatureDomains.Routed(new DomainSelection()), IPAddress.Loopback);
         changes.SetAutoProxy("proxy", new Uri("http://127.0.0.1:18080/proxy.pac"));
         changes.AddHostsEntries("pubg", FeatureDomains.PubgHosts);
 
-        Assert.Equal(FeatureDomains.Routed.Count, _cfg.Dns.ListOurs().Count);
+        Assert.Equal(FeatureDomains.Routed(new DomainSelection()).Count, _cfg.Dns.ListOurs().Count);
         Assert.Contains("# LunaDNS", File.ReadAllText(_tmp.Combine("hosts")), StringComparison.Ordinal);
         Assert.Contains(_ns.Calls, c => c.Contains("killall -HUP mDNSResponder", StringComparison.Ordinal));
 

@@ -1,4 +1,5 @@
 using LunaDns.Core.Dns;
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Tls;
 
@@ -18,6 +19,8 @@ public sealed record AppSettings
     public bool CheckPubg { get; init; }
 
     public bool PubgWarningAccepted { get; init; }
+
+    public DomainSelection Domains { get; init; } = new();
 
     /// <summary>Thứ tự máy chủ DoH: Cloudflare trước (spec 4.2), hoặc Google trước nếu người dùng chọn.</summary>
     public IReadOnlyList<DohServer> DohServers() =>

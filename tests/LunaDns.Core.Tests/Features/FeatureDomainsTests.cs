@@ -6,8 +6,8 @@ namespace LunaDns.Core.Tests.Features;
 public sealed class FeatureDomainsTests
 {
     [Fact]
-    public void Routed_is_the_steam_group() =>
-        Assert.Equal(DomainCatalog.For(DomainGroup.Steam), FeatureDomains.Routed);
+    public void Routed_default_is_the_steam_group() =>
+        Assert.Equal(DomainCatalog.For(DomainGroup.Steam), FeatureDomains.Routed(new DomainSelection()));
 
     [Fact]
     public void Pubg_hosts_are_loopback_pubg_hosts_without_anticheat()

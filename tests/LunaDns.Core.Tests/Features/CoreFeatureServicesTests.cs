@@ -1,3 +1,4 @@
+using LunaDns.Core.Domains;
 using System.Net;
 using System.Net.Sockets;
 using LunaDns.Core.Dns;
@@ -24,7 +25,7 @@ public sealed class CoreFeatureServicesTests
     [Fact]
     public async Task Dns_stub_runs_until_disposed()
     {
-        var stub = Create().StartDnsStub(FeatureDomains.Routed);
+        var stub = Create().StartDnsStub(FeatureDomains.Routed(new DomainSelection()));
         Assert.False(stub.Completion.IsCompleted);
 
         await stub.DisposeAsync();
@@ -37,7 +38,7 @@ public sealed class CoreFeatureServicesTests
     {
         var port = FreePort();
 
-        await using var proxy = Create().StartSniProxy(FeatureDomains.Routed, port, FeatureTuning.Default);
+        await using var proxy = Create().StartSniProxy(FeatureDomains.Routed(new DomainSelection()), port, FeatureTuning.Default);
 
         Assert.Equal(port, proxy.Port);
         Assert.Equal(new Uri($"http://127.0.0.1:{port}/proxy.pac"), proxy.PacUrl);
@@ -47,7 +48,7 @@ public sealed class CoreFeatureServicesTests
     [Fact]
     public async Task Sni_proxy_without_port_binds_in_default_range()
     {
-        await using var proxy = Create().StartSniProxy(FeatureDomains.Routed, null, FeatureTuning.Default);
+        await using var proxy = Create().StartSniProxy(FeatureDomains.Routed(new DomainSelection()), null, FeatureTuning.Default);
 
         Assert.InRange(proxy.Port, 18080, 18090);
     }

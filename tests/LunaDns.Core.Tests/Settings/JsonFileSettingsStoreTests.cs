@@ -1,3 +1,4 @@
+using LunaDns.Core.Domains;
 using LunaDns.Core.Settings;
 using LunaDns.Core.Tls;
 
@@ -14,6 +15,32 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
     [Fact]
     public void Missing_file_gives_defaults() =>
         Assert.Equal(new AppSettings(), new JsonFileSettingsStore(PathOf("settings.json")).Load());
+
+    [Fact]
+    public void Old_settings_without_domains_load_with_default_selection()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "SplitMode": "FirstByte", "SplitDelayMs": 0 }""");
+
+        var settings = new JsonFileSettingsStore(path).Load();
+
+        Assert.Equal([DomainGroup.Steam, DomainGroup.Custom], settings.Domains.EnabledGroups);
+        Assert.Empty(settings.Domains.Custom);
+    }
+
+    [Fact]
+    public void Domains_round_trip_and_bad_entries_are_dropped_on_load()
+    {
+        var path = PathOf("settings.json");
+        var store = new JsonFileSettingsStore(path);
+        store.Save(new AppSettings { Domains = new DomainSelection { EnabledGroups = [DomainGroup.Reddit], Custom = [new("example.org"), new("com")] } });
+
+        var loaded = store.Load();
+
+        Assert.Equal([DomainGroup.Reddit], loaded.Domains.EnabledGroups);
+        Assert.Equal([new CustomDomain("example.org")], loaded.Domains.Custom);
+        Assert.Equal(1, store.DroppedDomains);
+    }
 
     [Fact]
     public void Save_then_load_round_trips()
