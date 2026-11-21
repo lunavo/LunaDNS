@@ -17,6 +17,27 @@ public sealed class ResolverDnsRouterTests : IDisposable
     private string FileFor(string host) => Path.Combine(_router.Directory, host);
 
     [Fact]
+    public void Plan_accepts_custom_routable_domains()
+    {
+        var snapshot = _router.Plan(["reddit.com", "example.org"], IPAddress.Loopback);
+
+        Assert.Equal(["reddit.com", "example.org"], snapshot.Namespaces);
+    }
+
+    [Theory]
+    [InlineData("com")]
+    [InlineData("com.vn")]
+    [InlineData("printer.local")]
+    [InlineData("dns.google")]
+    [InlineData("../etc/passwd")]
+    public void Plan_rejects_non_routable_domains(string domain)
+    {
+        string[] domains = [domain];
+
+        Assert.Throws<ArgumentException>(() => _router.Plan(domains, IPAddress.Loopback));
+    }
+
+    [Fact]
     public void Apply_writes_one_file_per_domain_with_marker_and_port()
     {
         var snapshot = _router.Plan(Steam, IPAddress.Loopback);
@@ -94,16 +115,16 @@ public sealed class ResolverDnsRouterTests : IDisposable
     }
 
     [Fact]
-    public void Rejects_non_game_domain_and_non_loopback_server()
+    public void Rejects_non_routable_domain_and_non_loopback_server()
     {
-        Assert.Throws<ArgumentException>(() => _router.Plan(["example.com"], IPAddress.Loopback));
+        Assert.Throws<ArgumentException>(() => _router.Plan(["printer.local"], IPAddress.Loopback));
         Assert.Throws<ArgumentException>(() => _router.Plan(["steampowered.com"], IPAddress.Parse("1.1.1.1")));
     }
 
     [Theory]
     [InlineData("../hosts")]
     [InlineData("..steampowered.com")]
-    [InlineData("example.com")]
+    [InlineData("printer.local")]
     public void Snapshot_from_tampered_journal_is_refused(string name)
     {
         var bad = new DnsRouteSnapshot(ResolverDnsRouter.MarkerPrefix + "x", [name], "127.0.0.1", []);

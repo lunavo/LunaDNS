@@ -42,8 +42,8 @@ public sealed class ResolverDnsRouter
         foreach (var domain in domains)
         {
             var host = DomainMatcher.Normalize(domain);
-            if (!IsSafeGameDomain(host))
-                throw new ArgumentException("Có domain không thuộc danh sách domain game.", nameof(domains));
+            if (!IsSafeDomain(host))
+                throw new ArgumentException("Có tên miền không hợp lệ để định tuyến.", nameof(domains));
             if (!wanted.Contains(host, StringComparer.Ordinal)) wanted.Add(host);
         }
 
@@ -57,7 +57,7 @@ public sealed class ResolverDnsRouter
         }
         if (namespaces.Count == 0)
             throw new ConfiguratorException(ConfiguratorError.DnsRouteConflict,
-                "Các domain game đã có file /etc/resolver của phần mềm khác (VPN hoặc script tự tạo). LunaDNS không sửa file đó nên không bật được Định tuyến DNS.");
+                "Các tên miền đã chọn đều có file /etc/resolver của phần mềm khác (VPN hoặc script tự tạo). LunaDNS không sửa file đó nên không bật được Định tuyến DNS.");
         return new DnsRouteSnapshot(MarkerPrefix + Guid.NewGuid().ToString("N"), namespaces, nameServer.ToString(), skipped);
     }
 
@@ -121,19 +121,19 @@ public sealed class ResolverDnsRouter
     private static bool IsLunaDnsMarker(string marker) =>
         marker.StartsWith(MarkerPrefix, StringComparison.Ordinal) && marker.Length > MarkerPrefix.Length;
 
-    /// <summary>Tên file lấy từ journal trên đĩa: chỉ chấp nhận domain game hợp lệ, không bao giờ có "/" hay "..".</summary>
-    private static bool IsSafeGameDomain(string host) =>
+    /// <summary>Tên file lấy từ journal trên đĩa: chỉ tên miền định tuyến được (DomainPolicy), không bao giờ có "/" hay "..".</summary>
+    private static bool IsSafeDomain(string host) =>
         host.Length > 0
         && host.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '-' or '.')
         && !host.StartsWith('.') && !host.Contains("..", StringComparison.Ordinal)
-        && DomainMatcher.Matches(host, DomainCatalog.All);
+        && DomainPolicy.IsRoutable(host);
 
     private static void EnsureSnapshot(DnsRouteSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         if (!IsLunaDnsMarker(snapshot.Marker) || snapshot.Marker.Contains('\n', StringComparison.Ordinal))
             throw new ArgumentException("Snapshot định tuyến DNS không mang dấu của LunaDNS.", nameof(snapshot));
-        if (snapshot.Namespaces.Any(n => !IsSafeGameDomain(n)))
+        if (snapshot.Namespaces.Any(n => !IsSafeDomain(n)))
             throw new ArgumentException("Snapshot định tuyến DNS có tên miền lạ.", nameof(snapshot));
         if (!IPAddress.TryParse(snapshot.NameServer, out var server) || !IPAddress.IsLoopback(server))
             throw new ArgumentException("Snapshot định tuyến DNS không trỏ về máy này.", nameof(snapshot));

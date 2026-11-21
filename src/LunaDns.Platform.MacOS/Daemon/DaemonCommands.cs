@@ -124,7 +124,7 @@ public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, s
         { Error: FeatureError.DnsPortBusy } => "Cổng 127.0.0.1:15353 đang bị chương trình khác dùng.",
         { Error: FeatureError.ProxyPortsBusy } => "Các cổng 18080–18090 đều đang bị chương trình khác dùng.",
         { Error: FeatureError.DnsRouteConflict } =>
-            "Các domain Steam đã có file /etc/resolver của phần mềm khác (VPN hoặc script tự tạo). Gỡ file đó rồi thử lại.",
+            "Các tên miền đã chọn đã có file /etc/resolver của phần mềm khác (VPN hoặc script tự tạo). Gỡ file đó rồi thử lại.",
         { Error: FeatureError.AccessDenied } => "Dịch vụ nền không đủ quyền đổi cấu hình hệ thống.",
         { Error: FeatureError.RollbackFailed } => "Bật lỗi và hoàn tác cũng lỗi; chạy: sudo lunadns cleanup",
         { Outcome: FeatureOutcome.Failed } => $"Không bật được ({result.Error}); xem log.",
