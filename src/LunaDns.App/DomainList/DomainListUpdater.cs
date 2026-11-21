@@ -111,7 +111,7 @@ internal sealed partial class DomainListUpdater(HttpClient http, Uri url, IDomai
         catch (Exception ex) when (ex is HttpRequestException or IOException
             || (ex is TaskCanceledException && !cancellationToken.IsCancellationRequested))
         {
-            if (logger.IsEnabled(LogLevel.Information)) LogDownloadFailed(logger, ex.GetType().Name);
+            LogDownloadFailed(logger, ex);
             return new(now, DomainListCheckKind.NetworkError);
         }
         if (body is null) return new(now, DomainListCheckKind.TooLarge);
@@ -135,6 +135,6 @@ internal sealed partial class DomainListUpdater(HttpClient http, Uri url, IDomai
         return total > DomainListVerifier.MaxBytes ? null : buffer[..total];
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Không tải được danh sách tên miền ({Reason}); thử lại sau.")]
-    private static partial void LogDownloadFailed(ILogger logger, string reason);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Không tải được danh sách tên miền; thử lại sau.")]
+    private static partial void LogDownloadFailed(ILogger logger, Exception error);
 }
