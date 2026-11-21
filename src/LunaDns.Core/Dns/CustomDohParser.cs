@@ -48,7 +48,7 @@ public static class CustomDohParser
     public static DohServer? ToServer(CustomDoh? custom)
     {
         if (custom is null || !TryParseEndpoint(custom.Endpoint, out var endpoint)) return null;
-        IReadOnlyList<IPAddress> addresses = ParseAll(custom.ManualAddresses);
+        var addresses = ParseAll(custom.ManualAddresses);
         if (addresses.Count == 0 && LiteralAddress(endpoint) is { } literal) addresses = [literal];
         if (addresses.Count == 0) addresses = ParseAll(custom.ResolvedAddresses);
         return addresses.Count == 0 ? null : new DohServer(ServerName, endpoint, addresses);
