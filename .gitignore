@@ -4,3 +4,7 @@ obj/
 .vs/
 TestResults/
 artifacts/
+
+# Signing keys (domain list, etc.) live outside the repo; never commit them
+*.pem
+*.key
