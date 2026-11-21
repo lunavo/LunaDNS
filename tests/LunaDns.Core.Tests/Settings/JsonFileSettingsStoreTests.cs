@@ -1,4 +1,5 @@
 using LunaDns.Core.Domains;
+using LunaDns.Core.Features;
 using LunaDns.Core.Settings;
 using LunaDns.Core.Tls;
 
@@ -40,6 +41,26 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         Assert.Equal([DomainGroup.Reddit], loaded.Domains.EnabledGroups);
         Assert.Equal([new CustomDomain("example.org")], loaded.Domains.Custom);
         Assert.Equal(1, store.DroppedDomains);
+    }
+
+    [Theory]
+    [InlineData("""{ "Domains": { "Custom": null } }""", 0)]
+    [InlineData("""{ "Domains": { "Custom": [null, { "Domain": "example.org" }] } }""", 1)]
+    [InlineData("""{ "Domains": { "EnabledGroups": null } }""", 0)]
+    [InlineData("""{ "Domains": { "EnabledGroups": [99, "Reddit"] } }""", 1)]
+    public void Hand_edited_nulls_and_unknown_groups_load_without_crashing(string json, int expectedDropped)
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, json);
+        var store = new JsonFileSettingsStore(path);
+
+        var loaded = store.Load();
+
+        Assert.NotNull(loaded.Domains.EnabledGroups);
+        Assert.NotNull(loaded.Domains.Custom);
+        Assert.Equal(DomainSelectionDefect.None, loaded.Domains.CheckShape());
+        Assert.Equal(expectedDropped, store.DroppedDomains);
+        _ = FeatureDomains.Routed(loaded.Domains);
     }
 
     [Fact]

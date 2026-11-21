@@ -66,6 +66,21 @@ public sealed class DaemonServerTests : IAsyncLifetime
         Assert.Null(_last);
     }
 
+    [Theory]
+    [InlineData("""{"command":"set-domains","domains":{"custom":null}}""")]
+    [InlineData("""{"command":"set-domains","domains":{"custom":[null]}}""")]
+    [InlineData("""{"command":"set-domains","domains":{"enabledGroups":[99]}}""")]
+    public async Task Malformed_domain_payloads_are_refused_and_daemon_keeps_serving(string json)
+    {
+        await using var tmp = new RealDaemon();
+
+        var response = await tmp.Raw(json + "\n");
+
+        Assert.False(response.Ok);
+        Assert.False(string.IsNullOrEmpty(response.Message));
+        Assert.Equal("1.2.3", (await new DaemonClient(tmp.Socket).SendAsync(new DaemonRequest(DaemonProtocol.Ping))).Version);
+    }
+
     [Fact]
     public async Task Missing_daemon_is_reported_clearly()
     {
@@ -81,10 +96,12 @@ public sealed class DaemonServerTests : IAsyncLifetime
         Assert.False(File.Exists(_socket));
     }
 
-    private async Task<DaemonResponse> Raw(string text)
+    private Task<DaemonResponse> Raw(string text) => RawTo(_socket, text);
+
+    internal static async Task<DaemonResponse> RawTo(string path, string text)
     {
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        await socket.ConnectAsync(new UnixDomainSocketEndPoint(_socket));
+        await socket.ConnectAsync(new UnixDomainSocketEndPoint(path));
         // Yêu cầu quá dài: daemon ngừng đọc ở MaxLineBytes, trả lời rồi đóng, nên phần cuối của lần gửi có thể gặp EPIPE.
         var send = socket.SendAsync(Encoding.UTF8.GetBytes(text), SocketFlags.None);
         using var reader = new StreamReader(new NetworkStream(socket));
@@ -98,6 +115,37 @@ public sealed class DaemonServerTests : IAsyncLifetime
             // Đã có câu trả lời; lỗi gửi phần thừa là đúng như mong đợi.
         }
         return System.Text.Json.JsonSerializer.Deserialize<DaemonResponse>(line!, DaemonProtocol.Json)!;
+    }
+}
+
+/// <summary>DaemonServer nối với DaemonCommands thật, để thử dữ liệu JSON thô đi hết đường tới FeatureSet.</summary>
+internal sealed class RealDaemon : IAsyncDisposable
+{
+    private readonly TempDirectory _tmp = new();
+    private readonly FeatureSet _features;
+    private readonly DaemonServer _server;
+
+    public RealDaemon()
+    {
+        File.WriteAllText(_tmp.Combine("hosts"), "127.0.0.1 localhost\n");
+        var ns = new FakeNetworkSetup();
+        var cfg = new MacNetworkConfigurator(new ResolverDnsRouter(15353, _tmp.Combine("resolver")), new NetworkSetupAutoProxy(ns),
+            new UnixHostsFileStore(_tmp.Combine("hosts")), ns);
+        var journal = new ChangeJournal(new JsonFileJournalStore(_tmp.Combine("journal.json")), SystemChanges.Reverters(cfg));
+        _features = new FeatureSet(journal, new SystemChanges(journal, cfg), new DaemonCommandsTests.IdleServices());
+        var commands = new DaemonCommands(_features, journal, "1.2.3", new JsonFileSettingsStore(_tmp.Combine("settings.json")));
+        _server = DaemonServer.Start(Socket, commands.HandleAsync, _ => true);
+    }
+
+    public string Socket { get; } = $"/tmp/lunadns-test-{Guid.NewGuid():N}.sock";
+
+    public Task<DaemonResponse> Raw(string text) => DaemonServerTests.RawTo(Socket, text);
+
+    public async ValueTask DisposeAsync()
+    {
+        await _server.DisposeAsync();
+        await _features.DisposeAsync();
+        _tmp.Dispose();
     }
 }
 
@@ -219,7 +267,25 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
         Assert.Equal([DomainGroup.Reddit], back.Domains!.EnabledGroups);
     }
 
-    private sealed class IdleServices : IFeatureServices
+    [Fact]
+    public async Task Set_domains_reports_unwritable_settings_and_keeps_old_selection()
+    {
+        using var dir = new TempDirectory();
+        var path = Path.Combine(dir.Path, "settings.json");
+        Directory.CreateDirectory(path); // settings.json là thư mục: File.Move ghi đè sẽ lỗi IOException
+        var commands = CreateCommands(new JsonFileSettingsStore(path));
+
+        var response = await commands.HandleAsync(
+            new DaemonRequest(DaemonProtocol.SetDomains, Domains: new DomainSelection { EnabledGroups = [DomainGroup.Reddit] }),
+            CancellationToken.None);
+
+        Assert.False(response.Ok);
+        Assert.Contains("settings.json", response.Message, StringComparison.Ordinal);
+        var read = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.GetDomains), CancellationToken.None);
+        Assert.True(read.Domains!.SameAs(new DomainSelection()));
+    }
+
+    internal sealed class IdleServices : IFeatureServices
     {
         public IRunningService StartDnsStub(IReadOnlyList<string> domains) => new Idle();
 

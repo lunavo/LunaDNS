@@ -49,10 +49,14 @@ public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, s
         }
     }
 
-    /// <summary>Không tin dữ liệu từ giao diện (quyền user): kiểm lại toàn bộ, áp, rồi mới ghi file (spec KH8 3.3).</summary>
+    /// <summary>
+    /// Không tin dữ liệu từ giao diện (quyền user): kiểm lại toàn bộ, áp, rồi mới ghi file (spec KH8 3.3).
+    /// Ghi file lỗi thì áp lại danh sách cũ, để tính năng đang chạy khớp với settings.json.
+    /// </summary>
     private async Task<DaemonResponse> SetDomainsAsync(DomainSelection? wanted, CancellationToken cancellationToken)
     {
         if (wanted is null) return new DaemonResponse(false, "Thiếu danh sách tên miền.");
+        if (DescribeShape(wanted.CheckShape()) is { } shapeError) return new DaemonResponse(false, shapeError);
         if (wanted.FirstInvalidIndex() is { } bad)
             return new DaemonResponse(false, bad >= DomainPolicy.MaxCustomDomains
                 ? $"Tối đa {DomainPolicy.MaxCustomDomains} tên miền."
@@ -60,10 +64,35 @@ public sealed class DaemonCommands(FeatureSet features, ChangeJournal journal, s
         var result = await features.ReapplyAsync(FeatureDomains.Routed(wanted), cancellationToken).ConfigureAwait(false);
         if (!result.Success)
             return Ok() with { Ok = false, Error = result.Error.ToString(), Message = DescribeReapply(result) };
-        _settings = _settings with { Domains = wanted };
-        settingsStore.Save(_settings);
+        var updated = _settings with { Domains = wanted };
+        try
+        {
+            settingsStore.Save(updated);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            var back = await features.ReapplyAsync(FeatureDomains.Routed(_settings.Domains), CancellationToken.None).ConfigureAwait(false);
+            return Ok() with
+            {
+                Ok = false,
+                Message = back.Success
+                    ? $"Không lưu được settings.json ({ex.Message}); đã giữ danh sách cũ."
+                    : $"Không lưu được settings.json ({ex.Message}) và không quay về được danh sách cũ; chạy: sudo lunadns cleanup",
+            };
+        }
+        _settings = updated;
         return Ok() with { Domains = wanted };
     }
+
+    private static string? DescribeShape(DomainSelectionDefect defect) => defect switch
+    {
+        DomainSelectionDefect.None => null,
+        DomainSelectionDefect.MissingGroups => "Thiếu danh sách nhóm tên miền.",
+        DomainSelectionDefect.MissingCustom => "Thiếu danh sách tên miền Tuỳ chỉnh.",
+        DomainSelectionDefect.UnknownGroup => "Có nhóm tên miền không xác định.",
+        DomainSelectionDefect.DuplicateGroup => "Có nhóm tên miền bị lặp.",
+        _ => "Danh sách tên miền không đúng định dạng.",
+    };
 
     private static string DescribeReapply(ReapplyResult result) => result.Error switch
     {

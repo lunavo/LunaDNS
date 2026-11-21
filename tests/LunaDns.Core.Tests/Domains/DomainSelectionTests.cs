@@ -89,4 +89,34 @@ public sealed class DomainSelectionTests
         Assert.True(a.SameAs(b));
         Assert.False(a.SameAs(b with { Custom = [new("example.org", Enabled: false)] }));
     }
+
+    [Fact]
+    public void Shape_check_rejects_null_lists_unknown_and_duplicate_groups()
+    {
+        Assert.Equal(DomainSelectionDefect.None, new DomainSelection().CheckShape());
+        Assert.Equal(DomainSelectionDefect.MissingGroups, new DomainSelection { EnabledGroups = null! }.CheckShape());
+        Assert.Equal(DomainSelectionDefect.MissingCustom, new DomainSelection { Custom = null! }.CheckShape());
+        Assert.Equal(DomainSelectionDefect.UnknownGroup, new DomainSelection { EnabledGroups = [(DomainGroup)99] }.CheckShape());
+        Assert.Equal(DomainSelectionDefect.DuplicateGroup,
+            new DomainSelection { EnabledGroups = [DomainGroup.Reddit, DomainGroup.Reddit] }.CheckShape());
+    }
+
+    [Fact]
+    public void First_invalid_index_reports_null_entry_instead_of_throwing() =>
+        Assert.Equal(1, new DomainSelection { Custom = [new("example.org"), null!] }.FirstInvalidIndex());
+
+    [Fact]
+    public void Sanitized_survives_nulls_and_unknown_groups()
+    {
+        var clean = new DomainSelection { EnabledGroups = null!, Custom = null! }.Sanitized(out var none);
+        Assert.Equal(new DomainSelection(), clean);
+        Assert.Equal(0, none);
+
+        var fixedUp = new DomainSelection { EnabledGroups = [DomainGroup.Reddit, (DomainGroup)99], Custom = [null!, new("example.org")] }
+            .Sanitized(out var dropped);
+        Assert.Equal([DomainGroup.Reddit], fixedUp.EnabledGroups);
+        Assert.Equal([new CustomDomain("example.org")], fixedUp.Custom);
+        Assert.Equal(2, dropped);
+        Assert.NotEmpty(FeatureDomains.Routed(fixedUp));
+    }
 }

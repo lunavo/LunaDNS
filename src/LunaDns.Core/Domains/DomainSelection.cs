@@ -2,6 +2,16 @@ namespace LunaDns.Core.Domains;
 
 public sealed record CustomDomain(string Domain, bool Enabled = true);
 
+/// <summary>Lỗi về hình dạng của DomainSelection đến từ JSON ngoài (danh sách null, nhóm lạ hoặc trùng).</summary>
+public enum DomainSelectionDefect
+{
+    None,
+    MissingGroups,
+    MissingCustom,
+    UnknownGroup,
+    DuplicateGroup,
+}
+
 /// <summary>Nhóm nào đang bật và danh sách Tuỳ chỉnh (spec KH8 3.1). Bất biến; đổi bằng with/WithGroup.</summary>
 public sealed record DomainSelection
 {
@@ -18,36 +28,59 @@ public sealed record DomainSelection
             : [.. EnabledGroups.Where(g => g != group)],
     };
 
-    /// <summary>Dùng khi đọc file: bỏ dòng không qua DomainPolicy, dòng trùng và phần vượt giới hạn.</summary>
+    // JSON (cả settings.json sửa tay lẫn yêu cầu socket) có thể gán null cho danh sách hay phần tử dù kiểu không cho phép.
+#pragma warning disable CA1508
+
+    /// <summary>
+    /// Dùng khi đọc file: danh sách null thành mặc định; bỏ nhóm lạ, dòng null, dòng không qua DomainPolicy, dòng trùng
+    /// và phần vượt giới hạn. <paramref name="dropped"/> đếm cả nhóm lạ lẫn dòng bị bỏ.
+    /// </summary>
     public DomainSelection Sanitized(out int dropped)
     {
+        var defaults = new DomainSelection();
+        var groups = EnabledGroups ?? defaults.EnabledGroups;
+        var custom = Custom ?? defaults.Custom;
+        var knownGroups = groups.Where(Enum.IsDefined).Distinct().ToList();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var kept = new List<CustomDomain>();
-        foreach (var entry in Custom)
+        foreach (var entry in custom)
         {
-            var domain = entry.Domain is null ? null : DomainPolicy.Normalize(entry.Domain);
+            var domain = entry?.Domain is null ? null : DomainPolicy.Normalize(entry.Domain);
             if (domain is null || DomainPolicy.Validate(domain) != DomainRejection.None || !seen.Add(domain)) continue;
             if (kept.Count == DomainPolicy.MaxCustomDomains) break;
-            kept.Add(entry with { Domain = domain });
+            kept.Add(entry! with { Domain = domain });
         }
-        dropped = Custom.Count - kept.Count;
-        return this with { EnabledGroups = [.. EnabledGroups.Distinct()], Custom = kept };
+        dropped = custom.Count - kept.Count + groups.Count(g => !Enum.IsDefined(g));
+        return this with { EnabledGroups = knownGroups, Custom = kept };
     }
 
-    /// <summary>Kiểm nghiêm ngặt cho dữ liệu đến từ ngoài (dịch vụ nền macOS): null = hợp lệ.</summary>
+    /// <summary>Kiểm hình dạng cho dữ liệu đến từ ngoài; gọi trước <see cref="FirstInvalidIndex"/>.</summary>
+    public DomainSelectionDefect CheckShape()
+    {
+        if (EnabledGroups is null) return DomainSelectionDefect.MissingGroups;
+        if (Custom is null) return DomainSelectionDefect.MissingCustom;
+        if (!EnabledGroups.All(Enum.IsDefined)) return DomainSelectionDefect.UnknownGroup;
+        if (EnabledGroups.Distinct().Count() != EnabledGroups.Count) return DomainSelectionDefect.DuplicateGroup;
+        return DomainSelectionDefect.None;
+    }
+
+    /// <summary>Kiểm nghiêm ngặt dòng Tuỳ chỉnh cho dữ liệu đến từ ngoài (dịch vụ nền macOS): null = hợp lệ.</summary>
     public int? FirstInvalidIndex()
     {
+        if (Custom is null) return 0;
         if (Custom.Count > DomainPolicy.MaxCustomDomains) return DomainPolicy.MaxCustomDomains;
         var seen = new HashSet<string>(StringComparer.Ordinal);
         for (var i = 0; i < Custom.Count; i++)
         {
-            var domain = Custom[i].Domain;
+            var domain = Custom[i]?.Domain;
             if (domain is null || DomainPolicy.Normalize(domain) != domain
                 || DomainPolicy.Validate(domain) != DomainRejection.None || !seen.Add(domain))
                 return i;
         }
         return null;
     }
+
+#pragma warning restore CA1508
 
     public bool SameAs(DomainSelection other)
     {
