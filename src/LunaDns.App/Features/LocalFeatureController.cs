@@ -71,7 +71,9 @@ internal sealed partial class LocalFeatureController : IFeatureController
     {
         ArgumentNullException.ThrowIfNull(selection);
         var result = await Features.ReapplyAsync(FeatureDomains.Routed(selection)).ConfigureAwait(false);
-        return result.Success ? new(true, null) : new(false, ErrorMessages.For(result.Error));
+        if (result.Success) return new(true, null);
+        var message = ErrorMessages.For(result.Error);
+        return new(false, result.PreviousRestored ? message : $"{message} {Strings.ChangesLeftBehind}");
     }
 
     public async Task<int> ShutdownAsync() => (await Features.ShutdownAsync().ConfigureAwait(false)).Failed.Count;

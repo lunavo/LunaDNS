@@ -99,7 +99,7 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         var response = await SendAsync(new DaemonRequest(DaemonProtocol.SetDomains, Domains: selection)).ConfigureAwait(false);
         if (response is null) return new(false, ErrorMessages.For(FeatureError.ServiceUnavailable));
         if (response.Ok) return new(true, null);
-        if (response.Message?.StartsWith("Lệnh lạ:", StringComparison.Ordinal) == true) return new(false, Strings.DaemonNeedsUpdate);
+        if (IsUnknownCommand(response)) return new(false, Strings.DaemonNeedsUpdate);
         return new(false, response.Message);
     }
 
@@ -156,6 +156,11 @@ internal sealed partial class DaemonFeatureController : IFeatureController
                 new FeatureStatus(s.DnsRouting, s.SniProxy, PubgMode: false, s.ProxyPort, s.ProxyConnections),
                 s.JournalEntries, response.Version ?? _snapshot.Version);
         }
+        else if (IsUnknownCommand(response))
+        {
+            // Daemon cũ chưa biết lệnh mới (vd. get-domains): nó vẫn chạy, giữ nguyên ảnh chụp trạng thái.
+            LogDaemonFailed(_logger, request.Command, response.Message);
+        }
         else if (!response.Ok)
         {
             // Không kèm trạng thái: daemon từ chối (UID khác chủ /dev/console) hoặc yêu cầu lỗi.
@@ -165,6 +170,9 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         if (!response.Ok && response.Status is not null) LogDaemonFailed(_logger, request.Command, response.Message);
         return response;
     }
+
+    private static bool IsUnknownCommand(DaemonResponse response) =>
+        !response.Ok && response.Message?.StartsWith(DaemonProtocol.UnknownCommandPrefix, StringComparison.Ordinal) == true;
 
     private static int Remaining(DaemonResponse? response) => response switch
     {

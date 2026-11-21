@@ -93,14 +93,16 @@ internal sealed partial class AppServices : IAsyncDisposable
         return result;
     }
 
-    /// <summary>Kiểm tra theo lựa chọn của nơi giữ thật (macOS: dịch vụ nền); hỏi không được thì dùng settings.json của app.</summary>
     public async Task<ProbeSummary> ProbeAsync(CancellationToken cancellationToken)
     {
-        var selection = await GetDomainsAsync() ?? Settings.Domains;
+        var selection = await ProbeSelectionAsync();
         var results = await _probes.RunAsync(selection, cancellationToken);
         LastProbe = results;
         return ProbeSummary.Create(results, _time.GetLocalNow(), h => ProbeTargets.GroupOf(h, selection));
     }
+
+    /// <summary>Kiểm tra theo lựa chọn của nơi giữ thật (macOS: dịch vụ nền); hỏi không được thì dùng settings.json của app.</summary>
+    internal async Task<DomainSelection> ProbeSelectionAsync() => await GetDomainsAsync() ?? Settings.Domains;
 
     public Task<IReadOnlyList<ProbeResult>> ProbeDomainsAsync(IReadOnlyList<string> hosts, CancellationToken cancellationToken) =>
         _probes.RunAsync(hosts, cancellationToken);

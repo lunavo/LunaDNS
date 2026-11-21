@@ -180,11 +180,28 @@ public sealed class DaemonFeatureControllerTests
         Assert.Equal(Strings.DaemonNeedsUpdate, result.Message);
     }
 
+    /// <summary>Daemon cũ không biết get-domains: không được coi là "không trả lời" (banner, công tắc xám, thoát bỏ qua disable-all).</summary>
+    [Fact]
+    public async Task Unknown_command_reply_keeps_daemon_running()
+    {
+        _daemon.Dns = true;
+        await using var controller = Create();
+        await controller.RefreshAsync();
+        _daemon.Reply = r => r.Command == DaemonProtocol.GetDomains ? new DaemonResponse(false, $"Lệnh lạ: {r.Command}") : null;
+
+        Assert.Null(await controller.GetDomainsAsync());
+        Assert.Equal(ControllerAvailability.DaemonRunning, controller.Availability);
+        Assert.True(controller.Status.DnsRouting);
+    }
+
     [Fact]
     public async Task Apply_domains_passes_selection_and_daemon_message()
     {
-        _daemon.Reply = _ => new DaemonResponse(false, "Tên miền không hợp lệ ở dòng 2.");
+        _daemon.Reply = r => r.Command == DaemonProtocol.SetDomains
+            ? new DaemonResponse(false, "Tên miền không hợp lệ ở dòng 2.", Status: new DaemonStatus(false, false, null, 0, 0))
+            : null;
         await using var controller = Create();
+        await controller.RefreshAsync();
         var selection = new DomainSelection { EnabledGroups = [DomainGroup.Reddit] };
 
         var result = await controller.ApplyDomainsAsync(selection);
@@ -192,6 +209,7 @@ public sealed class DaemonFeatureControllerTests
         Assert.True(_daemon.LastRequest!.Domains!.SameAs(selection));
         Assert.False(result.Success);
         Assert.Equal("Tên miền không hợp lệ ở dòng 2.", result.Message);
+        Assert.Equal(ControllerAvailability.DaemonRunning, controller.Availability);
     }
 
     [Fact]
