@@ -66,25 +66,31 @@ namespace LunaDns.Core.Dns;
 
 public enum DohProvider { Cloudflare, Google, Quad9, AdGuard, Custom }
 
+public sealed record DohChoice(DohProvider Provider, DohServer Server);
+
 /// <summary>URL DoH tự nhập. IP lưu dạng chuỗi cho gọn JSON; parse lúc dựng DohServer.</summary>
-public sealed record CustomDoh(
-    string Endpoint,
-    IReadOnlyList<string> ManualAddresses,
-    IReadOnlyList<string> ResolvedAddresses);
+public sealed record CustomDoh
+{
+    public string Endpoint { get; init; } = string.Empty;
+    public IReadOnlyList<string> ManualAddresses { get; init; } = [];
+    public IReadOnlyList<string> ResolvedAddresses { get; init; } = [];
+}
 ```
+
+`CustomDoh` dùng thuộc tính `init` có mặc định để JSON thiếu trường không ra `null`.
 
 | Đơn vị | Thay đổi |
 |---|---|
 | `Dns/DohServer` | Thêm `Quad9`, `AdGuard`. `Defaults` giữ nguyên (Cloudflare, Google) cho các test và chỗ gọi hiện có. |
-| `Dns/DohCatalog` (mới, tĩnh) | `BuiltIn`: 4 máy theo thứ tự bảng trên. `Get(DohProvider)` cho máy dựng sẵn. `Chain(DohServer primary)`: primary + 2 máy dựng sẵn kế tiếp, bỏ trùng host. `Choices(AppSettings)`: 4 máy dựng sẵn, cộng `Custom` nếu `CustomDoh` dựng được `DohServer` có IP. |
+| `Dns/DohCatalog` (mới, tĩnh) | `BuiltIn`: 4 máy theo thứ tự bảng trên. `Get(DohProvider)` cho máy dựng sẵn. `Chain(DohServer primary)`: primary + 2 máy dựng sẵn kế tiếp, bỏ trùng host. `Choices(CustomDoh?)`: 4 `DohChoice` dựng sẵn, cộng `Custom` nếu `CustomDoh` dựng được `DohServer` có IP (nhận `CustomDoh` để `Core.Dns` không phụ thuộc `Core.Settings`). |
 | `Dns/CustomDohParser` (mới, hàm thuần) | `TryParseEndpoint(string, out Uri, out string error)`: URL tuyệt đối, `https`, có host, không userinfo, không fragment, cổng nào cũng được. `TryParseAddresses(string, out IReadOnlyList<IPAddress>, out string error)`: IPv4/IPv6 ngăn bằng dấu phẩy hoặc khoảng trắng; có giá trị sai thì lỗi cả ô. `ToServer(CustomDoh)`: trả `DohServer("Tự nhập", uri, ip)` với IP = IP tay, nếu không có thì IP literal của host, nếu không có thì `ResolvedAddresses`; trả `null` nếu URL hỏng hoặc không có IP nào. |
 | `Dns/CustomDohBootstrap` (mới) | `ResolveAsync(CustomDoh, IHostResolver, CancellationToken)`: có IP tay hoặc host là IP literal thì trả nguyên, không hỏi mạng. Còn lại gọi resolver (A); có kết quả thì trả `CustomDoh` với `ResolvedAddresses` mới; lỗi hoặc rỗng thì ném `DohException`, người gọi giữ bản cũ. |
 | `Dns/DohLatencyMeter` (mới) | `MeasureAsync(IReadOnlyList<(DohProvider, DohServer)>, CancellationToken)`. Đo song song; mỗi máy một `DohClient` riêng chỉ chứa máy đó (không rơi sang dự phòng, kết nối mới). Mỗi máy: 1 truy vấn khởi động (gồm TCP + TLS), rồi 3 truy vấn A cho `store.steampowered.com`; điểm = trung vị 3 truy vấn sau, vì lúc dùng thật kết nối được giữ 5 phút (`PooledConnectionLifetime`). Lỗi khi: có truy vấn lỗi hoặc hết 3 giây, hoặc kết quả không phải `NoError` với ít nhất một bản ghi A. Trả `IReadOnlyList<DohLatency>` với `DohLatency(DohProvider Provider, TimeSpan? Median, string? Error)`, xếp nhanh trước, lỗi sau. Nhận factory `Func<DohServer, DohClient>` để test dùng handler giả. |
-| `Settings/AppSettings` | Thêm `DohProvider? Doh` và `CustomDoh? CustomDoh` (mặc định `null`). `EffectiveDoh => Doh ?? (PreferGoogleDoh ? Google : Cloudflare)`. `DohServers()` trả `DohCatalog.Chain(primary)`; `Custom` mà `ToServer` ra `null` thì về chuỗi Cloudflare. `WithDoh(DohProvider)` đặt `Doh` và `PreferGoogleDoh = (Doh == Google)`, để bản app cũ (nếu hạ phiên bản) vẫn hiểu gần đúng. |
+| `Settings/AppSettings` | Thêm `DohProvider? Doh` và `CustomDoh? CustomDoh` (mặc định `null`). `EffectiveDoh => Doh ?? (PreferGoogleDoh ? Google : Cloudflare)`. `DohServers()` trả `DohCatalog.Chain(primary)`; `Custom` mà `ToServer` ra `null` thì về chuỗi Cloudflare. `WithDoh(DohProvider)` đặt `Doh` và `PreferGoogleDoh = (Doh == Google)`, để bản app cũ (nếu hạ phiên bản) vẫn hiểu gần đúng. `BootstrapDohServers()`: chuỗi chỉ gồm máy dựng sẵn, dùng để phân giải host Tự nhập. `DohChoices()` gọi `DohCatalog.Choices(CustomDoh)`. `EffectiveDoh()` là hàm để không bị ghi ra JSON. |
 | `Settings/SettingsJsonContext` | Đăng ký `CustomDoh`. Enum lưu dạng chuỗi (đã bật `UseStringEnumConverter`). |
-| `App/DohActions` (mới, hoặc trong `ProbeRunner`) | Ghép Core cho giao diện: `SaveCustomAsync(url, ipText)` (parse, bootstrap qua `DohClient.Create(chuỗi dựng sẵn)` + `DohHostResolver`), `MeasureAsync()` (bootstrap lại Custom nếu có, rồi đo `Choices`). |
+| `App/AppServices` | Ghép Core cho giao diện: `ResolveCustomDohAsync(CustomDoh)` (bootstrap qua `DohClient.Create(BootstrapDohServers())` + `DohHostResolver`), `MeasureDohAsync()` (bootstrap lại Custom nếu có, rồi đo `DohChoices()`). |
 | `App/ViewModels/MainViewModel` | `DohIndex` ánh xạ 0–4 ↔ `DohProvider` qua `WithDoh`. Thêm `IsCustomDoh`, `CustomDohUrl`, `CustomDohAddresses`, `CustomDohStatus`, `DohItems` (tên + số đo), `MeasureDohCommand`, `SaveCustomDohCommand`, `IsMeasuringDoh`. Báo đổi cùng chỗ với `DohIndex` trong `SaveSettings`. |
-| `App/Views/MainWindow.axaml`, `App/Strings` | Combobox 5 mục gắn `DohItems`, nút "Đo", khối Tự nhập (`IsVisible="{Binding IsCustomDoh}"`). Chuỗi mới: `DohQuad9`, `DohAdGuard`, `DohCustom`, `DohMeasureButton`, `DohMeasuring`, `DohMeasureChosen`, `DohMeasureAllFailed`, `DohCustomUrlLabel`, `DohCustomAddressesLabel`, `DohCustomSave`, `DohCustomUsing`, `DohCustomNotSaved`, `DohCustomInvalidUrl`, `DohCustomInvalidAddresses`, `DohCustomResolveFailed`, `DohLatencyFailed`. Bỏ `DohCloudflareFirst`, `DohGoogleFirst`. |
+| `App/Views/MainWindow.axaml`, `App/Strings` | Combobox 5 mục gắn `DohItems`, nút "Đo", khối Tự nhập (`IsVisible="{Binding IsCustomDoh}"`). Chuỗi mới (tên nhà cung cấp là tên riêng, không cần chuỗi): `DohCustom`, `DohMeasureButton`, `DohMeasuring`, `DohMeasureChosenFormat`, `DohMeasureAllFailed`, `DohLatencyFormat`, `DohLatencyFailedFormat`, `DohCustomUrlLabel`, `DohCustomAddressesLabel`, `DohCustomSave`, `DohCustomResolving`, `DohCustomUsingFormat`, `DohCustomNotSaved`, `DohCustomInvalidUrl`, `DohCustomInvalidAddresses`, `DohCustomResolveFailed`. Bỏ `DohCloudflareFirst`, `DohGoogleFirst`. |
 | `docs/guide/05-nang-cao.md` | Mô tả ô Máy chủ DoH, nút Đo, Tự nhập. |
 
 ## Luồng dữ liệu
@@ -93,7 +99,7 @@ Combobox / Đo / Lưu → `MainViewModel` → `AppSettings.WithDoh` / `CustomDoh
 `AppSettings.DohServers()` → `DohCatalog.Chain` → `CoreFeatureServices.CreateDoh` → `DohClient`
 (`ConnectToBootstrapAsync`, không đổi).
 
-Đo: `DohActions.MeasureAsync` → `CustomDohBootstrap` (nếu có Custom) → `DohCatalog.Choices` → `DohLatencyMeter` →
+Đo: `AppServices.MeasureDohAsync` → `CustomDohBootstrap` (nếu có Custom) → `DohCatalog.Choices` → `DohLatencyMeter` →
 `MainViewModel` (số đo, chọn máy nhanh nhất qua `WithDoh`).
 
 ## Lỗi
@@ -101,8 +107,8 @@ Combobox / Đo / Lưu → `MainViewModel` → `AppSettings.WithDoh` / `CustomDoh
 - URL sai hoặc ô IP sai: dòng trạng thái báo lỗi, không lưu gì.
 - Phân giải host Tự nhập lỗi: giữ `ResolvedAddresses` cũ (nếu có), báo lỗi. Chưa có IP nào thì Tự nhập không vào
   `Choices`, và `DohServers()` dùng chuỗi Cloudflare.
-- `settings.json` có `Doh: "Custom"` mà `CustomDoh` thiếu hoặc hỏng: dùng chuỗi Cloudflare, log cảnh báo một lần lúc
-  dựng chuỗi. Không sửa file.
+- `settings.json` có `Doh: "Custom"` mà `CustomDoh` thiếu hoặc hỏng: dùng chuỗi Cloudflare, dòng trạng thái của khối
+  Tự nhập báo "đang dùng Cloudflare" (`AppSettings` không có logger nên không ghi log). Không sửa file.
 - Giá trị `Doh` lạ (file từ bản mới hơn): deserializer đang trả lỗi JSON và `JsonFileSettingsStore` giữ file hỏng, dùng
   mặc định. Hành vi này đã có từ trước; D2 không đổi.
 - Đo bị huỷ (đóng cửa sổ): dừng hết, không đổi lựa chọn.
