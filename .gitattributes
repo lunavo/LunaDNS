@@ -1,0 +1,14 @@
+# Store text as LF in the repo; each machine checks out its native line endings.
+* text=auto
+
+# cmd.exe needs CRLF; shell scripts must stay LF even on Windows checkouts.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.sh  text eol=lf
+
+# Binary assets
+*.ico   binary
+*.icns  binary
+*.png   binary
+*.dmg   binary
+*.pem   binary
