@@ -23,7 +23,6 @@ internal static class Strings
     public static string NotCheckedYet => Get(nameof(NotCheckedYet));
     public static string CheckedAtFormat => Get(nameof(CheckedAtFormat));
     public static string CheckFailed => Get(nameof(CheckFailed));
-    public static string CheckSectionTitle => Get(nameof(CheckSectionTitle));
     public static string ProbeDetailFormat => Get(nameof(ProbeDetailFormat));
     public static string ProbeCoveredFormat => Get(nameof(ProbeCoveredFormat));
     public static string ProbeMissingFormat => Get(nameof(ProbeMissingFormat));
@@ -87,6 +86,12 @@ internal static class Strings
     public static string UpdateDownloadButton => Get(nameof(UpdateDownloadButton));
     public static string UpdateDismissTooltip => Get(nameof(UpdateDismissTooltip));
     public static string UninstallButton => Get(nameof(UninstallButton));
+    public static string ZoneCheck => Get(nameof(ZoneCheck));
+    public static string ZoneStatus => Get(nameof(ZoneStatus));
+    public static string ZoneUpdate => Get(nameof(ZoneUpdate));
+    public static string ZoneCleanup => Get(nameof(ZoneCleanup));
+    public static string VersionFormat => Get(nameof(VersionFormat));
+    public static string UninstallHint => Get(nameof(UninstallHint));
     public static string UninstallConfirmTitle => Get(nameof(UninstallConfirmTitle));
     public static string UninstallConfirmMessage => Get(nameof(UninstallConfirmMessage));
     public static string DiagnosticsRunning => Get(nameof(DiagnosticsRunning));

@@ -95,7 +95,7 @@ Gỡ & dọn
 
 ## Kiểm thử
 
-- `StringsTests.Every_static_string_resolves`: số chuỗi 202 → 208 (−1 `CheckSectionTitle`, +4 khu, +`VersionFormat`,
+- `StringsTests.Every_static_string_resolves`: số chuỗi 202 → 207 (−1 `CheckSectionTitle`, +4 khu, +`VersionFormat`,
   +`UninstallHint`).
 - `StringsTests.Mac_overrides_…` tự bao `UninstallHint_Mac` (phải có khoá gốc và khác câu gốc).
 - `MaintenanceTests`: `VersionText(new Version(0, 9, 0, 0))` cho "Đang dùng LunaDNS 0.9.0"; `VersionText(new Version(1, 2))`

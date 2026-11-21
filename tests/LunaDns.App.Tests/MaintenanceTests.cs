@@ -16,6 +16,16 @@ public sealed class MaintenanceTests
 
     private static Func<CancellationToken, Task<UpdateCheckResult>> Returns(UpdateCheckResult result) => _ => Task.FromResult(result);
 
+    [Theory]
+    [InlineData(0, 9, 0, 0, "Đang dùng LunaDNS 0.9.0")]
+    [InlineData(1, 2, -1, -1, "Đang dùng LunaDNS 1.2.0")]
+    public void Version_text_shows_three_part_version(int major, int minor, int build, int revision, string expected)
+    {
+        var version = build < 0 ? new Version(major, minor) : new Version(major, minor, build, revision);
+
+        Assert.Equal(expected, Maintenance.VersionText(version));
+    }
+
     [Fact]
     public async Task Newer_version_confirmed_opens_release_page()
     {

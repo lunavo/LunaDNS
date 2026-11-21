@@ -13,7 +13,6 @@
   <data name="NotCheckedYet" xml:space="preserve"><value>Chưa kiểm tra. Bấm "Kiểm tra" để xem các nhóm tên miền đang bật có bị chặn không.</value></data>
   <data name="CheckedAtFormat" xml:space="preserve"><value>Kiểm tra lúc {0:HH:mm:ss}.</value></data>
   <data name="CheckFailed" xml:space="preserve"><value>Không chạy được kiểm tra. Hãy thử lại; chi tiết nằm trong log.</value></data>
-  <data name="CheckSectionTitle" xml:space="preserve"><value>KIỂM TRA MẠNG</value></data>
   <data name="ProbeDetailFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProbeCoveredFormat" xml:space="preserve"><value>đang né bằng {0}</value></data>
   <data name="ProbeMissingFormat" xml:space="preserve"><value>còn thiếu {0}</value></data>
@@ -59,6 +58,13 @@
   <data name="UpdateDownloadButton" xml:space="preserve"><value>Tải</value></data>
   <data name="UpdateDismissTooltip" xml:space="preserve"><value>Ẩn đến lần mở app sau</value></data>
   <data name="UninstallButton" xml:space="preserve"><value>Gỡ khỏi máy</value></data>
+  <data name="ZoneCheck" xml:space="preserve"><value>Kiểm tra</value></data>
+  <data name="ZoneStatus" xml:space="preserve"><value>Trạng thái</value></data>
+  <data name="ZoneUpdate" xml:space="preserve"><value>Cập nhật</value></data>
+  <data name="ZoneCleanup" xml:space="preserve"><value>Gỡ &amp; dọn</value></data>
+  <data name="VersionFormat" xml:space="preserve"><value>Đang dùng LunaDNS {0}</value></data>
+  <data name="UninstallHint" xml:space="preserve"><value>Bản portable: thoát bằng Thoát &amp; khôi phục ở khay, chạy LunaDNS.exe --uninstall trong PowerShell Admin rồi xoá thư mục. Xem hướng dẫn mục 7.</value></data>
+  <data name="UninstallHint_Mac" xml:space="preserve"><value>Gỡ bằng lệnh sudo lunadns uninstall trong Terminal. Xem hướng dẫn mục 9.</value></data>
   <data name="UninstallConfirmTitle" xml:space="preserve"><value>Gỡ LunaDNS</value></data>
   <data name="UninstallConfirmMessage" xml:space="preserve"><value>LunaDNS sẽ tắt mọi tính năng, khôi phục cấu hình mạng rồi mở trình gỡ cài đặt. Tiếp tục?</value></data>
   <data name="DiagnosticsRunning" xml:space="preserve"><value>Đang ghi báo cáo…</value></data>

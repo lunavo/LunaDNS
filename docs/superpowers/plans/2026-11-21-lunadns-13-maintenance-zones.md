@@ -52,7 +52,7 @@ public void Version_text_shows_three_part_version(int major, int minor, int buil
 }
 ```
 
-`StringsTests.Every_static_string_resolves`: `Assert.Equal(202, …)` → `Assert.Equal(208, …)`. Thêm:
+`StringsTests.Every_static_string_resolves`: `Assert.Equal(202, …)` → `Assert.Equal(207, …)`. Thêm:
 
 ```csharp
 /// <summary>D5: gợi ý gỡ khác nhau giữa bản portable Windows và macOS.</summary>

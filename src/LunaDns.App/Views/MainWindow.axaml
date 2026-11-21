@@ -123,14 +123,16 @@
         </Grid>
       </Border>
 
-      <!-- Kiểm tra + kết quả theo nhóm + Áp dụng đề xuất (spec 4.8, KH6 3.2) -->
+      <!-- Bốn khu theo việc người dùng muốn làm (spec D5): Kiểm tra → Trạng thái → Cập nhật → Gỡ & dọn -->
+
+      <!-- Khu Kiểm tra: kết quả theo nhóm, Áp dụng đề xuất, Tìm cấu hình (spec 4.8, KH6 3.2, D3), Chẩn đoán, Nâng cao -->
+      <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,-8">
+        <TextBlock Classes="zone" Margin="2,0,0,0" Text="{x:Static app:Strings.ZoneCheck}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding ProbeStatus}" TextWrapping="Wrap"
+                   TextAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0" />
+      </Grid>
       <Border Classes="card">
         <StackPanel Spacing="8">
-          <Grid ColumnDefinitions="Auto,*">
-            <TextBlock Classes="section" Text="{x:Static app:Strings.CheckSectionTitle}" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding ProbeStatus}" TextWrapping="Wrap"
-                       TextAlignment="Right" Margin="12,0,0,0" />
-          </Grid>
           <ItemsControl ItemsSource="{Binding ProbeLines}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:ProbeLineViewModel">
@@ -166,8 +168,51 @@
                     IsVisible="{Binding IsTuning}" />
           </StackPanel>
           <TextBlock Classes="secondary" Text="{Binding TuneStatus}" TextWrapping="Wrap" IsVisible="{Binding HasTuneStatus}" />
+          <Button Background="Transparent" Command="{Binding DiagnosticsCommand}" HorizontalAlignment="Left" Margin="-8,0,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <PathIcon Classes="button" Data="{DynamicResource Icon.Diagnostics}" />
+              <TextBlock Text="{x:Static app:Strings.DiagnosticsButton}" />
+            </StackPanel>
+          </Button>
         </StackPanel>
       </Border>
+
+      <Expander HorizontalAlignment="Stretch" IsVisible="{Binding HasAdvancedSettings}">
+        <Expander.Header>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Classes="button" Data="{DynamicResource Icon.Advanced}" />
+            <TextBlock Text="{x:Static app:Strings.AdvancedHeader}" />
+          </StackPanel>
+        </Expander.Header>
+        <StackPanel Spacing="8">
+          <TextBlock Text="{x:Static app:Strings.SplitModeLabel}" />
+          <ComboBox SelectedIndex="{Binding SplitModeIndex}" HorizontalAlignment="Stretch">
+            <ComboBoxItem Content="{x:Static app:Strings.SplitModeFirstByte}" />
+            <ComboBoxItem Content="{x:Static app:Strings.SplitModeMidSni}" />
+          </ComboBox>
+          <CheckBox IsChecked="{Binding SplitRecords}" Content="{x:Static app:Strings.SplitRecordsLabel}" />
+          <TextBlock Classes="secondary" Text="{x:Static app:Strings.SplitRecordsHint}" TextWrapping="Wrap" />
+          <TextBlock Text="{x:Static app:Strings.SplitDelayLabel}" />
+          <NumericUpDown Value="{Binding SplitDelayMs}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
+          <TextBlock Text="{x:Static app:Strings.DohLabel}" />
+          <Grid ColumnDefinitions="*,Auto">
+            <ComboBox ItemsSource="{Binding DohItems}" SelectedIndex="{Binding DohIndex}" HorizontalAlignment="Stretch" />
+            <Button Grid.Column="1" Margin="8,0,0,0" Command="{Binding MeasureDohCommand}" Content="{Binding DohMeasureLabel}" />
+          </Grid>
+          <StackPanel Spacing="6" IsVisible="{Binding IsCustomDoh}">
+            <TextBlock Text="{x:Static app:Strings.DohCustomUrlLabel}" />
+            <TextBox Text="{Binding CustomDohUrl}" Watermark="https://dns.example.net/dns-query" />
+            <TextBlock Text="{x:Static app:Strings.DohCustomAddressesLabel}" />
+            <TextBox Text="{Binding CustomDohAddresses}" />
+            <Button Command="{Binding SaveCustomDohCommand}" Content="{x:Static app:Strings.DohCustomSave}" />
+            <TextBlock Classes="secondary" Text="{Binding CustomDohStatus}" TextWrapping="Wrap" />
+          </StackPanel>
+          <TextBlock Classes="secondary" Text="{x:Static app:Strings.AdvancedHint}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Expander>
+
+      <!-- Khu Trạng thái: hai công tắc và các nhóm tên miền -->
+      <TextBlock Classes="zone" Text="{x:Static app:Strings.ZoneStatus}" />
 
       <!-- Hai công tắc: huy hiệu icon, dải màu trái, dòng trạng thái, dòng lỗi riêng (U6) -->
       <ItemsControl ItemsSource="{Binding Features}">
@@ -252,8 +297,26 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          <TextBlock Classes="secondary" FontSize="12" Text="{x:Static app:Strings.DomainsFootnote}" TextWrapping="Wrap"
+                     Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+
+      <!-- Khu Cập nhật: bản app và danh sách tên miền lớp 2 (D4) -->
+      <TextBlock Classes="zone" Text="{x:Static app:Strings.ZoneUpdate}" />
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding VersionText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <Button Grid.Column="1" Margin="12,0,0,0" Command="{Binding CheckUpdateCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Classes="button" Data="{DynamicResource Icon.Check}" />
+                <TextBlock Text="{x:Static app:Strings.CheckUpdateButton}" />
+              </StackPanel>
+            </Button>
+          </Grid>
           <!-- Dòng "Tự cập nhật danh sách" (spec D4): ẩn khi dịch vụ nền là bản cũ -->
-          <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding DomainList.IsVisible}" Margin="0,8,0,0">
+          <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding DomainList.IsVisible}">
             <CheckBox VerticalAlignment="Center" MinWidth="0" Content="{x:Static app:Strings.DomainListSwitch}"
                       IsChecked="{Binding DomainList.IsEnabled, Mode=OneWay}" Command="{Binding DomainList.ToggleCommand}" />
             <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
@@ -265,75 +328,31 @@
             <Button Grid.Column="2" Padding="10,4" FontSize="12" VerticalAlignment="Center" Classes="flat"
                     Content="{x:Static app:Strings.DomainListCheckNow}" Command="{Binding DomainList.CheckNowCommand}" />
           </Grid>
-          <TextBlock Classes="secondary" FontSize="12" Text="{x:Static app:Strings.DomainsFootnote}" TextWrapping="Wrap"
-                     Margin="0,4,0,0" />
         </StackPanel>
       </Border>
 
-      <!-- Chân trang: Tắt hết mờ khi không có gì bật (U8), Chẩn đoán thay cho Expander "Cài đặt" -->
-      <Grid ColumnDefinitions="*,Auto">
-        <Button Command="{Binding DisableAllCommand}" HorizontalAlignment="Left">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <PathIcon Classes="button" Data="{DynamicResource Icon.Restore}" />
-            <TextBlock Text="{x:Static app:Strings.DisableAllButton}" />
-          </StackPanel>
-        </Button>
-        <Button Grid.Column="1" Background="Transparent" Command="{Binding DiagnosticsCommand}">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <PathIcon Classes="button" Data="{DynamicResource Icon.Diagnostics}" />
-            <TextBlock Text="{x:Static app:Strings.DiagnosticsButton}" />
-          </StackPanel>
-        </Button>
-      </Grid>
-
-      <Grid ColumnDefinitions="*,Auto">
-        <Button Background="Transparent" Command="{Binding CheckUpdateCommand}" HorizontalAlignment="Left">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <PathIcon Classes="button" Data="{DynamicResource Icon.Check}" />
-            <TextBlock Text="{x:Static app:Strings.CheckUpdateButton}" />
-          </StackPanel>
-        </Button>
-        <Button Grid.Column="1" Background="Transparent" Command="{Binding UninstallAppCommand}" IsVisible="{Binding CanUninstall}">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <PathIcon Classes="button" Data="{DynamicResource Icon.Close}" />
-            <TextBlock Text="{x:Static app:Strings.UninstallButton}" />
-          </StackPanel>
-        </Button>
-      </Grid>
-
-      <Expander HorizontalAlignment="Stretch" IsVisible="{Binding HasAdvancedSettings}">
-        <Expander.Header>
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <PathIcon Classes="button" Data="{DynamicResource Icon.Advanced}" />
-            <TextBlock Text="{x:Static app:Strings.AdvancedHeader}" />
-          </StackPanel>
-        </Expander.Header>
+      <!-- Khu Gỡ & dọn: Tắt hết mờ khi không có gì bật (U8); không có nút Gỡ thì hiện cách gỡ theo guide -->
+      <TextBlock Classes="zone" Text="{x:Static app:Strings.ZoneCleanup}" />
+      <Border Classes="card">
         <StackPanel Spacing="8">
-          <TextBlock Text="{x:Static app:Strings.SplitModeLabel}" />
-          <ComboBox SelectedIndex="{Binding SplitModeIndex}" HorizontalAlignment="Stretch">
-            <ComboBoxItem Content="{x:Static app:Strings.SplitModeFirstByte}" />
-            <ComboBoxItem Content="{x:Static app:Strings.SplitModeMidSni}" />
-          </ComboBox>
-          <CheckBox IsChecked="{Binding SplitRecords}" Content="{x:Static app:Strings.SplitRecordsLabel}" />
-          <TextBlock Classes="secondary" Text="{x:Static app:Strings.SplitRecordsHint}" TextWrapping="Wrap" />
-          <TextBlock Text="{x:Static app:Strings.SplitDelayLabel}" />
-          <NumericUpDown Value="{Binding SplitDelayMs}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
-          <TextBlock Text="{x:Static app:Strings.DohLabel}" />
-          <Grid ColumnDefinitions="*,Auto">
-            <ComboBox ItemsSource="{Binding DohItems}" SelectedIndex="{Binding DohIndex}" HorizontalAlignment="Stretch" />
-            <Button Grid.Column="1" Margin="8,0,0,0" Command="{Binding MeasureDohCommand}" Content="{Binding DohMeasureLabel}" />
-          </Grid>
-          <StackPanel Spacing="6" IsVisible="{Binding IsCustomDoh}">
-            <TextBlock Text="{x:Static app:Strings.DohCustomUrlLabel}" />
-            <TextBox Text="{Binding CustomDohUrl}" Watermark="https://dns.example.net/dns-query" />
-            <TextBlock Text="{x:Static app:Strings.DohCustomAddressesLabel}" />
-            <TextBox Text="{Binding CustomDohAddresses}" />
-            <Button Command="{Binding SaveCustomDohCommand}" Content="{x:Static app:Strings.DohCustomSave}" />
-            <TextBlock Classes="secondary" Text="{Binding CustomDohStatus}" TextWrapping="Wrap" />
-          </StackPanel>
-          <TextBlock Classes="secondary" Text="{x:Static app:Strings.AdvancedHint}" TextWrapping="Wrap" />
+          <WrapPanel>
+            <Button Command="{Binding DisableAllCommand}" Margin="0,0,8,0">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Classes="button" Data="{DynamicResource Icon.Restore}" />
+                <TextBlock Text="{x:Static app:Strings.DisableAllButton}" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding UninstallAppCommand}" IsVisible="{Binding CanUninstall}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Classes="button" Data="{DynamicResource Icon.Close}" />
+                <TextBlock Text="{x:Static app:Strings.UninstallButton}" />
+              </StackPanel>
+            </Button>
+          </WrapPanel>
+          <TextBlock Classes="secondary" FontSize="12" Text="{x:Static app:Strings.UninstallHint}" TextWrapping="Wrap"
+                     IsVisible="{Binding !CanUninstall}" />
         </StackPanel>
-      </Expander>
+      </Border>
 
     </StackPanel>
   </ScrollViewer>
