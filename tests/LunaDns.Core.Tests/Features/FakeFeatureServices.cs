@@ -42,6 +42,7 @@ internal sealed class FakeFeatureServices : IFeatureServices
     private readonly List<(Feature Feature, FakeRunningService Service)> _started = [];
     private readonly List<int?> _proxyPorts = [];
     private readonly Dictionary<Feature, Exception> _failStart = [];
+    private readonly HashSet<Feature> _failOnce = [];
 
     public IReadOnlyList<string>? LastDomains { get; private set; }
 
@@ -52,10 +53,18 @@ internal sealed class FakeFeatureServices : IFeatureServices
         get { lock (_gate) return [.. _proxyPorts]; }
     }
 
-    /// <summary>Từ giờ mọi lần mở dịch vụ của <paramref name="feature"/> đều ném <paramref name="error"/>.</summary>
-    public void FailStart(Feature feature, Exception error)
+    /// <summary>
+    /// Từ giờ mọi lần mở dịch vụ của <paramref name="feature"/> đều ném <paramref name="error"/>;
+    /// <paramref name="once"/> = true thì chỉ lần mở kế tiếp.
+    /// </summary>
+    public void FailStart(Feature feature, Exception error, bool once = false)
     {
-        lock (_gate) _failStart[feature] = error;
+        lock (_gate)
+        {
+            _failStart[feature] = error;
+            if (once) _failOnce.Add(feature);
+            else _failOnce.Remove(feature);
+        }
     }
 
     public int Starts(Feature feature)
@@ -86,7 +95,11 @@ internal sealed class FakeFeatureServices : IFeatureServices
     {
         lock (_gate)
         {
-            if (_failStart.TryGetValue(feature, out var error)) throw error;
+            if (_failStart.TryGetValue(feature, out var error))
+            {
+                if (_failOnce.Remove(feature)) _failStart.Remove(feature);
+                throw error;
+            }
             LastDomains = domains;
             LastTuning = tuning;
             _started.Add((feature, service));

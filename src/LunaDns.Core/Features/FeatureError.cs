@@ -22,5 +22,7 @@ public enum FeatureError
     RollbackFailed,
     /// <summary>macOS: giao diện không nói chuyện được với dịch vụ nền (chưa cài, chưa chạy, hoặc từ chối kết nối).</summary>
     ServiceUnavailable,
+    /// <summary>Danh sách tên miền định tuyến rỗng (spec KH8 5.1).</summary>
+    NoDomains,
     Other,
 }
