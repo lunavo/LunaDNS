@@ -32,6 +32,17 @@ internal static class Strings
     public static string DomainProbeNeedsSni => Get(nameof(DomainProbeNeedsSni));
     public static string DomainProbeUnreachable => Get(nameof(DomainProbeUnreachable));
     public static string DomainProbeFailed => Get(nameof(DomainProbeFailed));
+    public static string CustomDeletedFormat => Get(nameof(CustomDeletedFormat));
+    public static string CustomUndoSecondsFormat => Get(nameof(CustomUndoSecondsFormat));
+    public static string CustomCountFormat => Get(nameof(CustomCountFormat));
+    public static string CustomImportReportFormat => Get(nameof(CustomImportReportFormat));
+    public static string CustomProbeDetailFormat => Get(nameof(CustomProbeDetailFormat));
+    public static string DomainRejectSyntax => Get(nameof(DomainRejectSyntax));
+    public static string DomainRejectPublicSuffixFormat => Get(nameof(DomainRejectPublicSuffixFormat));
+    public static string DomainRejectLocal => Get(nameof(DomainRejectLocal));
+    public static string DomainRejectDeniedFormat => Get(nameof(DomainRejectDeniedFormat));
+    public static string DomainRejectDuplicateFormat => Get(nameof(DomainRejectDuplicateFormat));
+    public static string DomainRejectLimitFormat => Get(nameof(DomainRejectLimitFormat));
     public static string AllOk => Get(nameof(AllOk));
     public static string UnreachableHint => Get(nameof(UnreachableHint));
     public static string ApplyRecommendedButton => Get(nameof(ApplyRecommendedButton));

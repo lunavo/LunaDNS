@@ -120,4 +120,15 @@
   <data name="DomainProbeNeedsSni" xml:space="preserve"><value>Giúp được (cần Proxy SNI)</value></data>
   <data name="DomainProbeUnreachable" xml:space="preserve"><value>Chặn theo IP hoặc cách khác, LunaDNS không giúp được</value></data>
   <data name="DomainProbeFailed" xml:space="preserve"><value>Không kiểm tra được, thử lại</value></data>
+  <data name="CustomDeletedFormat" xml:space="preserve"><value>Đã xoá {0}</value></data>
+  <data name="CustomUndoSecondsFormat" xml:space="preserve"><value>còn {0} giây</value></data>
+  <data name="CustomCountFormat" xml:space="preserve"><value>{0}/{1} đang bật · tối đa {2}</value></data>
+  <data name="CustomImportReportFormat" xml:space="preserve"><value>Đã thêm {0}, bỏ qua {1} (trùng hoặc không hợp lệ).</value></data>
+  <data name="CustomProbeDetailFormat" xml:space="preserve"><value>DNS hệ thống: {0} · DoH: {1}</value></data>
+  <data name="DomainRejectSyntax" xml:space="preserve"><value>Không phải tên miền hợp lệ.</value></data>
+  <data name="DomainRejectPublicSuffixFormat" xml:space="preserve"><value>Tên miền quá rộng, sẽ ảnh hưởng mọi trang dưới .{0}.</value></data>
+  <data name="DomainRejectLocal" xml:space="preserve"><value>Tên miền nội bộ hoặc quá rộng, LunaDNS không định tuyến.</value></data>
+  <data name="DomainRejectDeniedFormat" xml:space="preserve"><value>Tên miền này bị chặn vì lý do an toàn: {0}.</value></data>
+  <data name="DomainRejectDuplicateFormat" xml:space="preserve"><value>Đã có trong danh sách ({0}).</value></data>
+  <data name="DomainRejectLimitFormat" xml:space="preserve"><value>Tối đa {0} tên miền.</value></data>
 </root>
