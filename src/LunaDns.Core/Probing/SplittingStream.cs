@@ -10,12 +10,15 @@ internal sealed class SplittingStream : Stream
 {
     private readonly Stream _inner;
     private readonly HelloSplit _split;
+    private readonly TimeSpan _delay;
     private bool _first = true;
 
-    public SplittingStream(Stream inner, HelloSplit split)
+    /// <param name="delay">Nghỉ giữa các phần của record đầu, như proxy (SplitWriter). 0 = không nghỉ.</param>
+    public SplittingStream(Stream inner, HelloSplit split, TimeSpan delay = default)
     {
         _inner = inner;
         _split = split;
+        _delay = delay;
     }
 
     public override bool CanRead => _inner.CanRead;
@@ -57,9 +60,11 @@ internal sealed class SplittingStream : Stream
         _first = false;
         var data = buffer.AsMemory(offset, count);
         var first = FirstRecordLength(data.Span);
-        foreach (var piece in HelloSplitter.Split(data[..first], _split))
+        var pieces = HelloSplitter.Split(data[..first], _split);
+        for (var i = 0; i < pieces.Count; i++)
         {
-            _inner.Write(piece.Span);
+            if (i > 0 && _delay > TimeSpan.Zero) Thread.Sleep(_delay);
+            _inner.Write(pieces[i].Span);
             _inner.Flush();
         }
         if (first < count) _inner.Write(data.Span[first..]);
@@ -77,7 +82,7 @@ internal sealed class SplittingStream : Stream
         }
         _first = false;
         var first = FirstRecordLength(buffer.Span);
-        await SplitWriter.WriteAsync(_inner, buffer[..first], _split, TimeSpan.Zero, cancellationToken).ConfigureAwait(false);
+        await SplitWriter.WriteAsync(_inner, buffer[..first], _split, _delay, cancellationToken).ConfigureAwait(false);
         if (first < buffer.Length)
             await _inner.WriteAsync(buffer[first..], cancellationToken).ConfigureAwait(false);
     }
