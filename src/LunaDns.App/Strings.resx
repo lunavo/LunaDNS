@@ -54,6 +54,8 @@
   <data name="SplitModeLabel" xml:space="preserve"><value>Điểm cắt gói</value></data>
   <data name="SplitModeFirstByte" xml:space="preserve"><value>Sau byte đầu tiên (mặc định)</value></data>
   <data name="SplitModeMidSni" xml:space="preserve"><value>Giữa tên miền (SNI)</value></data>
+  <data name="SplitRecordsLabel" xml:space="preserve"><value>Tách TLS record</value></data>
+  <data name="SplitRecordsHint" xml:space="preserve"><value>Gửi ClientHello thành hai TLS record, cắt tại điểm đã chọn ở trên. Thử khi Kiểm tra vẫn báo không vào được dù đã đổi điểm cắt.</value></data>
   <data name="SplitDelayLabel" xml:space="preserve"><value>Độ trễ giữa hai phần (ms, 0–20)</value></data>
   <data name="DohLabel" xml:space="preserve"><value>Máy chủ DoH</value></data>
   <data name="DohCloudflareFirst" xml:space="preserve"><value>Cloudflare trước, Google dự phòng</value></data>
