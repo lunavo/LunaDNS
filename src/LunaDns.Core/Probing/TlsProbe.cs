@@ -16,6 +16,7 @@ public sealed partial class TlsProbe : ITlsProbe
 {
     private readonly int _port;
     private readonly HelloSplit _split;
+    private readonly TimeSpan _delay;
     private readonly RemoteCertificateValidationCallback? _validation;
     private readonly ILogger _logger;
 
@@ -24,12 +25,22 @@ public sealed partial class TlsProbe : ITlsProbe
     {
     }
 
+    /// <summary>D3: thử đúng tổ hợp cắt gói + độ trễ mà proxy sẽ dùng.</summary>
+    public TlsProbe(HelloSplit split, TimeSpan delay, ILogger<TlsProbe>? logger = null)
+        : this(443, split, null, logger, delay)
+    {
+    }
+
     /// <summary>Cho test: cổng và cách kiểm tra chứng chỉ tuỳ chọn.</summary>
-    internal TlsProbe(int port, HelloSplit split, RemoteCertificateValidationCallback? validation, ILogger<TlsProbe>? logger)
+    internal TlsProbe(int port, HelloSplit split, RemoteCertificateValidationCallback? validation, ILogger<TlsProbe>? logger,
+        TimeSpan delay = default)
     {
         ArgumentNullException.ThrowIfNull(split);
+        ArgumentOutOfRangeException.ThrowIfLessThan(delay, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(delay, SplitWriter.MaxDelay);
         _port = port;
         _split = split;
+        _delay = delay;
         _validation = validation;
         _logger = (ILogger?)logger ?? NullLogger.Instance;
     }
@@ -42,7 +53,7 @@ public sealed partial class TlsProbe : ITlsProbe
         {
             await socket.ConnectAsync(new IPEndPoint(address, _port), cancellationToken).ConfigureAwait(false);
             Stream transport = new NetworkStream(socket, ownsSocket: false);
-            if (split) transport = new SplittingStream(transport, _split);
+            if (split) transport = new SplittingStream(transport, _split, _delay);
             using var ssl = new SslStream(transport, leaveInnerStreamOpen: false);
             var options = new SslClientAuthenticationOptions
             {

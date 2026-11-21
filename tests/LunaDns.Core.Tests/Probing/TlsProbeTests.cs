@@ -96,4 +96,16 @@ public sealed class TlsProbeTests : IAsyncLifetime
 
         Assert.True(await probe.HandshakeAsync(IPAddress.Loopback, Host, split: true, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task Split_handshake_with_delay_is_accepted_by_the_server()
+    {
+        var probe = new TlsProbe(_server.Port, new HelloSplit(SplitMode.MidSni, Records: true), _server.Trusts, null, TimeSpan.FromMilliseconds(10));
+
+        Assert.True(await probe.HandshakeAsync(IPAddress.Loopback, Host, split: true, CancellationToken.None));
+    }
+
+    [Fact]
+    public void Delay_above_max_is_rejected() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TlsProbe(HelloSplit.Default, TimeSpan.FromMilliseconds(21)));
 }

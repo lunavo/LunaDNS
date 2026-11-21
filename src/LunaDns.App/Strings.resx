@@ -20,6 +20,23 @@
   <data name="AllOk" xml:space="preserve"><value>Không thấy bị chặn. Không cần bật gì.</value></data>
   <data name="UnreachableHint" xml:space="preserve"><value>Một số máy chủ không vào được kể cả khi né chặn. Có thể mạng đang lỗi hoặc máy chủ đang bảo trì.</value></data>
   <data name="ApplyRecommendedButton" xml:space="preserve"><value>Áp dụng đề xuất</value></data>
+  <data name="TuneButton" xml:space="preserve"><value>Tìm cấu hình hợp mạng</value></data>
+  <data name="TuneStop" xml:space="preserve"><value>Dừng</value></data>
+  <data name="TuneMeasuringDoh" xml:space="preserve"><value>Đang đo máy chủ DoH…</value></data>
+  <data name="TuneClassifying" xml:space="preserve"><value>Đang kiểm tra Steam…</value></data>
+  <data name="TuneTryingFormat" xml:space="preserve"><value>Đang thử {0}/{1}: {2}</value></data>
+  <data name="TuneCandidateFormat" xml:space="preserve"><value>{0} · {1} · {2} ms</value></data>
+  <data name="TuneSplitFirstByte" xml:space="preserve"><value>sau byte đầu</value></data>
+  <data name="TuneSplitMidSni" xml:space="preserve"><value>giữa SNI</value></data>
+  <data name="TuneRecordsOn" xml:space="preserve"><value>tách record</value></data>
+  <data name="TuneRecordsOff" xml:space="preserve"><value>một record</value></data>
+  <data name="TuneChosenFormat" xml:space="preserve"><value>Đã chọn {0} · {1}</value></data>
+  <data name="TuneNoChange" xml:space="preserve"><value>Cấu hình hiện tại đã chạy được, không cần đổi.</value></data>
+  <data name="TuneDohFailed" xml:space="preserve"><value>Không máy chủ DoH nào trả lời. Cài đặt giữ nguyên.</value></data>
+  <data name="TuneNothingWorkedFormat" xml:space="preserve"><value>Không cấu hình nào vào được hết Steam. Vẫn lỗi: {0}. Cài đặt giữ nguyên.</value></data>
+  <data name="TuneCancelled" xml:space="preserve"><value>Đã dừng, cài đặt giữ nguyên.</value></data>
+  <data name="TuneFoundNotAppliedFormat" xml:space="preserve"><value>Tìm được {0}. {1}</value></data>
+  <data name="SettingsSaveFailedFormat" xml:space="preserve"><value>Không ghi được settings.json: {0}</value></data>
   <data name="NothingToApply" xml:space="preserve"><value>Các biện pháp đề xuất cho Steam đều đang bật.</value></data>
   <data name="StatusOff" xml:space="preserve"><value>Đang tắt</value></data>
   <data name="StatusOn" xml:space="preserve"><value>Đang bật</value></data>
@@ -126,6 +143,7 @@
   <data name="ServiceInstalled" xml:space="preserve"><value>Đã cài dịch vụ nền LunaDNS.</value></data>
   <data name="ServiceInstallFailedFormat" xml:space="preserve"><value>Cài dịch vụ nền lỗi: {0}</value></data>
   <data name="ServiceCliMissing" xml:space="preserve"><value>Không thấy file lunadns đi kèm app. Cài bằng Terminal: sudo lunadns install (xem docs/guide/09-macos.md).</value></data>
+  <data name="DaemonNeedsUpdateTuning" xml:space="preserve"><value>Dịch vụ nền cần được cài lại để áp cấu hình mới. Bấm Cài dịch vụ nền.</value></data>
   <data name="DaemonNeedsUpdate" xml:space="preserve"><value>Dịch vụ nền cần được cài lại để dùng danh sách tên miền. Bấm Cài dịch vụ nền.</value></data>
   <data name="RestoreFailed_Mac" xml:space="preserve"><value>Chưa hoàn tác hết thay đổi. Chạy trong Terminal: sudo lunadns cleanup</value></data>
   <data name="FeatureStoppedLeftBehindFormat_Mac" xml:space="preserve"><value>{0} gặp lỗi lặp lại nên đã dừng, nhưng chưa hoàn tác hết thay đổi. Chạy trong Terminal: sudo lunadns cleanup</value></data>

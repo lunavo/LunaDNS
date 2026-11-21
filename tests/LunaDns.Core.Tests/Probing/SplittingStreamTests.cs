@@ -54,4 +54,32 @@ public class SplittingStreamTests
         Assert.Equal(Hello.Length - 6, writes[1].Length); // 5 byte header mới + phần thân còn lại
         Assert.Equal(Later, writes[2]);
     }
+
+    [Fact]
+    public async Task Delay_is_applied_between_pieces_of_the_first_write()
+    {
+        var inner = new RecordingStream();
+        await using var stream = new SplittingStream(inner, HelloSplit.Default, TimeSpan.FromMilliseconds(20));
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        await stream.WriteAsync(Hello);
+
+        Assert.True(watch.Elapsed >= TimeSpan.FromMilliseconds(15), $"chỉ nghỉ {watch.Elapsed.TotalMilliseconds} ms");
+        var writes = inner.Writes;
+        Assert.Equal(2, writes.Count);
+        Assert.Equal(Hello, writes[0].Concat(writes[1]).ToArray());
+    }
+
+    [Fact]
+    public void Sync_write_also_applies_delay()
+    {
+        var inner = new RecordingStream();
+        using var stream = new SplittingStream(inner, HelloSplit.Default, TimeSpan.FromMilliseconds(20));
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        stream.Write(Hello, 0, Hello.Length);
+
+        Assert.True(watch.Elapsed >= TimeSpan.FromMilliseconds(15));
+        Assert.Equal(2, inner.Writes.Count);
+    }
 }

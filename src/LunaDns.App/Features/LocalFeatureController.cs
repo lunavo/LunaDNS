@@ -1,7 +1,9 @@
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
 using LunaDns.Core.Platform;
+using LunaDns.Core.Probing;
 using LunaDns.Core.Settings;
 using Microsoft.Extensions.Logging;
 
@@ -74,6 +76,21 @@ internal sealed partial class LocalFeatureController : IFeatureController
         if (result.Success) return new(true, null);
         var message = ErrorMessages.For(result.Error);
         return new(false, result.PreviousRestored ? message : $"{message} {Strings.ChangesLeftBehind}", result.Error);
+    }
+
+    public Task<TuningState?> GetTuningAsync()
+    {
+        var settings = _settings();
+        return Task.FromResult<TuningState?>(new TuningState(settings.EffectiveDoh(), settings.CurrentCandidate()));
+    }
+
+    /// <summary>FeatureSet đọc tuning và DoH qua settings() lúc khởi động lại; AppServices đã lưu bản mới.</summary>
+    public async Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate, Action? restore = null)
+    {
+        var result = await Features.ReapplyTuningAsync(restore).ConfigureAwait(false);
+        if (result.Success) return new(true, null);
+        var message = ErrorMessages.For(result.Error);
+        return new(false, restore is null || result.PreviousRestored ? message : $"{message} {Strings.ChangesLeftBehind}", result.Error);
     }
 
     public async Task<int> ShutdownAsync() => (await Features.ShutdownAsync().ConfigureAwait(false)).Failed.Count;

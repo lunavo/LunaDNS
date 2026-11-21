@@ -160,7 +160,12 @@
             </Button>
             <Button Content="{x:Static app:Strings.ApplyRecommendedButton}" Command="{Binding ApplyRecommendedCommand}"
                     IsVisible="{Binding CanApplyRecommended}" />
+            <Button Content="{x:Static app:Strings.TuneButton}" Command="{Binding TuneCommand}"
+                    IsVisible="{Binding !IsTuning}" />
+            <Button Content="{x:Static app:Strings.TuneStop}" Command="{Binding StopTuneCommand}"
+                    IsVisible="{Binding IsTuning}" />
           </StackPanel>
+          <TextBlock Classes="secondary" Text="{Binding TuneStatus}" TextWrapping="Wrap" IsVisible="{Binding HasTuneStatus}" />
         </StackPanel>
       </Border>
 

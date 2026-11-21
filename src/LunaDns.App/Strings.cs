@@ -48,6 +48,23 @@ internal static class Strings
     public static string AllOk => Get(nameof(AllOk));
     public static string UnreachableHint => Get(nameof(UnreachableHint));
     public static string ApplyRecommendedButton => Get(nameof(ApplyRecommendedButton));
+    public static string TuneButton => Get(nameof(TuneButton));
+    public static string TuneStop => Get(nameof(TuneStop));
+    public static string TuneMeasuringDoh => Get(nameof(TuneMeasuringDoh));
+    public static string TuneClassifying => Get(nameof(TuneClassifying));
+    public static string TuneTryingFormat => Get(nameof(TuneTryingFormat));
+    public static string TuneCandidateFormat => Get(nameof(TuneCandidateFormat));
+    public static string TuneSplitFirstByte => Get(nameof(TuneSplitFirstByte));
+    public static string TuneSplitMidSni => Get(nameof(TuneSplitMidSni));
+    public static string TuneRecordsOn => Get(nameof(TuneRecordsOn));
+    public static string TuneRecordsOff => Get(nameof(TuneRecordsOff));
+    public static string TuneChosenFormat => Get(nameof(TuneChosenFormat));
+    public static string TuneNoChange => Get(nameof(TuneNoChange));
+    public static string TuneDohFailed => Get(nameof(TuneDohFailed));
+    public static string TuneNothingWorkedFormat => Get(nameof(TuneNothingWorkedFormat));
+    public static string TuneCancelled => Get(nameof(TuneCancelled));
+    public static string TuneFoundNotAppliedFormat => Get(nameof(TuneFoundNotAppliedFormat));
+    public static string SettingsSaveFailedFormat => Get(nameof(SettingsSaveFailedFormat));
     public static string NothingToApply => Get(nameof(NothingToApply));
     public static string StatusOff => Get(nameof(StatusOff));
     public static string StatusOn => Get(nameof(StatusOn));
@@ -129,6 +146,7 @@ internal static class Strings
     public static string ServiceInstallFailedFormat => Get(nameof(ServiceInstallFailedFormat));
     public static string ServiceCliMissing => Get(nameof(ServiceCliMissing));
     public static string DaemonNeedsUpdate => Get(nameof(DaemonNeedsUpdate));
+    public static string DaemonNeedsUpdateTuning => Get(nameof(DaemonNeedsUpdateTuning));
 
     public static string DomainsSectionTitle => Get(nameof(DomainsSectionTitle));
     public static string GroupSteam => Get(nameof(GroupSteam));

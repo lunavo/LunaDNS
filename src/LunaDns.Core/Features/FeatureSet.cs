@@ -104,6 +104,34 @@ public sealed partial class FeatureSet : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// D3: chạy lại mọi tính năng đang bật để chúng đọc tuning và máy DoH mới (dịch vụ chỉ đọc lúc khởi động).
+    /// Lỗi thì gọi <paramref name="restore"/> (chỉ người gọi biết settings cũ) rồi chạy lại đúng các tính năng đã bật lúc đầu,
+    /// kể cả tính năng vừa tắt vì khởi động lại lỗi; vẫn giữ cổng nên không lệnh nào chen vào giữa.
+    /// Không có restore thì chỉ báo lỗi.
+    /// </summary>
+    public async Task<ReapplyResult> ReapplyTuningAsync(Action? restore = null, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var active = Enum.GetValues<Feature>().Where(_running.ContainsKey).ToList();
+            var failure = await RestartAsync(active).ConfigureAwait(false);
+            if (failure is null) return new ReapplyResult(true, false);
+            LogReapplyTuningFailed(_logger, failure.Feature, failure.Error);
+            if (restore is null) return new ReapplyResult(false, false, failure.Error);
+
+            restore();
+            var restoreFailure = await RestartAsync(active).ConfigureAwait(false);
+            if (restoreFailure is not null) LogReapplyRestoreFailed(_logger, restoreFailure.Feature, restoreFailure.Error);
+            return new ReapplyResult(false, restoreFailure is null, failure.Error);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     /// <summary>Tắt một tính năng. Hoàn tác lỗi thì dịch vụ vẫn chạy (mạng không hỏng) và mục Journal được giữ (KH5 quyết định 6).</summary>
     public async Task<FeatureResult> DisableAsync(Feature feature)
     {
@@ -389,4 +417,7 @@ public sealed partial class FeatureSet : IAsyncDisposable
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Không khôi phục được danh sách tên miền cũ cho {Feature} ({Error}); chạy 'lunadns cleanup' nếu mạng bất thường")]
     private static partial void LogReapplyRestoreFailed(ILogger logger, Feature feature, FeatureError error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Không chạy lại được {Feature} với cấu hình cắt gói mới ({Error})")]
+    private static partial void LogReapplyTuningFailed(ILogger logger, Feature feature, FeatureError error);
 }

@@ -1,3 +1,4 @@
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
@@ -9,25 +10,30 @@ namespace LunaDns.Platform.MacOS.Daemon;
 
 /// <summary>
 /// Ánh xạ yêu cầu socket sang FeatureSet. Chế độ PUBG chưa mở trên macOS.
-/// Daemon giữ settings.json (thư mục dữ liệu của root); giao diện chỉ đọc/ghi danh sách tên miền qua get-domains/set-domains.
+/// Daemon giữ settings.json (thư mục dữ liệu của root); giao diện chỉ đọc/ghi danh sách tên miền và cấu hình cắt gói
+/// qua get-domains/set-domains/get-tuning/set-tuning.
 /// </summary>
 public sealed partial class DaemonCommands
 {
     private readonly FeatureSet features;
     private readonly ChangeJournal journal;
     private readonly string version;
-    private readonly JsonFileSettingsStore settingsStore;
-    private AppSettings _settings;
+    private readonly SettingsHolder _settings;
 
     public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, JsonFileSettingsStore settingsStore, ILogger? logger = null)
+        : this(features, journal, version, new SettingsHolder(settingsStore ?? throw new ArgumentNullException(nameof(settingsStore))), logger)
+    {
+    }
+
+    /// <summary>Daemon thật: dùng chung SettingsHolder với Engine, để set-tuning đổi được DoH/tuning lúc dịch vụ khởi động lại.</summary>
+    public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, SettingsHolder settings, ILogger? logger = null)
     {
         this.features = features;
         this.journal = journal;
         this.version = version;
-        this.settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
-        _settings = settingsStore.Load();
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         // Daemon là bên giữ settings.json trên macOS: dòng bị bỏ lúc nạp phải để lại dấu (spec mục 7).
-        if (settingsStore.DroppedDomains > 0) LogDroppedDomains(logger ?? NullLogger.Instance, settingsStore.DroppedDomains);
+        if (settings.DroppedDomains > 0) LogDroppedDomains(logger ?? NullLogger.Instance, settings.DroppedDomains);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Đã bỏ {Count} dòng tên miền Tuỳ chỉnh không hợp lệ khi nạp settings.json.")]
@@ -61,9 +67,13 @@ public sealed partial class DaemonCommands
                         : Ok() with { Ok = false, Message = $"Còn {result.RemainingEntries} thay đổi chưa hoàn tác; xem log." };
                 }
             case DaemonProtocol.GetDomains:
-                return Ok() with { Domains = _settings.Domains };
+                return Ok() with { Domains = _settings.Current.Domains };
             case DaemonProtocol.SetDomains:
                 return await SetDomainsAsync(request.Domains, cancellationToken).ConfigureAwait(false);
+            case DaemonProtocol.GetTuning:
+                return Ok() with { Tuning = DaemonTuning.From(_settings.Current) };
+            case DaemonProtocol.SetTuning:
+                return await SetTuningAsync(request.Tuning, cancellationToken).ConfigureAwait(false);
             default:
                 return new DaemonResponse(false, $"{DaemonProtocol.UnknownCommandPrefix} {request.Command}");
         }
@@ -85,14 +95,14 @@ public sealed partial class DaemonCommands
         var result = await features.ReapplyAsync(FeatureDomains.Routed(wanted), cancellationToken).ConfigureAwait(false);
         if (!result.Success)
             return Ok() with { Ok = false, Error = result.Error.ToString(), Message = DescribeReapply(result) };
-        var updated = _settings with { Domains = wanted };
+        var updated = _settings.Current with { Domains = wanted };
         try
         {
-            settingsStore.Save(updated);
+            _settings.Save(updated);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            var back = await features.ReapplyAsync(FeatureDomains.Routed(_settings.Domains), CancellationToken.None).ConfigureAwait(false);
+            var back = await features.ReapplyAsync(FeatureDomains.Routed(_settings.Current.Domains), CancellationToken.None).ConfigureAwait(false);
             return Ok() with
             {
                 Ok = false,
@@ -101,9 +111,64 @@ public sealed partial class DaemonCommands
                     : $"Không lưu được settings.json ({ex.Message}) và không quay về được danh sách cũ; chạy: sudo lunadns cleanup",
             };
         }
-        _settings = updated;
         return Ok() with { Domains = wanted };
     }
+
+    /// <summary>
+    /// D3. Không tin dữ liệu từ giao diện: kiểm, đặt tạm settings mới để dịch vụ khởi động lại đọc được, chạy lại, rồi mới ghi file.
+    /// Chạy lại hay ghi file lỗi thì đặt lại settings cũ và chạy lại lần nữa.
+    /// </summary>
+    private async Task<DaemonResponse> SetTuningAsync(DaemonTuning? wanted, CancellationToken cancellationToken)
+    {
+        if (wanted is null) return Refused("Thiếu cấu hình cắt gói.");
+        if (DescribeTuning(wanted) is { } error) return Refused(error);
+        var previous = _settings.Current;
+        var updated = previous.WithTuning(wanted.Doh, wanted.ToCandidate());
+        _settings.Current = updated;
+        // Lỗi thì FeatureSet đặt lại settings cũ và bật lại đúng các tính năng đã chạy trước đó, trong cùng một lượt giữ cổng.
+        var result = await features.ReapplyTuningAsync(() => _settings.Current = previous, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+        {
+            var restored = result.PreviousRestored;
+            return Ok() with
+            {
+                Ok = false,
+                Error = result.Error.ToString(),
+                Message = restored
+                    ? $"Không áp được cấu hình mới ({result.Error}); đã giữ cấu hình cũ."
+                    : $"Không áp được cấu hình mới ({result.Error}) và không khôi phục được; chạy: sudo lunadns cleanup",
+            };
+        }
+        try
+        {
+            _settings.Save(updated);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            var restored = await RestoreTuningAsync(previous).ConfigureAwait(false);
+            return Ok() with
+            {
+                Ok = false,
+                Message = restored
+                    ? $"Không lưu được settings.json ({ex.Message}); đã giữ cấu hình cũ."
+                    : $"Không lưu được settings.json ({ex.Message}) và không quay về được cấu hình cũ; chạy: sudo lunadns cleanup",
+            };
+        }
+        return Ok() with { Tuning = DaemonTuning.From(updated) };
+    }
+
+    private async Task<bool> RestoreTuningAsync(AppSettings previous)
+    {
+        _settings.Current = previous;
+        return (await features.ReapplyTuningAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false)).Success;
+    }
+
+    /// <summary>macOS không có ô Tự nhập DoH, nên không nhận Custom.</summary>
+    private static string? DescribeTuning(DaemonTuning tuning) =>
+        !Enum.IsDefined(tuning.Doh) || tuning.Doh == DohProvider.Custom ? "Máy chủ DoH không hợp lệ."
+        : !Enum.IsDefined(tuning.SplitMode) ? "Điểm cắt gói không hợp lệ."
+        : tuning.SplitDelayMs is < 0 or > AppSettings.MaxSplitDelayMs ? $"Độ trễ phải trong 0–{AppSettings.MaxSplitDelayMs} ms."
+        : null;
 
     private static string? DescribeShape(DomainSelectionDefect defect) => defect switch
     {

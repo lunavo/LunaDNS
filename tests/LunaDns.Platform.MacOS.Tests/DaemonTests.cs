@@ -1,11 +1,14 @@
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
 using LunaDns.Core.Platform;
+using LunaDns.Core.Probing;
 using LunaDns.Core.Settings;
+using LunaDns.Core.Tls;
 using LunaDns.Platform.MacOS.Daemon;
 using LunaDns.Platform.MacOS.Hosts;
 using LunaDns.Platform.MacOS.Processes;
@@ -364,6 +367,150 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
         Assert.Contains("settings.json", response.Message, StringComparison.Ordinal);
         var read = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.GetDomains), CancellationToken.None);
         Assert.True(read.Domains!.SameAs(new DomainSelection()));
+    }
+
+    private static readonly DaemonTuning Quad9MidSni = new(DohProvider.Quad9, SplitMode.MidSni, SplitRecords: true, SplitDelayMs: 10);
+
+    [Fact]
+    public async Task Get_tuning_returns_daemon_settings()
+    {
+        var response = await _commands.HandleAsync(new DaemonRequest(DaemonProtocol.GetTuning), CancellationToken.None);
+
+        Assert.True(response.Ok);
+        Assert.Equal(new DaemonTuning(DohProvider.Cloudflare, SplitMode.FirstByte, false, 0), response.Tuning);
+    }
+
+    [Fact]
+    public async Task Set_tuning_applies_then_persists()
+    {
+        using var dir = new TempDirectory();
+        var store = new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json"));
+        var commands = CreateCommands(store);
+        Assert.True((await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.DnsRouting), CancellationToken.None)).Ok);
+
+        var response = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.SetTuning, Tuning: Quad9MidSni), CancellationToken.None);
+
+        Assert.True(response.Ok);
+        Assert.True(response.Status!.DnsRouting);
+        var saved = store.Load();
+        Assert.Equal(DohProvider.Quad9, saved.EffectiveDoh());
+        Assert.Equal(SplitMode.MidSni, saved.SplitMode);
+        Assert.True(saved.SplitRecords);
+        Assert.Equal(10, saved.SplitDelayMs);
+        var read = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.GetTuning), CancellationToken.None);
+        Assert.Equal(Quad9MidSni, read.Tuning);
+    }
+
+    public static TheoryData<DaemonTuning?> BadTunings => new()
+    {
+        null,
+        new DaemonTuning(DohProvider.Custom, SplitMode.FirstByte, false, 0),
+        new DaemonTuning(DohProvider.Quad9, SplitMode.FirstByte, false, 25),
+        new DaemonTuning(DohProvider.Quad9, SplitMode.FirstByte, false, -1),
+        new DaemonTuning((DohProvider)99, SplitMode.FirstByte, false, 0),
+        new DaemonTuning(DohProvider.Quad9, (SplitMode)99, false, 0),
+    };
+
+    [Theory]
+    [MemberData(nameof(BadTunings))]
+    public async Task Set_tuning_refuses_bad_input_without_touching_anything(DaemonTuning? bad)
+    {
+        using var dir = new TempDirectory();
+        var commands = CreateCommands(new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json")));
+
+        var response = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.SetTuning, Tuning: bad), CancellationToken.None);
+
+        Assert.False(response.Ok);
+        Assert.False(string.IsNullOrEmpty(response.Message));
+        Assert.NotNull(response.Status);
+        Assert.False(File.Exists(Path.Combine(dir.Path, "settings.json")));
+    }
+
+    [Fact]
+    public async Task Set_tuning_reports_unwritable_settings_and_keeps_old_tuning()
+    {
+        using var dir = new TempDirectory();
+        var path = Path.Combine(dir.Path, "settings.json");
+        Directory.CreateDirectory(path);
+        var commands = CreateCommands(new JsonFileSettingsStore(path));
+
+        var response = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.SetTuning, Tuning: Quad9MidSni), CancellationToken.None);
+
+        Assert.False(response.Ok);
+        Assert.Contains("settings.json", response.Message, StringComparison.Ordinal);
+        var read = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.GetTuning), CancellationToken.None);
+        Assert.Equal(DohProvider.Cloudflare, read.Tuning!.Doh);
+    }
+
+    [Fact]
+    public async Task Set_tuning_failure_turns_every_running_feature_back_on()
+    {
+        using var dir = new TempDirectory();
+        var services = new FlakyDnsServices();
+        await using var features = new FeatureSet(_journal, new SystemChanges(_journal, _cfg), services);
+        var commands = new DaemonCommands(features, _journal, "test", new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json")));
+        Assert.True((await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.DnsRouting), CancellationToken.None)).Ok);
+        Assert.True((await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.SniProxy), CancellationToken.None)).Ok);
+        services.FailNextDnsStart = true;
+
+        var response = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.SetTuning, Tuning: Quad9MidSni), CancellationToken.None);
+
+        Assert.False(response.Ok);
+        Assert.Contains("đã giữ cấu hình cũ", response.Message, StringComparison.Ordinal);
+        Assert.True(response.Status!.DnsRouting);
+        Assert.NotNull(response.Status.ProxyPort);
+        var read = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.GetTuning), CancellationToken.None);
+        Assert.Equal(DohProvider.Cloudflare, read.Tuning!.Doh);
+    }
+
+    /// <summary>Stub DNS khởi động lỗi đúng một lần khi FailNextDnsStart bật (giả lập cổng cũ chưa nhả).</summary>
+    private sealed class FlakyDnsServices : IFeatureServices
+    {
+        private readonly IdleServices _idle = new();
+
+        public bool FailNextDnsStart { get; set; }
+
+        public IRunningService StartDnsStub(IReadOnlyList<string> domains)
+        {
+            if (!FailNextDnsStart) return _idle.StartDnsStub(domains);
+            FailNextDnsStart = false;
+            throw new DnsStubException("giả lập cổng bận");
+        }
+
+        public IRunningProxy StartSniProxy(IReadOnlyList<string> domains, int? port, FeatureTuning tuning) =>
+            _idle.StartSniProxy(domains, port, tuning);
+
+        public IRunningService StartPubgForwarder(IReadOnlyList<string> domains, FeatureTuning tuning) =>
+            _idle.StartPubgForwarder(domains, tuning);
+    }
+
+    [Fact]
+    public async Task Set_domains_after_set_tuning_keeps_tuning()
+    {
+        using var dir = new TempDirectory();
+        var store = new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json"));
+        var commands = CreateCommands(store);
+        await commands.HandleAsync(new DaemonRequest(DaemonProtocol.SetTuning, Tuning: Quad9MidSni), CancellationToken.None);
+
+        await commands.HandleAsync(
+            new DaemonRequest(DaemonProtocol.SetDomains, Domains: new DomainSelection { EnabledGroups = [DomainGroup.Reddit] }),
+            CancellationToken.None);
+
+        var saved = store.Load();
+        Assert.Equal(SplitMode.MidSni, saved.SplitMode);
+        Assert.Equal([DomainGroup.Reddit], saved.Domains.EnabledGroups);
+    }
+
+    private const string TuningWire =
+        """{"command":"set-tuning","allowProxyOverride":false,"tuning":{"doh":"quad9","splitMode":"midSni","splitRecords":true,"splitDelayMs":10}}""";
+
+    [Fact]
+    public void Protocol_tuning_wire_format_is_stable()
+    {
+        var request = new DaemonRequest(DaemonProtocol.SetTuning, Tuning: Quad9MidSni);
+
+        Assert.Equal(TuningWire, JsonSerializer.Serialize(request, DaemonProtocol.Json));
+        Assert.Equal(request, JsonSerializer.Deserialize<DaemonRequest>(TuningWire, DaemonProtocol.Json));
     }
 
     internal sealed class IdleServices : IFeatureServices

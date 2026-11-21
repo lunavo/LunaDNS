@@ -1,6 +1,7 @@
 using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
+using LunaDns.Core.Probing;
 using LunaDns.Core.Tls;
 
 namespace LunaDns.Core.Settings;
@@ -58,4 +59,20 @@ public sealed record AppSettings
 
     public FeatureTuning Tuning() =>
         new(new HelloSplit(SplitMode, SplitRecords), TimeSpan.FromMilliseconds(Math.Clamp(SplitDelayMs, 0, MaxSplitDelayMs)));
+
+    /// <summary>Tổ hợp cắt gói đang lưu (D3). Hàm, không phải thuộc tính, để không ra JSON.</summary>
+    public TuneCandidate CurrentCandidate() =>
+        new(new HelloSplit(SplitMode, SplitRecords), Math.Clamp(SplitDelayMs, 0, MaxSplitDelayMs));
+
+    /// <summary>Áp kết quả D3: máy DoH qua WithDoh (giữ PreferGoogleDoh cho bản cũ), rồi điểm cắt, tách record, độ trễ.</summary>
+    public AppSettings WithTuning(DohProvider doh, TuneCandidate candidate)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        return WithDoh(doh) with
+        {
+            SplitMode = candidate.Split.Mode,
+            SplitRecords = candidate.Split.Records,
+            SplitDelayMs = Math.Clamp(candidate.DelayMs, 0, MaxSplitDelayMs),
+        };
+    }
 }

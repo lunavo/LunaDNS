@@ -1,6 +1,9 @@
 using LunaDns.App.Features;
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
+using LunaDns.Core.Probing;
+using LunaDns.Core.Tls;
 using LunaDns.Core.Settings;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -95,6 +98,67 @@ public sealed class AppServicesTests : IDisposable
         Assert.True((await services.ProbeSelectionAsync()).SameAs(services.Settings.Domains));
     }
 
+    [Fact]
+    public async Task Apply_tuning_locally_saves_settings_and_reports_current_tuning()
+    {
+        await using var services = new AppServices(_app.Paths, _app.Configurator, NullLoggerFactory.Instance);
+        var candidate = new TuneCandidate(new HelloSplit(SplitMode.MidSni, true), 10);
+
+        var result = await services.ApplyTuningAsync(DohProvider.Quad9, candidate);
+
+        Assert.True(result.Success);
+        Assert.Equal(DohProvider.Quad9, services.Settings.EffectiveDoh());
+        Assert.Equal(candidate, services.Settings.CurrentCandidate());
+        Assert.Equal(new TuningState(DohProvider.Quad9, candidate), await services.Features.GetTuningAsync());
+    }
+
+    /// <summary>Thay settings.json bằng thư mục cùng tên: lần ghi sau ném IOException/UnauthorizedAccessException.</summary>
+    private static void MakeSettingsUnwritable(AppServices services)
+    {
+        File.Delete(services.Paths.SettingsFile);
+        Directory.CreateDirectory(services.Paths.SettingsFile);
+    }
+
+    [Fact]
+    public async Task Apply_tuning_locally_reports_unwritable_settings_without_changing_anything()
+    {
+        await using var services = new AppServices(_app.Paths, _app.Configurator, NullLoggerFactory.Instance);
+        services.Settings = services.Settings; // tạo file để thay bằng thư mục
+        MakeSettingsUnwritable(services);
+        var before = services.Settings;
+
+        var result = await services.ApplyTuningAsync(DohProvider.Quad9, new TuneCandidate(new HelloSplit(SplitMode.MidSni, true), 10));
+
+        Assert.False(result.Success);
+        Assert.Contains("settings.json", result.Message, StringComparison.Ordinal);
+        Assert.Same(before, services.Settings);
+    }
+
+    [Fact]
+    public async Task Apply_tuning_through_daemon_keeps_success_when_app_copy_cannot_be_saved()
+    {
+        var controller = new SelectionOnlyController { TuningResult = new TuningApplyResult(true, null) };
+        await using var services = new AppServices(_app.Paths, _ => controller, NullLoggerFactory.Instance);
+        services.Settings = services.Settings;
+        MakeSettingsUnwritable(services);
+        var candidate = new TuneCandidate(new HelloSplit(SplitMode.MidSni, true), 10);
+
+        var result = await services.ApplyTuningAsync(DohProvider.Quad9, candidate);
+
+        Assert.True(result.Success);
+        Assert.Equal(DohProvider.Quad9, services.Settings.EffectiveDoh());
+        Assert.Equal(candidate, services.Settings.CurrentCandidate());
+    }
+
+    [Fact]
+    public void Tune_choices_leave_out_custom_doh_unless_local()
+    {
+        var custom = new CustomDoh { Endpoint = "https://doh.example/dns-query", ManualAddresses = ["192.0.2.1"] };
+
+        Assert.Contains(AppServices.TuneChoices(ControllerAvailability.Local, custom), c => c.Provider == DohProvider.Custom);
+        Assert.DoesNotContain(AppServices.TuneChoices(ControllerAvailability.DaemonRunning, custom), c => c.Provider == DohProvider.Custom);
+    }
+
     /// <summary>Chỉ trả lựa chọn tên miền; các lệnh khác không dùng tới trong test này.</summary>
     private sealed class SelectionOnlyController : IFeatureController
     {
@@ -113,6 +177,13 @@ public sealed class AppServicesTests : IDisposable
         public Task<DomainSelection?> GetDomainsAsync() => Task.FromResult(Selection);
 
         public Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection) => throw new NotSupportedException();
+
+        public Task<TuningState?> GetTuningAsync() => Task.FromResult<TuningState?>(null);
+
+        public TuningApplyResult? TuningResult { get; set; }
+
+        public Task<TuningApplyResult> ApplyTuningAsync(DohProvider doh, TuneCandidate candidate, Action? restore = null) =>
+            TuningResult is { } result ? Task.FromResult(result) : throw new NotSupportedException();
 
         public Task RefreshAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 

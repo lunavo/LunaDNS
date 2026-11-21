@@ -67,8 +67,8 @@ internal sealed partial class MainViewModel : ObservableObject
             new FeatureViewModel(Feature.DnsRouting, ToggleAsync, OnError),
             new FeatureViewModel(Feature.SniProxy, ToggleAsync, OnError),
         ];
-        CheckCommand = new AsyncCommand(CheckAsync, OnError);
-        ApplyRecommendedCommand = new AsyncCommand(ApplyRecommendedAsync, OnError);
+        CheckCommand = new AsyncCommand(CheckAsync, OnError, () => !_isTuning);
+        ApplyRecommendedCommand = new AsyncCommand(ApplyRecommendedAsync, OnError, () => !_isTuning);
         DisableAllCommand = new AsyncCommand(DisableAllAsync, OnError, () => _anyOn || HasAttention);
         DiagnosticsCommand = new AsyncCommand(DiagnosticsAsync, OnError);
         CheckUpdateCommand = new AsyncCommand(CheckUpdateAsync, OnError);
@@ -76,7 +76,10 @@ internal sealed partial class MainViewModel : ObservableObject
         DismissMessageCommand = new AsyncCommand(DismissMessageAsync, OnError);
         QuitCommand = new AsyncCommand(quit, OnError);
         InstallServiceCommand = new AsyncCommand(InstallServiceAsync, OnError);
-        MeasureDohCommand = new AsyncCommand(MeasureDohAsync, OnError, () => !_isSavingCustomDoh);
+        MeasureDohCommand = new AsyncCommand(MeasureDohAsync, OnError, () => !_isSavingCustomDoh && !_isTuning);
+        // Không dò khi việc khác đang chạy: Đo/Lưu Tự nhập/thẻ/Kiểm tra có thể ghi settings giữa lúc áp cấu hình dò được.
+        TuneCommand = new AsyncCommand(TuneAsync, OnError, () => !_isTuning && !_isMeasuringDoh && !_isSavingCustomDoh && _busyCount == 0);
+        StopTuneCommand = new AsyncCommand(StopTuneAsync, OnError, () => _isTuning && !_applyingTune);
         SaveCustomDohCommand = new AsyncCommand(SaveCustomDohAsync, OnError, () => !_isMeasuringDoh);
         _customDohUrl = _services.Settings.CustomDoh?.Endpoint ?? string.Empty;
         _customDohAddresses = string.Join(", ", _services.Settings.CustomDoh?.ManualAddresses ?? []);
@@ -215,6 +218,37 @@ internal sealed partial class MainViewModel : ObservableObject
     private string _customDohUrl = string.Empty;
     private string _customDohAddresses = string.Empty;
     private string _customDohStatus = string.Empty;
+    private static readonly TimeSpan TuneTimeout = TimeSpan.FromSeconds(60);
+
+    private Action? _cancelTune; // huỷ lượt dò đang chạy; như _cancelDoh, không giữ CTS
+    private bool _isTuning;
+    private bool _applyingTune;
+    private string _tuneStatus = string.Empty;
+
+    public AsyncCommand TuneCommand { get; }
+
+    public AsyncCommand StopTuneCommand { get; }
+
+    public bool IsTuning
+    {
+        get => _isTuning;
+        private set
+        {
+            if (SetProperty(ref _isTuning, value)) RaiseTuneCommands();
+        }
+    }
+
+    public string TuneStatus
+    {
+        get => _tuneStatus;
+        private set
+        {
+            if (SetProperty(ref _tuneStatus, value)) OnPropertyChanged(nameof(HasTuneStatus));
+        }
+    }
+
+    public bool HasTuneStatus => TuneStatus.Length > 0;
+
     private Action? _cancelDoh; // huỷ lượt đo đang chạy; không giữ CTS để khỏi phải làm VM thành IDisposable
 
     public IReadOnlyList<string> DohItems
@@ -260,15 +294,12 @@ internal sealed partial class MainViewModel : ObservableObject
 
     public AsyncCommand SaveCustomDohCommand { get; }
 
-    private static string DohName(DohProvider provider) =>
-        provider == DohProvider.Custom ? Strings.DohCustom : DohCatalog.Get(provider).Name;
-
     private static IReadOnlyList<string> BuildDohItems(IReadOnlyDictionary<DohProvider, DohLatency> latencies) =>
         [.. DohOrder.Select(p => latencies.TryGetValue(p, out var l)
             ? l.Median is { } median
-                ? Strings.Format(nameof(Strings.DohLatencyFormat), DohName(p), (int)Math.Round(median.TotalMilliseconds))
-                : Strings.Format(nameof(Strings.DohLatencyFailedFormat), DohName(p))
-            : DohName(p))];
+                ? Strings.Format(nameof(Strings.DohLatencyFormat), TuneText.DohName(p), (int)Math.Round(median.TotalMilliseconds))
+                : Strings.Format(nameof(Strings.DohLatencyFailedFormat), TuneText.DohName(p))
+            : TuneText.DohName(p))];
 
     /// <summary>Dòng trạng thái khối Tự nhập: IP đang dùng, hoặc "đang dùng Cloudflare".</summary>
     private void RefreshCustomDohStatus() =>
@@ -287,6 +318,7 @@ internal sealed partial class MainViewModel : ObservableObject
     {
         _isMeasuringDoh = true;
         SaveCustomDohCommand.RaiseCanExecuteChanged();
+        TuneCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(DohMeasureLabel));
         // CTS chỉ để Stop() huỷ; hết giờ do meter tự lo, giữ kết quả từng phần.
         using var cts = new CancellationTokenSource();
@@ -304,7 +336,7 @@ internal sealed partial class MainViewModel : ObservableObject
             if (results.FirstOrDefault(r => r.Median is not null) is { Median: { } median } best)
             {
                 SaveSettings(s => s.WithDoh(best.Provider));
-                ShowMessage(Strings.Format(nameof(Strings.DohMeasureChosenFormat), DohName(best.Provider), (int)Math.Round(median.TotalMilliseconds)), Tone.Good);
+                ShowMessage(Strings.Format(nameof(Strings.DohMeasureChosenFormat), TuneText.DohName(best.Provider), (int)Math.Round(median.TotalMilliseconds)), Tone.Good);
             }
             else
             {
@@ -322,6 +354,7 @@ internal sealed partial class MainViewModel : ObservableObject
             _cancelDoh = null;
             _isMeasuringDoh = false;
             SaveCustomDohCommand.RaiseCanExecuteChanged();
+            TuneCommand.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(DohMeasureLabel));
         }
     }
@@ -344,6 +377,7 @@ internal sealed partial class MainViewModel : ObservableObject
         CustomDohStatus = Strings.DohCustomResolving;
         _isSavingCustomDoh = true;
         MeasureDohCommand.RaiseCanExecuteChanged();
+        TuneCommand.RaiseCanExecuteChanged();
         using var timeout = new CancellationTokenSource(DohMeasureTimeout);
         try
         {
@@ -362,6 +396,7 @@ internal sealed partial class MainViewModel : ObservableObject
         {
             _isSavingCustomDoh = false;
             MeasureDohCommand.RaiseCanExecuteChanged();
+            TuneCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -417,8 +452,109 @@ internal sealed partial class MainViewModel : ObservableObject
     {
         _timer.Stop();
         _cancelDoh?.Invoke();
+        _cancelTune?.Invoke();
         _services.Features.FeatureStopped -= OnFeatureStopped;
     }
+
+    private void RaiseTuneCommands()
+    {
+        TuneCommand.RaiseCanExecuteChanged();
+        StopTuneCommand.RaiseCanExecuteChanged();
+        CheckCommand.RaiseCanExecuteChanged();
+        ApplyRecommendedCommand.RaiseCanExecuteChanged();
+        MeasureDohCommand.RaiseCanExecuteChanged();
+    }
+
+    private Task StopTuneAsync()
+    {
+        _cancelTune?.Invoke();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// "Tìm cấu hình hợp mạng" (D3). Dò ở luồng nền tối đa 60 giây; huỷ (Dừng, đóng cửa sổ, hết giờ) thì không đổi gì.
+    /// Có kết quả thì áp ở luồng UI, lúc này không huỷ được nữa.
+    /// </summary>
+    private async Task TuneAsync()
+    {
+        using var cts = new CancellationTokenSource(TuneTimeout);
+        _cancelTune = cts.Cancel;
+        IsTuning = true;
+        TuneStatus = Strings.TuneMeasuringDoh;
+        try
+        {
+            // Progress<T> chuyển về luồng UI; bỏ báo muộn sau khi đã sang bước áp.
+            var progress = new Progress<TuneProgress>(p =>
+            {
+                if (_isTuning && !_applyingTune) TuneStatus = TuneText.Progress(p);
+            });
+            var token = cts.Token;
+            TuneRun run;
+            try
+            {
+                run = await Task.Run(() => _services.TuneAsync(progress, token));
+            }
+            catch (OperationCanceledException)
+            {
+                TuneStatus = Strings.TuneCancelled;
+                return;
+            }
+            // Dừng (hoặc hết giờ) đúng lúc dò vừa xong mà chưa sang bước áp: vẫn coi là huỷ, không đổi gì.
+            if (token.IsCancellationRequested)
+            {
+                TuneStatus = Strings.TuneCancelled;
+                return;
+            }
+            _applyingTune = true;
+            RaiseTuneCommands();
+            await ApplyTuneRunAsync(run);
+        }
+        finally
+        {
+            _cancelTune = null;
+            _applyingTune = false;
+            IsTuning = false;
+        }
+    }
+
+    private Task ApplyTuneRunAsync(TuneRun run) => RunBusyAsync(Features, async () =>
+    {
+        if (run.ResolvedCustom is { } resolved)
+            SaveSettings(s => s.CustomDoh?.Endpoint == resolved.Endpoint ? s with { CustomDoh = resolved } : s);
+        if (run.Summary is not null) _summary = run.Summary; // RunBusyAsync gọi ShowSummary khi xong
+        var result = run.Result;
+        if (result.Outcome == TuneOutcome.DohFailed)
+        {
+            TuneStatus = Strings.TuneDohFailed;
+            return;
+        }
+        if (result.Outcome == TuneOutcome.NothingWorked)
+        {
+            TuneStatus = Strings.Format(nameof(Strings.TuneNothingWorkedFormat), string.Join(", ", result.FailingHosts));
+            return;
+        }
+        var doh = result.Doh!.Value;
+        var candidate = result.Candidate!;
+        var unchanged = run.Current is { } current && current.Doh == doh && current.Candidate == candidate;
+        if (!unchanged)
+        {
+            var applied = await Task.Run(() => _services.ApplyTuningAsync(doh, candidate));
+            NotifyTuningSettingsChanged();
+            if (!applied.Success)
+            {
+                TuneStatus = Strings.Format(nameof(Strings.TuneFoundNotAppliedFormat), TuneText.Chosen(doh, candidate),
+                    applied.Message ?? Strings.UnexpectedError);
+                return;
+            }
+        }
+        foreach (var card in Features) card.SetError(string.Empty);
+        var pending = result.Remedies & ~_services.Features.Status.Remedies;
+        var failures = new List<string?>();
+        if (pending.HasFlag(ProbeRemedies.DnsRouting)) failures.Add(Failure(await EnableAsync(Feature.DnsRouting)));
+        if (pending.HasFlag(ProbeRemedies.SniProxy)) failures.Add(Failure(await EnableAsync(Feature.SniProxy)));
+        ShowFailures(failures);
+        TuneStatus = unchanged ? Strings.TuneNoChange : TuneText.Chosen(doh, candidate);
+    });
 
     private Task ToggleAsync(FeatureViewModel item) => RunBusyAsync([item], async () =>
     {
@@ -658,6 +794,7 @@ internal sealed partial class MainViewModel : ObservableObject
     private async Task RunBusyAsync(IReadOnlyList<FeatureViewModel> cards, Func<Task> work)
     {
         _busyCount++;
+        TuneCommand.RaiseCanExecuteChanged();
         foreach (var card in cards) card.IsBusy = true;
         UpdateOverall();
         try
@@ -668,6 +805,7 @@ internal sealed partial class MainViewModel : ObservableObject
         {
             foreach (var card in cards) card.IsBusy = false;
             _busyCount--;
+            TuneCommand.RaiseCanExecuteChanged();
             Refresh();
             ShowSummary();
         }
@@ -712,6 +850,11 @@ internal sealed partial class MainViewModel : ObservableObject
             LogSettingsSaveFailed(_logger, ex);
             ShowMessage(Strings.UnexpectedError, Tone.Error);
         }
+        NotifyTuningSettingsChanged();
+    }
+
+    private void NotifyTuningSettingsChanged()
+    {
         OnPropertyChanged(nameof(SplitModeIndex));
         OnPropertyChanged(nameof(SplitRecords));
         OnPropertyChanged(nameof(SplitDelayMs));

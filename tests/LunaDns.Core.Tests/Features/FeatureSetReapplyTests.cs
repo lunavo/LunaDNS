@@ -92,4 +92,75 @@ public sealed class FeatureSetReapplyTests : IAsyncLifetime
         Assert.Equal(FeatureOutcome.Failed, result.Outcome);
         Assert.Equal(FeatureError.NoDomains, result.Error);
     }
+
+    [Fact]
+    public async Task Reapply_tuning_restarts_running_features_with_new_tuning()
+    {
+        var tuning = FeatureTuning.Default;
+        await using var features = new FeatureSet(_journal, new SystemChanges(_journal, _configurator), _services,
+            () => tuning, routedDomains: Steam);
+        await features.EnableAsync(Feature.SniProxy);
+        tuning = new FeatureTuning(new LunaDns.Core.Tls.HelloSplit(LunaDns.Core.Tls.SplitMode.MidSni, true), TimeSpan.FromMilliseconds(10));
+
+        var result = await features.ReapplyTuningAsync();
+
+        Assert.True(result.Success);
+        Assert.Equal(2, _services.Starts(Feature.SniProxy));
+        Assert.Equal(tuning, _services.LastTuning);
+        Assert.True(features.IsEnabled(Feature.SniProxy));
+    }
+
+    [Fact]
+    public async Task Reapply_tuning_with_nothing_running_does_nothing()
+    {
+        var result = await _features.ReapplyTuningAsync();
+
+        Assert.True(result.Success);
+        Assert.Equal(0, _services.Starts(Feature.DnsRouting));
+        Assert.Equal(0, _services.Starts(Feature.SniProxy));
+    }
+
+    [Fact]
+    public async Task Reapply_tuning_failure_is_reported_without_rollback()
+    {
+        await _features.EnableAsync(Feature.DnsRouting);
+        _services.FailStart(Feature.DnsRouting, new DnsStubException(DnsStubError.PortInUse, "giả lập cổng bận", new IOException()), once: true);
+
+        var result = await _features.ReapplyTuningAsync();
+
+        Assert.False(result.Success);
+        Assert.False(result.PreviousRestored);
+        Assert.NotEqual(FeatureError.None, result.Error);
+    }
+
+    [Fact]
+    public async Task Reapply_tuning_failure_restores_every_feature_that_was_running()
+    {
+        await _features.EnableAsync(Feature.DnsRouting);
+        await _features.EnableAsync(Feature.SniProxy);
+        _services.FailStart(Feature.DnsRouting, new DnsStubException(DnsStubError.PortInUse, "giả lập cổng bận", new IOException()), once: true);
+        var restored = 0;
+
+        var result = await _features.ReapplyTuningAsync(() => restored++);
+
+        Assert.False(result.Success);
+        Assert.True(result.PreviousRestored);
+        Assert.Equal(1, restored);
+        Assert.True(_features.IsEnabled(Feature.DnsRouting));
+        Assert.True(_features.IsEnabled(Feature.SniProxy));
+    }
+
+    [Fact]
+    public async Task Reapply_tuning_reports_restore_failure_when_a_feature_stays_off()
+    {
+        await _features.EnableAsync(Feature.DnsRouting);
+        await _features.EnableAsync(Feature.SniProxy);
+        _services.FailStart(Feature.DnsRouting, new DnsStubException(DnsStubError.PortInUse, "giả lập cổng bận", new IOException()), once: false);
+
+        var result = await _features.ReapplyTuningAsync(() => { });
+
+        Assert.False(result.Success);
+        Assert.False(result.PreviousRestored);
+        Assert.False(_features.IsEnabled(Feature.DnsRouting));
+    }
 }

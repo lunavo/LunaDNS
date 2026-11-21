@@ -27,3 +27,14 @@ The **Áp dụng đề xuất** (Apply suggestions) button only appears while a 
 
 - If the PC already has its own proxy, the box asking to replace the proxy settings still appears, as when you turn it on by hand.
 - If nothing looks blocked: *"Không thấy bị chặn. Không cần bật gì."* ("Nothing looks blocked. There is nothing to turn on.")
+
+## Find a configuration that works (Tìm cấu hình hợp mạng)
+
+The **Find a configuration that works** button looks for a setup that works on your network:
+
+- It measures the DoH servers, then checks the 4 Steam hosts.
+- If they are still blocked, it tries up to 8 combinations of cut point, record splitting and a 0/10 ms delay, starting with the one in use. It stops at the first one that lets all 4 hosts through.
+- When it finds one, the app **saves it automatically** and turns on DNS routing and/or the SNI proxy if needed, without asking.
+- Press **Stop** (or close the window) during the search and nothing changes. A search takes 60 seconds at most.
+- On Windows, the result shows in the **Advanced** section and you can still edit it by hand.
+- While it runs, the Check, Apply suggestions and Measure buttons are disabled.
