@@ -1,4 +1,5 @@
 using LunaDns.App.Features;
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
 using LunaDns.Core.Logging;
@@ -14,11 +15,12 @@ namespace LunaDns.App;
 /// (LocalFeatureController, ctor hoàn tác Journal còn sót; bên gọi phải giữ khoá một-bản-chạy trước), macOS gửi lệnh tới dịch vụ nền.
 /// DisposeAsync của bản Windows hoàn tác toàn bộ: KHÔNG dựng lớp này cho --report hay --cleanup.
 /// </summary>
-internal sealed class AppServices : IAsyncDisposable
+internal sealed partial class AppServices : IAsyncDisposable
 {
     private readonly JsonFileSettingsStore _settingsStore;
     private readonly ProbeRunner _probes;
     private readonly TimeProvider _time;
+    private readonly ILogger _logger;
     private volatile AppSettings _settings;
 
     public AppServices(AppPaths paths, Func<AppServices, IFeatureController> features, ILoggerFactory loggerFactory, TimeProvider? time = null)
@@ -30,8 +32,10 @@ internal sealed class AppServices : IAsyncDisposable
         Paths = paths;
         LoggerFactory = loggerFactory;
         _time = time ?? TimeProvider.System;
+        _logger = loggerFactory.CreateLogger<AppServices>();
         _settingsStore = new JsonFileSettingsStore(paths.SettingsFile);
         _settings = _settingsStore.Load();
+        if (_settingsStore.DroppedDomains > 0) LogDroppedDomains(_logger, _settingsStore.DroppedDomains);
         Features = features(this);
         _probes = new ProbeRunner(() => Settings, loggerFactory);
     }
@@ -77,9 +81,22 @@ internal sealed class AppServices : IAsyncDisposable
         return factory;
     }
 
+    public Task<DomainSelection?> GetDomainsAsync() => Features.GetDomainsAsync();
+
+    /// <summary>Áp rồi mới lưu (spec KH8 3.1): settings.json chỉ ghi khi máy đã chạy theo danh sách mới.</summary>
+    public async Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        var result = await Features.ApplyDomainsAsync(selection).ConfigureAwait(false);
+        if (result.Success && Features.Availability == ControllerAvailability.Local)
+            Settings = Settings with { Domains = selection };
+        return result;
+    }
+
+    /// <summary>Kiểm tra theo lựa chọn của nơi giữ thật (macOS: dịch vụ nền); hỏi không được thì dùng settings.json của app.</summary>
     public async Task<ProbeSummary> ProbeAsync(CancellationToken cancellationToken)
     {
-        var selection = Settings.Domains;
+        var selection = await GetDomainsAsync() ?? Settings.Domains;
         var results = await _probes.RunAsync(selection, cancellationToken);
         LastProbe = results;
         return ProbeSummary.Create(results, _time.GetLocalNow(), h => ProbeTargets.GroupOf(h, selection));
@@ -95,4 +112,7 @@ internal sealed class AppServices : IAsyncDisposable
         await Features.DisposeAsync();
         LoggerFactory.Dispose();
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "settings.json có {Count} tên miền tuỳ chỉnh không hợp lệ, đã bỏ qua.")]
+    private static partial void LogDroppedDomains(ILogger logger, int count);
 }

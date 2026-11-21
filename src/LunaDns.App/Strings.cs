@@ -96,6 +96,7 @@ internal static class Strings
     public static string ServiceInstalled => Get(nameof(ServiceInstalled));
     public static string ServiceInstallFailedFormat => Get(nameof(ServiceInstallFailedFormat));
     public static string ServiceCliMissing => Get(nameof(ServiceCliMissing));
+    public static string DaemonNeedsUpdate => Get(nameof(DaemonNeedsUpdate));
 
     /// <summary>Hậu tố khoá cho câu riêng của macOS (vd. "RestoreFailed_Mac"): có thì dùng thay câu chung.</summary>
     public const string MacSuffix = "_Mac";

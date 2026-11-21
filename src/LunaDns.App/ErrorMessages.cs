@@ -10,9 +10,12 @@ internal static class ErrorMessages
     {
         ArgumentNullException.ThrowIfNull(result);
         if (result.Outcome != FeatureOutcome.Failed) return null;
-        var message = Strings.Format(nameof(Strings.FeatureFailedFormat), Strings.FeatureTitle(result.Feature), Strings.Error(result.Error));
+        var message = Strings.Format(nameof(Strings.FeatureFailedFormat), Strings.FeatureTitle(result.Feature), For(result.Error));
         return result.ChangesLeftBehind ? $"{message} {Strings.ChangesLeftBehind}" : message;
     }
+
+    /// <summary>Câu cho một mã lỗi (vd. NoDomains khi áp danh sách tên miền), dùng chung với <see cref="For(FeatureResult)"/>.</summary>
+    public static string For(FeatureError error) => Strings.Error(error);
 
     public static string Stopped(FeatureStoppedEventArgs e)
     {

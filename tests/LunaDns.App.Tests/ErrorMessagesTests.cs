@@ -30,4 +30,15 @@ public sealed class ErrorMessagesTests
 
         Assert.EndsWith(Strings.ChangesLeftBehind, message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void No_domains_has_a_vietnamese_message() =>
+        Assert.Contains("Chưa có tên miền", ErrorMessages.For(FeatureError.NoDomains), StringComparison.Ordinal);
+
+    [Fact]
+    public void Feature_error_text_is_the_shared_error_string()
+    {
+        foreach (var error in Enum.GetValues<FeatureError>().Where(e => e != FeatureError.None))
+            Assert.Equal(Strings.Error(error), ErrorMessages.For(error));
+    }
 }

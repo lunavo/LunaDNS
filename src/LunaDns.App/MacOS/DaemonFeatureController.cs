@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using LunaDns.App.Features;
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
 using LunaDns.Platform.MacOS.Daemon;
@@ -87,6 +88,12 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         var response = await SendAsync(new DaemonRequest(DaemonProtocol.DisableAll)).ConfigureAwait(false);
         return new DisableAllResult([], Remaining(response));
     }
+
+    // Tạm (Task 8): Task 9 gửi get-domains/set-domains tới dịch vụ nền.
+    public Task<DomainSelection?> GetDomainsAsync() => Task.FromResult<DomainSelection?>(null);
+
+    public Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection) =>
+        Task.FromResult(new DomainApplyResult(false, Strings.DaemonNeedsUpdate));
 
     /// <summary>Không có gì bật thì không làm phiền daemon; daemon không chạy thì không còn gì để giao diện hoàn tác.</summary>
     public async Task<int> ShutdownAsync()
