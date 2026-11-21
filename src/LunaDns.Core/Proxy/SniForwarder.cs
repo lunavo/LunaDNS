@@ -149,7 +149,7 @@ public sealed partial class SniForwarder : IAsyncDisposable
                 || !ClientHelloParser.TryFindSni(buffer.AsSpan(0, recordLength), out var sni)
                 || !DomainMatcher.Matches(sni.Host, _options.Domains))
             {
-                // Không ghi SNI: có thể là host ngoài GameDomains (log nằm trong báo cáo chẩn đoán).
+                // Không ghi SNI: có thể là host ngoài DomainCatalog (log nằm trong báo cáo chẩn đoán).
                 LogRefused(_logger);
                 return;
             }

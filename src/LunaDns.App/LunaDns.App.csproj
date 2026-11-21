@@ -26,6 +26,8 @@
   <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <OutputType>Exe</OutputType>
     <DefineConstants>$(DefineConstants);MACOS</DefineConstants>
+    <!-- Bản macOS publish trimmed: cảnh báo trim (IL2xxx) hiện ngay khi build thường, TreatWarningsAsErrors biến thành lỗi. -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">

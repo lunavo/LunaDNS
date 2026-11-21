@@ -1,3 +1,4 @@
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
 
@@ -44,6 +45,12 @@ internal interface IFeatureController : IAsyncDisposable
     Task<FeatureResult> DisableAsync(Feature feature);
 
     Task<DisableAllResult> DisableAllAsync();
+
+    /// <summary>Lựa chọn tên miền nơi giữ thật đang dùng. null nếu không hỏi được (dịch vụ nền không trả lời).</summary>
+    Task<DomainSelection?> GetDomainsAsync();
+
+    /// <summary>Áp danh sách mới cho DNS/SNI đang chạy. Bản daemon tự lưu; bản Local để AppServices lưu settings.json.</summary>
+    Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection);
 
     /// <summary>"Thoát &amp; khôi phục" và đăng xuất. Trả số thay đổi chưa hoàn tác được (0 = sạch).</summary>
     Task<int> ShutdownAsync();

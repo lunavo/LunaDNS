@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using LunaDns.App.Features;
 using LunaDns.App.Updates;
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Probing;
 using LunaDns.Core.Settings;
@@ -43,6 +44,10 @@ internal sealed partial class MainViewModel : ObservableObject
     private bool _anyOn;
     private int _busyCount;
     private OverallState _overall;
+    private DomainSelection _domains = new();
+    private bool _applyingDomains;
+    private bool _daemonNeedsUpdate;
+    private bool _showProbeCustomHint;
 
     /// <param name="installService">macOS: cài dịch vụ nền (osascript). null trên Windows.</param>
     public MainViewModel(AppServices services, IUserPrompts prompts, ISystemShell shell, Func<Task> quit,
@@ -80,6 +85,21 @@ internal sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<ProbeLineViewModel> ProbeLines { get; } = [];
 
+    /// <summary>Khu "Tên miền" (spec KH8 5.1): ba nhóm dựng sẵn rồi Tuỳ chỉnh.</summary>
+    public ObservableCollection<DomainGroupViewModel> DomainGroups { get; } = [];
+
+    public string RoutedCountText => Strings.Format(nameof(Strings.DomainsRoutedCountFormat), FeatureDomains.Routed(_domains).Count);
+
+    /// <summary>Huy hiệu "MỚI" và viền vàng cho tới lần đầu bấm Xem/Sửa hoặc bật/tắt một nhóm.</summary>
+    public bool ShowDomainsIntro => !_services.Settings.DomainsIntroSeen;
+
+    /// <summary>Dưới kết quả Kiểm tra: Tuỳ chỉnh chỉ được kiểm vài tên miền đầu (mockup 1.2).</summary>
+    public bool ShowProbeCustomHint
+    {
+        get => _showProbeCustomHint;
+        private set => SetProperty(ref _showProbeCustomHint, value);
+    }
+
     public AsyncCommand CheckCommand { get; }
 
     public AsyncCommand ApplyRecommendedCommand { get; }
@@ -106,12 +126,16 @@ internal sealed partial class MainViewModel : ObservableObject
     /// <summary>macOS ẩn mục Nâng cao: dịch vụ nền chưa nhận settings từ giao diện.</summary>
     public bool HasAdvancedSettings { get; } = PlatformInfo.HasAdvancedSettings();
 
-    /// <summary>macOS: banner "dịch vụ nền chưa cài / không trả lời" kèm nút cài.</summary>
-    public bool ShowServiceSetup => _services.Features.Availability is ControllerAvailability.DaemonNotInstalled or ControllerAvailability.DaemonNotResponding;
+    /// <summary>macOS: banner "dịch vụ nền chưa cài / không trả lời / bản cũ không biết set-domains" (mockup 1.4) kèm nút cài.</summary>
+    public bool ShowServiceSetup => _daemonNeedsUpdate
+        || _services.Features.Availability is ControllerAvailability.DaemonNotInstalled or ControllerAvailability.DaemonNotResponding;
 
-    public string ServiceSetupText => _services.Features.Availability == ControllerAvailability.DaemonNotResponding
-        ? Strings.ServiceNotResponding
-        : Strings.ServiceNotInstalled;
+    public string ServiceSetupText => _services.Features.Availability switch
+    {
+        ControllerAvailability.DaemonNotResponding => Strings.ServiceNotResponding,
+        ControllerAvailability.DaemonNotInstalled => Strings.ServiceNotInstalled,
+        _ => Strings.DaemonNeedsUpdate,
+    };
 
     public string InstallServiceText => _services.Features.Availability == ControllerAvailability.DaemonNotResponding
         ? Strings.ReinstallServiceButton
@@ -182,8 +206,35 @@ internal sealed partial class MainViewModel : ObservableObject
         else if (startup.Reverted > 0) ShowMessage(Strings.Format(nameof(Strings.StartupRestoredFormat), startup.Reverted), Tone.Info);
         _timer.Start();
         _ = PollAsync();
+        _ = LoadDomainsSafeAsync();
         CheckCommand.Execute(null);
         _ = CheckUpdateSilentlyAsync();
+    }
+
+    /// <summary>Dựng bốn dòng của khu Tên miền theo lựa chọn của nơi giữ thật (macOS: dịch vụ nền), hỏi không được thì theo settings.json.</summary>
+    public async Task LoadDomainsAsync()
+    {
+        _domains = await Task.Run(_services.GetDomainsAsync) ?? _services.Settings.Domains;
+        DomainGroups.Clear();
+        foreach (var group in DomainCatalog.Selectable.Append(DomainGroup.Custom))
+            DomainGroups.Add(new DomainGroupViewModel(group, () => _domains, ApplyDomainsAsync, ShowDomainError, OpenGroupAsync, OnError));
+        if (_summary is not null) ShowGroupProbes(_summary); // "Kiểm tra" lúc mở app có thể xong trước
+        OnPropertyChanged(nameof(RoutedCountText));
+    }
+
+    /// <summary>Nhóm dựng sẵn: cửa sổ chỉ đọc. Tuỳ chỉnh: hộp thoại sửa; chỉ nút Lưu mới áp.</summary>
+    public async Task OpenGroupAsync(DomainGroupViewModel row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        MarkDomainsIntroSeen();
+        if (!row.IsCustom)
+        {
+            await _prompts.ShowDomainListAsync(row.Title, DomainCatalog.For(row.Group));
+            return;
+        }
+        using var vm = new CustomDomainsViewModel(_domains, ApplyDomainsAsync, _services.ProbeDomainsAsync, TimeProvider.System, a => Dispatcher.UIThread.Post(a));
+        await _prompts.EditCustomDomainsAsync(vm);
+        RefreshDomainRows();
     }
 
     public void ShowUnexpectedError()
@@ -224,12 +275,14 @@ internal sealed partial class MainViewModel : ObservableObject
         ProbeStatus = Strings.CheckingStatus;
         ProbeLines.Clear();
         ProbeHint = string.Empty;
+        ShowProbeCustomHint = false;
         CanApplyRecommended = false;
         _summary = null;
         using var timeout = new CancellationTokenSource(ProbeTimeout);
         try
         {
             _summary = await Task.Run(() => _services.ProbeAsync(timeout.Token));
+            ShowGroupProbes(_summary);
         }
         catch (OperationCanceledException)
         {
@@ -248,6 +301,99 @@ internal sealed partial class MainViewModel : ObservableObject
             : _summary.Groups.All(g => g.Worst == ProbeVerdict.Ok) ? Strings.AllOk
             : string.Empty;
         CanApplyRecommended = _summary.PendingSteamRemedies(status) != ProbeRemedies.None;
+        ShowProbeCustomHint = _summary.Groups.Any(g => g.Group == DomainGroup.Custom);
+    }
+
+    /// <summary>Kết luận nặng nhất của mỗi nhóm lên dòng của nó; dòng không được kiểm (nhóm tắt) xoá kết quả cũ.</summary>
+    private void ShowGroupProbes(ProbeSummary summary)
+    {
+        foreach (var row in DomainGroups)
+        {
+            var group = summary.Groups.FirstOrDefault(g => g.Group == row.Group);
+            if (group is null) row.ShowProbe(null, null);
+            else if (group.Group == DomainGroup.Custom && group.Results.Count(r => r.Verdict == ProbeVerdict.Unreachable) is > 0 and var unhelped)
+                row.ShowProbe(Strings.Format(nameof(Strings.DomainRowProbeUnhelpedFormat), unhelped), Tone.Error);
+            else if (group.Worst == ProbeVerdict.Ok) row.ShowProbe(Strings.DomainRowProbeOk, Tone.Good);
+            else row.ShowProbe(DomainProbeText.For(group.Worst), DomainProbeText.ToneFor(group.Worst));
+        }
+    }
+
+    /// <summary>
+    /// Mọi lần áp danh sách (công tắc nhóm và nút Lưu) đi qua đây: khoá hai thẻ trong lúc dịch vụ khởi động lại,
+    /// mỗi lúc chỉ một lần áp; thành công thì nhận lựa chọn mới và xoá trạng thái tạm của mọi dòng.
+    /// </summary>
+    private async Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection)
+    {
+        MarkDomainsIntroSeen();
+        if (_applyingDomains) return new DomainApplyResult(false, null);
+        _applyingDomains = true;
+        var result = new DomainApplyResult(false, null);
+        try
+        {
+            await RunBusyAsync(Features, async () => result = await Task.Run(() => _services.ApplyDomainsAsync(selection)));
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Ranh giới của công tắc nhóm và nút Lưu: log rồi trả câu chung, hộp thoại/dòng tự hiện câu đó.
+            LogCommandFailed(_logger, ex);
+            result = new DomainApplyResult(false, Strings.UnexpectedError);
+        }
+        finally
+        {
+            _applyingDomains = false;
+        }
+        if (result.Success)
+        {
+            _domains = selection;
+            SetDaemonNeedsUpdate(false);
+            foreach (var row in DomainGroups) row.ClearTemporary();
+            RefreshDomainRows();
+        }
+        else if (result.Message == Strings.DaemonNeedsUpdate)
+        {
+            SetDaemonNeedsUpdate(true);
+        }
+        return result;
+    }
+
+    /// <summary>Câu lỗi của công tắc nhóm lên thanh thông báo; dịch vụ nền cũ thì đã có banner mời cài lại.</summary>
+    private void ShowDomainError(string message)
+    {
+        if (message != Strings.DaemonNeedsUpdate) ShowMessage(message, Tone.Error);
+    }
+
+    private void RefreshDomainRows()
+    {
+        foreach (var row in DomainGroups) row.Refresh();
+        OnPropertyChanged(nameof(RoutedCountText));
+    }
+
+    private void MarkDomainsIntroSeen()
+    {
+        if (_services.Settings.DomainsIntroSeen) return;
+        SaveSettings(s => s with { DomainsIntroSeen = true });
+        OnPropertyChanged(nameof(ShowDomainsIntro));
+    }
+
+    private void SetDaemonNeedsUpdate(bool value)
+    {
+        if (_daemonNeedsUpdate == value) return;
+        _daemonNeedsUpdate = value;
+        OnPropertyChanged(nameof(ShowServiceSetup));
+        OnPropertyChanged(nameof(ServiceSetupText));
+        OnPropertyChanged(nameof(InstallServiceText));
+    }
+
+    private async Task LoadDomainsSafeAsync()
+    {
+        try
+        {
+            await LoadDomainsAsync();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or ObjectDisposedException)
+        {
+            LogPollFailed(_logger, ex);
+        }
     }
 
     /// <summary>Chỉ bật biện pháp cho Steam. DNS trước, proxy sau.</summary>
@@ -300,9 +446,17 @@ internal sealed partial class MainViewModel : ObservableObject
     {
         if (_installService is null) return;
         var result = await _installService();
-        if (result.Success) ShowMessage(Strings.ServiceInstalled, Tone.Good);
-        else if (!result.Cancelled) ShowMessage(Strings.Format(nameof(Strings.ServiceInstallFailedFormat), result.Output), Tone.Error);
+        if (result.Success)
+        {
+            ShowMessage(Strings.ServiceInstalled, Tone.Good);
+            SetDaemonNeedsUpdate(false);
+        }
+        else if (!result.Cancelled)
+        {
+            ShowMessage(Strings.Format(nameof(Strings.ServiceInstallFailedFormat), result.Output), Tone.Error);
+        }
         await Task.Run(() => _services.Features.RefreshAsync());
+        if (result.Success) await LoadDomainsAsync();
     });
 
     private async Task CheckUpdateAsync() =>

@@ -4,5 +4,8 @@ public enum DomainGroup
 {
     Steam,
     Pubg,
-    Other,
+    OtherGames,
+    Reddit,
+    /// <summary>Công tắc của nhóm Tuỳ chỉnh; tên miền nằm trong DomainSelection.Custom.</summary>
+    Custom,
 }

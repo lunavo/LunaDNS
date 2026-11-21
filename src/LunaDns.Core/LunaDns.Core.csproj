@@ -4,10 +4,16 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Bản macOS publish trimmed: cảnh báo trim (IL2xxx) hiện ngay khi build thường, TreatWarningsAsErrors biến thành lỗi. -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="LunaDns.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Domains/public_suffix_list.dat" LogicalName="LunaDns.Core.public_suffix_list.dat" />
   </ItemGroup>
 
   <ItemGroup>

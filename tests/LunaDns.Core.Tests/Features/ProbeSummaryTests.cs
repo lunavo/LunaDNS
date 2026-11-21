@@ -88,4 +88,16 @@ public sealed class ProbeSummaryTests
 
         Assert.Equal(new ProbeCoverage(state, missing, covering), group.Coverage(new FeatureStatus(dns, sni, false, null, 0)));
     }
+
+    [Fact]
+    public void Create_with_group_map_keeps_groups_in_first_seen_order()
+    {
+        var results = new[] { Result("store.steampowered.com", ProbeVerdict.Ok), Result("www.reddit.com", ProbeVerdict.SniFiltered) };
+
+        var summary = ProbeSummary.Create(results, DateTimeOffset.UnixEpoch,
+            host => host.Contains("reddit", StringComparison.Ordinal) ? DomainGroup.Reddit : DomainGroup.Steam);
+
+        Assert.Equal([DomainGroup.Steam, DomainGroup.Reddit], summary.Groups.Select(g => g.Group));
+        Assert.Equal(ProbeVerdict.SniFiltered, summary.Groups[1].Worst);
+    }
 }

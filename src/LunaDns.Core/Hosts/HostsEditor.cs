@@ -76,7 +76,7 @@ public static class HostsEditor
         if (!IPAddress.TryParse(entry.Address, out var address) || !IPAddress.IsLoopback(address))
             throw new ArgumentException("LunaDNS chỉ trỏ domain về chính máy này (địa chỉ loopback).", nameof(entry));
         var host = DomainMatcher.Normalize(entry.Host);
-        if (host.Length == 0 || !host.All(IsHostChar) || !DomainMatcher.Matches(host, GameDomains.All))
+        if (host.Length == 0 || !host.All(IsHostChar) || !DomainMatcher.Matches(host, DomainCatalog.All))
             throw new ArgumentException("Có domain không thuộc danh sách domain game.", nameof(entry));
         return $"{address} {host} {Marker}";
     }

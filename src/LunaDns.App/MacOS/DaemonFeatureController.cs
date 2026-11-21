@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using LunaDns.App.Features;
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
 using LunaDns.Platform.MacOS.Daemon;
@@ -88,6 +89,21 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         return new DisableAllResult([], Remaining(response));
     }
 
+    public async Task<DomainSelection?> GetDomainsAsync() =>
+        (await SendAsync(new DaemonRequest(DaemonProtocol.GetDomains)).ConfigureAwait(false))?.Domains;
+
+    /// <summary>Dịch vụ nền tự kiểm, áp và lưu. Bản cũ chưa biết set-domains trả "Lệnh lạ:" nên đề nghị cài lại.</summary>
+    public async Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        var response = await SendAsync(new DaemonRequest(DaemonProtocol.SetDomains, Domains: selection)).ConfigureAwait(false);
+        if (response is null) return new(false, ErrorMessages.For(FeatureError.ServiceUnavailable));
+        if (response.Ok) return new(true, null);
+        if (IsUnknownCommand(response)) return new(false, Strings.DaemonNeedsUpdate);
+        var error = Enum.TryParse<FeatureError>(response.Error, out var parsed) && Enum.IsDefined(parsed) ? parsed : (FeatureError?)null;
+        return new(false, response.Message, error);
+    }
+
     /// <summary>Không có gì bật thì không làm phiền daemon; daemon không chạy thì không còn gì để giao diện hoàn tác.</summary>
     public async Task<int> ShutdownAsync()
     {
@@ -141,6 +157,11 @@ internal sealed partial class DaemonFeatureController : IFeatureController
                 new FeatureStatus(s.DnsRouting, s.SniProxy, PubgMode: false, s.ProxyPort, s.ProxyConnections),
                 s.JournalEntries, response.Version ?? _snapshot.Version);
         }
+        else if (IsUnknownCommand(response))
+        {
+            // Daemon cũ chưa biết lệnh mới (vd. get-domains): nó vẫn chạy, giữ nguyên ảnh chụp trạng thái.
+            LogDaemonFailed(_logger, request.Command, response.Message);
+        }
         else if (!response.Ok)
         {
             // Không kèm trạng thái: daemon từ chối (UID khác chủ /dev/console) hoặc yêu cầu lỗi.
@@ -150,6 +171,9 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         if (!response.Ok && response.Status is not null) LogDaemonFailed(_logger, request.Command, response.Message);
         return response;
     }
+
+    private static bool IsUnknownCommand(DaemonResponse response) =>
+        !response.Ok && response.Message?.StartsWith(DaemonProtocol.UnknownCommandPrefix, StringComparison.Ordinal) == true;
 
     private static int Remaining(DaemonResponse? response) => response switch
     {

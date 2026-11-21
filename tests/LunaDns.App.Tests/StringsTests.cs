@@ -18,7 +18,7 @@ public sealed class StringsTests
             .Where(p => p.PropertyType == typeof(string))
             .ToList();
 
-        Assert.Equal(77, properties.Count);
+        Assert.Equal(149, properties.Count);
         foreach (var property in properties) AssertResolved((string)property.GetValue(null)!);
     }
 
@@ -65,7 +65,15 @@ public sealed class StringsTests
             AssertResolved(Strings.FeatureTitle(feature));
             AssertResolved(Strings.FeatureDescription(feature));
         }
-        AssertResolved(Strings.GroupName(DomainGroup.Steam));
+        foreach (var group in DomainCatalog.Selectable.Append(DomainGroup.Custom)) AssertResolved(Strings.GroupName(group));
+    }
+
+    /// <summary>Khẩu hiệu cũ chỉ nhắc Steam; bản KH8 nói chung cho mọi nhóm tên miền.</summary>
+    [Fact]
+    public void Header_subtitle_no_longer_only_about_steam()
+    {
+        Assert.DoesNotContain("Sửa lỗi vào Steam", Strings.HeaderSubtitle, StringComparison.Ordinal);
+        Assert.Contains("Reddit", Strings.HeaderSubtitle, StringComparison.Ordinal);
     }
 
     /// <summary>KH5 quyết định 7: không có satellite assembly, Windows tiếng Anh vẫn ra tiếng Việt.</summary>

@@ -25,8 +25,8 @@ public sealed class NrptDnsRouter(INrptStore store)
         foreach (var domain in domains)
         {
             var host = DomainMatcher.Normalize(domain);
-            if (!DomainMatcher.Matches(host, GameDomains.All))
-                throw new ArgumentException("Có domain không thuộc danh sách domain game.", nameof(domains));
+            if (!DomainPolicy.IsRoutable(host))
+                throw new ArgumentException("Có tên miền không hợp lệ để định tuyến.", nameof(domains));
             wanted.Add("." + host); // mọi subdomain
             wanted.Add(host);       // chính tên gốc: luật hậu tố không chắc khớp tên gốc
         }
@@ -41,7 +41,7 @@ public sealed class NrptDnsRouter(INrptStore store)
         List<string> skipped = [.. distinct.Where(foreign.Contains)];
         if (namespaces.Count == 0)
             throw new ConfiguratorException(ConfiguratorError.DnsRouteConflict,
-                "Các domain game đã có luật DNS của phần mềm khác (ví dụ VPN). LunaDNS không sửa luật đó nên không bật được Định tuyến DNS.");
+                "Các tên miền đã chọn đều có luật DNS của phần mềm khác (ví dụ VPN). LunaDNS không sửa luật đó nên không bật được Định tuyến DNS.");
         return new DnsRouteSnapshot(MarkerPrefix + Guid.NewGuid().ToString("N"), namespaces, nameServer.ToString(), skipped);
     }
 

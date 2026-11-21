@@ -117,10 +117,21 @@ public class NrptDnsRouterTests
         Assert.Equal(2, _store.Rules.Count);
     }
 
+    [Fact]
+    public void Plan_accepts_custom_routable_domains()
+    {
+        var snapshot = _router.Plan(["reddit.com", "example.org"], IPAddress.Loopback);
+
+        Assert.Equal([".reddit.com", "reddit.com", ".example.org", "example.org"], snapshot.Namespaces);
+    }
+
     [Theory]
-    [InlineData("evilsteampowered.com")]
-    [InlineData("example.com")]
-    public void Plan_rejects_non_game_domain(string domain)
+    [InlineData("com")]
+    [InlineData("com.vn")]
+    [InlineData("printer.local")]
+    [InlineData("dns.google")]
+    [InlineData("../etc/passwd")]
+    public void Plan_rejects_non_routable_domains(string domain)
     {
         string[] domains = [domain];
 

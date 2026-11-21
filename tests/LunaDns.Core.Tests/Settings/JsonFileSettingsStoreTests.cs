@@ -1,3 +1,5 @@
+using LunaDns.Core.Domains;
+using LunaDns.Core.Features;
 using LunaDns.Core.Settings;
 using LunaDns.Core.Tls;
 
@@ -16,10 +18,56 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         Assert.Equal(new AppSettings(), new JsonFileSettingsStore(PathOf("settings.json")).Load());
 
     [Fact]
+    public void Old_settings_without_domains_load_with_default_selection()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "SplitMode": "FirstByte", "SplitDelayMs": 0 }""");
+
+        var settings = new JsonFileSettingsStore(path).Load();
+
+        Assert.Equal([DomainGroup.Steam, DomainGroup.Custom], settings.Domains.EnabledGroups);
+        Assert.Empty(settings.Domains.Custom);
+    }
+
+    [Fact]
+    public void Domains_round_trip_and_bad_entries_are_dropped_on_load()
+    {
+        var path = PathOf("settings.json");
+        var store = new JsonFileSettingsStore(path);
+        store.Save(new AppSettings { Domains = new DomainSelection { EnabledGroups = [DomainGroup.Reddit], Custom = [new("example.org"), new("com")] } });
+
+        var loaded = store.Load();
+
+        Assert.Equal([DomainGroup.Reddit], loaded.Domains.EnabledGroups);
+        Assert.Equal([new CustomDomain("example.org")], loaded.Domains.Custom);
+        Assert.Equal(1, store.DroppedDomains);
+    }
+
+    [Theory]
+    [InlineData("""{ "Domains": { "Custom": null } }""", 0)]
+    [InlineData("""{ "Domains": { "Custom": [null, { "Domain": "example.org" }] } }""", 1)]
+    [InlineData("""{ "Domains": { "EnabledGroups": null } }""", 0)]
+    [InlineData("""{ "Domains": { "EnabledGroups": [99, "Reddit"] } }""", 1)]
+    public void Hand_edited_nulls_and_unknown_groups_load_without_crashing(string json, int expectedDropped)
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, json);
+        var store = new JsonFileSettingsStore(path);
+
+        var loaded = store.Load();
+
+        Assert.NotNull(loaded.Domains.EnabledGroups);
+        Assert.NotNull(loaded.Domains.Custom);
+        Assert.Equal(DomainSelectionDefect.None, loaded.Domains.CheckShape());
+        Assert.Equal(expectedDropped, store.DroppedDomains);
+        _ = FeatureDomains.Routed(loaded.Domains);
+    }
+
+    [Fact]
     public void Save_then_load_round_trips()
     {
         var store = new JsonFileSettingsStore(PathOf("sub/settings.json"));
-        var settings = new AppSettings { SplitMode = SplitMode.MidSni, SplitDelayMs = 5, PreferGoogleDoh = true, CheckPubg = true, PubgWarningAccepted = true };
+        var settings = new AppSettings { SplitMode = SplitMode.MidSni, SplitDelayMs = 5, PreferGoogleDoh = true, CheckPubg = true, PubgWarningAccepted = true, DomainsIntroSeen = true };
 
         store.Save(settings);
 

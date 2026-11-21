@@ -99,7 +99,7 @@ public sealed partial class DaemonServer : IAsyncDisposable
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
                 timeout.CancelAfter(ReadTimeout);
                 var line = await ReadLineAsync(client, timeout.Token).ConfigureAwait(false);
-                var request = line is null ? null : JsonSerializer.Deserialize<DaemonRequest>(line, DaemonProtocol.Json);
+                var request = line is null ? null : JsonSerializer.Deserialize(line, DaemonProtocol.RequestInfo);
                 response = request is null
                     ? new DaemonResponse(false, "Yêu cầu rỗng hoặc quá dài.")
                     : await _handler(request, _stop.Token).ConfigureAwait(false);
@@ -138,7 +138,7 @@ public sealed partial class DaemonServer : IAsyncDisposable
 
     private static async Task WriteAsync(Socket client, DaemonResponse response)
     {
-        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(response, DaemonProtocol.Json) + "\n");
+        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(response, DaemonProtocol.ResponseInfo) + "\n");
         try
         {
             await client.SendAsync(bytes, SocketFlags.None).ConfigureAwait(false);

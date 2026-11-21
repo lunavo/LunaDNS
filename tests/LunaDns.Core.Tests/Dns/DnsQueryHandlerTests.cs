@@ -9,7 +9,7 @@ public class DnsQueryHandlerTests
     private readonly FakeUpstream _upstream = new();
     private readonly DnsQueryHandler _handler;
 
-    public DnsQueryHandlerTests() => _handler = new DnsQueryHandler(GameDomains.All, _upstream, new DnsCache());
+    public DnsQueryHandlerTests() => _handler = new DnsQueryHandler(DomainCatalog.All, _upstream, new DnsCache());
 
     private Task<byte[]?> Handle(byte[] packet, DnsTransport transport = DnsTransport.Udp) =>
         _handler.HandleAsync(packet, transport, CancellationToken.None);

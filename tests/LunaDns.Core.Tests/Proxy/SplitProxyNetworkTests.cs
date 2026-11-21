@@ -13,7 +13,7 @@ public class SplitProxyNetworkTests
         using var doh = DohClient.Create(DohServer.Defaults);
         var connector = new TcpUpstreamConnector(new DohHostResolver(doh, new DnsCache()));
         await using var proxy = SplitProxy.Start(
-            new SplitProxyOptions { Domains = GameDomains.All, FirstPort = 0, LastPort = 0 }, connector);
+            new SplitProxyOptions { Domains = DomainCatalog.All, FirstPort = 0, LastPort = 0 }, connector);
         using var handler = new SocketsHttpHandler
         {
             Proxy = new WebProxy(new Uri($"http://127.0.0.1:{proxy.Port}")),

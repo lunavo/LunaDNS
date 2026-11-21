@@ -17,6 +17,27 @@ public sealed class ResolverDnsRouterTests : IDisposable
     private string FileFor(string host) => Path.Combine(_router.Directory, host);
 
     [Fact]
+    public void Plan_accepts_custom_routable_domains()
+    {
+        var snapshot = _router.Plan(["reddit.com", "example.org"], IPAddress.Loopback);
+
+        Assert.Equal(["reddit.com", "example.org"], snapshot.Namespaces);
+    }
+
+    [Theory]
+    [InlineData("com")]
+    [InlineData("com.vn")]
+    [InlineData("printer.local")]
+    [InlineData("dns.google")]
+    [InlineData("../etc/passwd")]
+    public void Plan_rejects_non_routable_domains(string domain)
+    {
+        string[] domains = [domain];
+
+        Assert.Throws<ArgumentException>(() => _router.Plan(domains, IPAddress.Loopback));
+    }
+
+    [Fact]
     public void Apply_writes_one_file_per_domain_with_marker_and_port()
     {
         var snapshot = _router.Plan(Steam, IPAddress.Loopback);
@@ -94,22 +115,37 @@ public sealed class ResolverDnsRouterTests : IDisposable
     }
 
     [Fact]
-    public void Rejects_non_game_domain_and_non_loopback_server()
+    public void Rejects_non_routable_domain_and_non_loopback_server()
     {
-        Assert.Throws<ArgumentException>(() => _router.Plan(["example.com"], IPAddress.Loopback));
+        Assert.Throws<ArgumentException>(() => _router.Plan(["printer.local"], IPAddress.Loopback));
         Assert.Throws<ArgumentException>(() => _router.Plan(["steampowered.com"], IPAddress.Parse("1.1.1.1")));
     }
 
     [Theory]
     [InlineData("../hosts")]
     [InlineData("..steampowered.com")]
-    [InlineData("example.com")]
+    [InlineData("a/b")]
+    [InlineData("")]
     public void Snapshot_from_tampered_journal_is_refused(string name)
     {
         var bad = new DnsRouteSnapshot(ResolverDnsRouter.MarkerPrefix + "x", [name], "127.0.0.1", []);
 
         Assert.Throws<ArgumentException>(() => _router.Revert(bad));
         Assert.Throws<ArgumentException>(() => _router.Apply(bad));
+    }
+
+    [Fact]
+    public void Revert_does_not_depend_on_current_domain_policy()
+    {
+        // "com" là hậu tố công khai: IsRoutable từ chối, nhưng journal cũ vẫn phải gỡ được file đã ghi.
+        var snapshot = new DnsRouteSnapshot(ResolverDnsRouter.MarkerPrefix + "old", ["com"], "127.0.0.1", []);
+        System.IO.Directory.CreateDirectory(_router.Directory);
+        File.WriteAllText(FileFor("com"), "# " + snapshot.Marker + "\nnameserver 127.0.0.1\nport 15353\n");
+
+        Assert.Throws<ArgumentException>(() => _router.Apply(snapshot));
+        _router.Revert(snapshot);
+
+        Assert.False(File.Exists(FileFor("com")));
     }
 
     [Fact]

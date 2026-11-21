@@ -1,3 +1,4 @@
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
 using LunaDns.Core.Platform;
@@ -13,6 +14,7 @@ namespace LunaDns.App.Features;
 internal sealed partial class LocalFeatureController : IFeatureController
 {
     private readonly ILogger _logger;
+    private readonly Func<AppSettings> _settings;
 
     public LocalFeatureController(AppPaths paths, INetworkConfigurator configurator, Func<AppSettings> settings,
         ILoggerFactory loggerFactory, TimeProvider? time = null)
@@ -22,6 +24,7 @@ internal sealed partial class LocalFeatureController : IFeatureController
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(loggerFactory);
         var clock = time ?? TimeProvider.System;
+        _settings = settings;
         _logger = loggerFactory.CreateLogger<LocalFeatureController>();
 
         Journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile), SystemChanges.Reverters(configurator), clock);
@@ -31,7 +34,8 @@ internal sealed partial class LocalFeatureController : IFeatureController
 
         var services = new CoreFeatureServices(() => settings().DohServers(), loggerFactory);
         Features = new FeatureSet(Journal, new SystemChanges(Journal, configurator), services,
-            () => settings().Tuning(), clock, loggerFactory.CreateLogger<FeatureSet>());
+            () => settings().Tuning(), clock, loggerFactory.CreateLogger<FeatureSet>(),
+            routedDomains: FeatureDomains.Routed(settings().Domains));
     }
 
     public event EventHandler<FeatureStoppedEventArgs>? FeatureStopped
@@ -60,6 +64,17 @@ internal sealed partial class LocalFeatureController : IFeatureController
     public Task<FeatureResult> DisableAsync(Feature feature) => Features.DisableAsync(feature);
 
     public Task<DisableAllResult> DisableAllAsync() => Features.DisableAllAsync();
+
+    public Task<DomainSelection?> GetDomainsAsync() => Task.FromResult<DomainSelection?>(_settings().Domains);
+
+    public async Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        var result = await Features.ReapplyAsync(FeatureDomains.Routed(selection)).ConfigureAwait(false);
+        if (result.Success) return new(true, null);
+        var message = ErrorMessages.For(result.Error);
+        return new(false, result.PreviousRestored ? message : $"{message} {Strings.ChangesLeftBehind}", result.Error);
+    }
 
     public async Task<int> ShutdownAsync() => (await Features.ShutdownAsync().ConfigureAwait(false)).Failed.Count;
 

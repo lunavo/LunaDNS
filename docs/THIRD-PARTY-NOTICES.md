@@ -6,7 +6,7 @@ Hình logo (trăng lưỡi liềm, vệt mạch, khiên) lấy từ mã SVG do P
 
 ## Fluent UI System Icons
 
-Path data của 12 icon trong `src/LunaDns.App/Assets/Icons.axaml` chép từ <https://github.com/microsoft/fluentui-system-icons> (bản 24 regular).
+Path data của 13 icon trong `src/LunaDns.App/Assets/Icons.axaml` chép từ <https://github.com/microsoft/fluentui-system-icons> (bản 24 regular).
 
 ```text
 MIT License
@@ -31,3 +31,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Public Suffix List
+
+Public Suffix List, <https://publicsuffix.org>, Mozilla Public License 2.0. Nhúng nguyên văn tại `src/LunaDns.Core/Domains/public_suffix_list.dat`.

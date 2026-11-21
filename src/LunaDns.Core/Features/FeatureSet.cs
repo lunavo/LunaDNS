@@ -1,3 +1,4 @@
+using LunaDns.Core.Domains;
 using System.Collections.Concurrent;
 using System.Net;
 using LunaDns.Core.Dns;
@@ -20,6 +21,7 @@ namespace LunaDns.Core.Features;
 public sealed partial class FeatureSet : IAsyncDisposable
 {
     private static readonly Feature[] ShutdownOrder = [Feature.PubgMode, Feature.SniProxy, Feature.DnsRouting];
+    private static readonly Feature[] RoutedFeatures = [Feature.DnsRouting, Feature.SniProxy];
 
     private readonly ChangeJournal _journal;
     private readonly SystemChanges _changes;
@@ -29,6 +31,7 @@ public sealed partial class FeatureSet : IAsyncDisposable
     private readonly ILogger _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ConcurrentDictionary<Feature, Running> _running = new();
+    private volatile IReadOnlyList<string> _routed;
 
     public FeatureSet(
         ChangeJournal journal,
@@ -36,7 +39,8 @@ public sealed partial class FeatureSet : IAsyncDisposable
         IFeatureServices services,
         Func<FeatureTuning>? tuning = null,
         TimeProvider? time = null,
-        ILogger<FeatureSet>? logger = null)
+        ILogger<FeatureSet>? logger = null,
+        IReadOnlyList<string>? routedDomains = null)
     {
         _journal = journal;
         _changes = changes;
@@ -44,7 +48,11 @@ public sealed partial class FeatureSet : IAsyncDisposable
         _tuning = tuning ?? (() => FeatureTuning.Default);
         _time = time ?? TimeProvider.System;
         _logger = (ILogger?)logger ?? NullLogger.Instance;
+        _routed = routedDomains ?? FeatureDomains.Routed(new DomainSelection());
     }
+
+    /// <summary>Danh sách tên miền DNS/SNI đang dùng (spec KH8 3.1).</summary>
+    public IReadOnlyList<string> RoutedDomains => _routed;
 
     /// <summary>Watchdog đã tắt một tính năng. Gọi từ luồng nền; giao diện tự chuyển về luồng UI.</summary>
     public event EventHandler<FeatureStoppedEventArgs>? FeatureStopped;
@@ -62,39 +70,33 @@ public sealed partial class FeatureSet : IAsyncDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_running.ContainsKey(feature)) return new(feature, FeatureOutcome.Unchanged);
+            return await EnableCoreAsync(feature, allowProxyOverride).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
-            IRunningService service;
-            try
-            {
-                service = StartService(feature, port: null);
-            }
-            catch (Exception ex) when (ex is DnsStubException or SplitProxyException)
-            {
-                LogStartFailed(_logger, feature, ex);
-                return new(feature, FeatureOutcome.Failed, StartError(feature, ex));
-            }
+    /// <summary>Áp danh sách tên miền mới cho DNS/SNI đang chạy (spec KH8 3.1). Lỗi thì quay về danh sách cũ.</summary>
+    public async Task<ReapplyResult> ReapplyAsync(IReadOnlyList<string> domains, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(domains);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var active = RoutedFeatures.Where(_running.ContainsKey).ToList();
+            if (domains.Count == 0 && active.Count > 0) return new ReapplyResult(false, true, FeatureError.NoDomains);
+            var previous = _routed;
+            _routed = domains;
+            var failure = await RestartAsync(active).ConfigureAwait(false);
+            if (failure is null) return new ReapplyResult(true, false);
 
-            try
-            {
-                ApplySystem(feature, service, allowProxyOverride);
-            }
-            catch (Exception ex)
-            {
-                // Ranh giới của lệnh bật: hoàn tác phần vừa làm của chính tính năng này rồi báo lỗi (spec 6).
-                var leftBehind = !_journal.Rollback(FeatureKeys.For(feature)).Success;
-                await service.DisposeAsync().ConfigureAwait(false);
-                if (ex is ConfiguratorException { Error: ConfiguratorError.ExistingProxyConfig } && !leftBehind)
-                    return new(feature, FeatureOutcome.NeedsProxyOverride);
-                LogApplyFailed(_logger, feature, ex);
-                return new(feature, FeatureOutcome.Failed, SystemError(ex), leftBehind);
-            }
-
-            var started = new Running(service, new RestartPolicy(_time));
-            _running[feature] = started;
-            Watch(feature, started);
-            LogEnabled(_logger, feature);
-            return new(feature, FeatureOutcome.Enabled);
+            LogReapplyFailed(_logger, failure.Feature, failure.Error);
+            _routed = previous;
+            var restoreFailure = await RestartAsync(active).ConfigureAwait(false);
+            if (restoreFailure is not null) LogReapplyRestoreFailed(_logger, restoreFailure.Feature, restoreFailure.Error);
+            return new ReapplyResult(false, restoreFailure is null, failure.Error);
         }
         finally
         {
@@ -160,6 +162,60 @@ public sealed partial class FeatureSet : IAsyncDisposable
 
     public async ValueTask DisposeAsync() => await ShutdownAsync().ConfigureAwait(false);
 
+    private async Task<FeatureResult> EnableCoreAsync(Feature feature, bool allowProxyOverride)
+    {
+        if (_running.ContainsKey(feature)) return new(feature, FeatureOutcome.Unchanged);
+        if (feature != Feature.PubgMode && _routed.Count == 0) return new(feature, FeatureOutcome.Failed, FeatureError.NoDomains);
+
+        IRunningService service;
+        try
+        {
+            service = StartService(feature, port: null);
+        }
+        catch (Exception ex) when (ex is DnsStubException or SplitProxyException)
+        {
+            LogStartFailed(_logger, feature, ex);
+            return new(feature, FeatureOutcome.Failed, StartError(feature, ex));
+        }
+
+        try
+        {
+            ApplySystem(feature, service, allowProxyOverride);
+        }
+        catch (Exception ex)
+        {
+            // Ranh giới của lệnh bật: hoàn tác phần vừa làm của chính tính năng này rồi báo lỗi (spec 6).
+            var leftBehind = !_journal.Rollback(FeatureKeys.For(feature)).Success;
+            await service.DisposeAsync().ConfigureAwait(false);
+            if (ex is ConfiguratorException { Error: ConfiguratorError.ExistingProxyConfig } && !leftBehind)
+                return new(feature, FeatureOutcome.NeedsProxyOverride);
+            LogApplyFailed(_logger, feature, ex);
+            return new(feature, FeatureOutcome.Failed, SystemError(ex), leftBehind);
+        }
+
+        var started = new Running(service, new RestartPolicy(_time));
+        _running[feature] = started;
+        Watch(feature, started);
+        LogEnabled(_logger, feature);
+        return new(feature, FeatureOutcome.Enabled);
+    }
+
+    /// <summary>Tắt rồi bật lại từng tính năng; trả kết quả lỗi đầu tiên, null nếu ổn. Người dùng đã đồng ý ghi đè proxy khi bật lần đầu.</summary>
+    private async Task<FeatureResult?> RestartAsync(IReadOnlyList<Feature> features)
+    {
+        foreach (var feature in features)
+        {
+            if (_running.ContainsKey(feature))
+            {
+                var off = await DisableCoreAsync(feature).ConfigureAwait(false);
+                if (off.Outcome != FeatureOutcome.Disabled) return off;
+            }
+            var on = await EnableCoreAsync(feature, allowProxyOverride: true).ConfigureAwait(false);
+            if (on.Outcome != FeatureOutcome.Enabled) return on;
+        }
+        return null;
+    }
+
     private async Task<FeatureResult> DisableCoreAsync(Feature feature)
     {
         var key = FeatureKeys.For(feature);
@@ -191,8 +247,8 @@ public sealed partial class FeatureSet : IAsyncDisposable
         var tuning = _tuning();
         return feature switch
         {
-            Feature.DnsRouting => _services.StartDnsStub(FeatureDomains.Routed),
-            Feature.SniProxy => _services.StartSniProxy(FeatureDomains.Routed, port, tuning),
+            Feature.DnsRouting => _services.StartDnsStub(_routed),
+            Feature.SniProxy => _services.StartSniProxy(_routed, port, tuning),
             Feature.PubgMode => _services.StartPubgForwarder(FeatureDomains.Pubg, tuning),
             _ => throw new ArgumentOutOfRangeException(nameof(feature), feature, null),
         };
@@ -204,7 +260,7 @@ public sealed partial class FeatureSet : IAsyncDisposable
         switch (feature)
         {
             case Feature.DnsRouting:
-                _changes.AddDnsRoute(key, FeatureDomains.Routed, IPAddress.Loopback);
+                _changes.AddDnsRoute(key, _routed, IPAddress.Loopback);
                 break;
             case Feature.SniProxy:
                 _changes.SetAutoProxy(key, ((IRunningProxy)service).PacUrl, allowProxyOverride);
@@ -327,4 +383,10 @@ public sealed partial class FeatureSet : IAsyncDisposable
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Dịch vụ của {Feature} chết quá 3 lần trong 1 phút, đã tắt tính năng")]
     private static partial void LogGaveUp(ILogger logger, Feature feature);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Áp danh sách tên miền mới lỗi ở {Feature} ({Error}); quay về danh sách cũ.")]
+    private static partial void LogReapplyFailed(ILogger logger, Feature feature, FeatureError error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Không khôi phục được danh sách tên miền cũ cho {Feature} ({Error}); chạy 'lunadns cleanup' nếu mạng bất thường")]
+    private static partial void LogReapplyRestoreFailed(ILogger logger, Feature feature, FeatureError error);
 }

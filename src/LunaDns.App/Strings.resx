@@ -7,10 +7,10 @@
 
   <!-- 50 chuỗi tĩnh (mỗi mục có một thuộc tính trong Strings.cs) -->
   <data name="AppTitle" xml:space="preserve"><value>LunaDNS</value></data>
-  <data name="HeaderSubtitle" xml:space="preserve"><value>Sửa lỗi vào Steam khi nhà mạng chặn DNS hoặc lọc SNI.</value></data>
+  <data name="HeaderSubtitle" xml:space="preserve"><value>Vào lại Steam, Reddit… khi nhà mạng chặn DNS hoặc lọc SNI.</value></data>
   <data name="CheckButton" xml:space="preserve"><value>Kiểm tra</value></data>
   <data name="CheckingStatus" xml:space="preserve"><value>Đang kiểm tra…</value></data>
-  <data name="NotCheckedYet" xml:space="preserve"><value>Chưa kiểm tra. Bấm "Kiểm tra" để xem Steam có bị chặn không.</value></data>
+  <data name="NotCheckedYet" xml:space="preserve"><value>Chưa kiểm tra. Bấm "Kiểm tra" để xem các nhóm tên miền đang bật có bị chặn không.</value></data>
   <data name="CheckedAtFormat" xml:space="preserve"><value>Kiểm tra lúc {0:HH:mm:ss}.</value></data>
   <data name="CheckFailed" xml:space="preserve"><value>Không chạy được kiểm tra. Hãy thử lại; chi tiết nằm trong log.</value></data>
   <data name="CheckSectionTitle" xml:space="preserve"><value>KIỂM TRA MẠNG</value></data>
@@ -85,10 +85,9 @@
   <data name="Feature_DnsRouting" xml:space="preserve"><value>Định tuyến DNS</value></data>
   <data name="Feature_SniProxy" xml:space="preserve"><value>Proxy SNI</value></data>
   <data name="Feature_PubgMode" xml:space="preserve"><value>Chế độ PUBG</value></data>
-  <data name="FeatureDesc_DnsRouting" xml:space="preserve"><value>Giúp đăng nhập Steam: hỏi tên miền Steam qua DNS mã hoá (DoH) thay cho DNS của nhà mạng.</value></data>
-  <data name="FeatureDesc_SniProxy" xml:space="preserve"><value>Giúp mở Store và Community: cắt gói mở kết nối để qua được bộ lọc SNI.</value></data>
+  <data name="FeatureDesc_DnsRouting" xml:space="preserve"><value>Hỏi các tên miền đã chọn qua DNS mã hoá (DoH) thay cho DNS của nhà mạng.</value></data>
+  <data name="FeatureDesc_SniProxy" xml:space="preserve"><value>Cắt gói mở kết nối để các tên miền đã chọn qua được bộ lọc SNI.</value></data>
   <data name="FeatureDesc_PubgMode" xml:space="preserve"><value>Chuyển tiếp kết nối lobby PUBG qua máy này để né lọc SNI.</value></data>
-  <data name="Group_Steam" xml:space="preserve"><value>Steam</value></data>
   <data name="Error_DnsPortBusy" xml:space="preserve"><value>Cổng DNS 53 trên 127.0.0.1 đang bị chương trình khác dùng.</value></data>
   <data name="Error_ProxyPortsBusy" xml:space="preserve"><value>Không còn cổng trống cho Proxy SNI.</value></data>
   <data name="Error_PubgPortBusy" xml:space="preserve"><value>Cổng 443 trên 127.0.0.1 đang bị chương trình khác dùng (thường là web server hoặc phần mềm VPN).</value></data>
@@ -101,6 +100,7 @@
   <data name="Error_HostsUnsupportedEncoding" xml:space="preserve"><value>File hosts dùng bảng mã mà LunaDNS không sửa an toàn được.</value></data>
   <data name="Error_NrptFailed" xml:space="preserve"><value>Windows từ chối thêm luật định tuyến DNS.</value></data>
   <data name="Error_RollbackFailed" xml:space="preserve"><value>Chưa hoàn tác được thay đổi.</value></data>
+  <data name="Error_NoDomains" xml:space="preserve"><value>Chưa có tên miền nào được chọn. Bật ít nhất một nhóm, hoặc tắt Định tuyến DNS và Proxy SNI trước.</value></data>
   <data name="Error_Other" xml:space="preserve"><value>Lỗi không xác định; chi tiết nằm trong log.</value></data>
   <data name="Error_ServiceUnavailable" xml:space="preserve"><value>Dịch vụ nền LunaDNS chưa chạy.</value></data>
   <data name="ServiceNotInstalled" xml:space="preserve"><value>Trên macOS, LunaDNS cần một dịch vụ nền chạy bằng quyền quản trị để đổi DNS và proxy. Dịch vụ nền chưa được cài.</value></data>
@@ -110,10 +110,82 @@
   <data name="ServiceInstalled" xml:space="preserve"><value>Đã cài dịch vụ nền LunaDNS.</value></data>
   <data name="ServiceInstallFailedFormat" xml:space="preserve"><value>Cài dịch vụ nền lỗi: {0}</value></data>
   <data name="ServiceCliMissing" xml:space="preserve"><value>Không thấy file lunadns đi kèm app. Cài bằng Terminal: sudo lunadns install (xem docs/guide/09-macos.md).</value></data>
+  <data name="DaemonNeedsUpdate" xml:space="preserve"><value>Dịch vụ nền cần được cài lại để dùng danh sách tên miền. Bấm Cài dịch vụ nền.</value></data>
   <data name="RestoreFailed_Mac" xml:space="preserve"><value>Chưa hoàn tác hết thay đổi. Chạy trong Terminal: sudo lunadns cleanup</value></data>
   <data name="FeatureStoppedLeftBehindFormat_Mac" xml:space="preserve"><value>{0} gặp lỗi lặp lại nên đã dừng, nhưng chưa hoàn tác hết thay đổi. Chạy trong Terminal: sudo lunadns cleanup</value></data>
   <data name="Error_DnsPortBusy_Mac" xml:space="preserve"><value>Cổng DNS 15353 trên 127.0.0.1 đang bị chương trình khác dùng.</value></data>
   <data name="Error_AccessDenied_Mac" xml:space="preserve"><value>Dịch vụ nền không đủ quyền sửa cấu hình mạng.</value></data>
   <data name="Error_DnsRouteConflict_Mac" xml:space="preserve"><value>Các tên miền Steam đã có file /etc/resolver của phần mềm khác (VPN hoặc script tự tạo). Gỡ file đó rồi thử lại.</value></data>
   <data name="Error_RollbackFailed_Mac" xml:space="preserve"><value>Chưa hoàn tác được thay đổi. Chạy trong Terminal: sudo lunadns cleanup</value></data>
+  <data name="DomainRowProbeOk" xml:space="preserve"><value>Không bị chặn</value></data>
+  <data name="DomainRowProbeUnhelpedFormat" xml:space="preserve"><value>{0} tên miền không giúp được</value></data>
+  <data name="DomainProbeOk" xml:space="preserve"><value>Không bị chặn, không cần LunaDNS</value></data>
+  <data name="DomainProbeNeedsDns" xml:space="preserve"><value>Giúp được (cần Định tuyến DNS)</value></data>
+  <data name="DomainProbeNeedsSni" xml:space="preserve"><value>Giúp được (cần Proxy SNI)</value></data>
+  <data name="DomainProbeUnreachable" xml:space="preserve"><value>Chặn theo IP hoặc cách khác, LunaDNS không giúp được</value></data>
+  <data name="DomainProbeFailed" xml:space="preserve"><value>Không kiểm tra được, thử lại</value></data>
+  <data name="CustomDeletedFormat" xml:space="preserve"><value>Đã xoá {0}</value></data>
+  <data name="CustomUndoSecondsFormat" xml:space="preserve"><value>còn {0} giây</value></data>
+  <data name="CustomCountFormat" xml:space="preserve"><value>{0}/{1} đang bật · tối đa {2}</value></data>
+  <data name="CustomImportReportFormat" xml:space="preserve"><value>Đã thêm {0}, bỏ qua {1} (trùng hoặc không hợp lệ).</value></data>
+  <data name="CustomProbeDetailFormat" xml:space="preserve"><value>DNS hệ thống: {0} · DoH: {1}</value></data>
+  <data name="DomainRejectSyntax" xml:space="preserve"><value>Không phải tên miền hợp lệ.</value></data>
+  <data name="DomainRejectPublicSuffixFormat" xml:space="preserve"><value>Tên miền quá rộng, sẽ ảnh hưởng mọi trang dưới .{0}.</value></data>
+  <data name="DomainRejectLocal" xml:space="preserve"><value>Tên miền nội bộ hoặc quá rộng, LunaDNS không định tuyến.</value></data>
+  <data name="DomainRejectDeniedFormat" xml:space="preserve"><value>Tên miền này bị chặn vì lý do an toàn: {0}.</value></data>
+  <data name="DomainRejectDuplicateFormat" xml:space="preserve"><value>Đã có trong danh sách ({0}).</value></data>
+  <data name="DomainRejectLimitFormat" xml:space="preserve"><value>Tối đa {0} tên miền.</value></data>
+  <data name="DomainsSectionTitle" xml:space="preserve"><value>TÊN MIỀN</value></data>
+  <data name="GroupSteam" xml:space="preserve"><value>Steam</value></data>
+  <data name="GroupOtherGames" xml:space="preserve"><value>Nền tảng game khác</value></data>
+  <data name="GroupReddit" xml:space="preserve"><value>Reddit</value></data>
+  <data name="GroupCustom" xml:space="preserve"><value>Tuỳ chỉnh</value></data>
+  <data name="GroupCountFormat" xml:space="preserve"><value>{0} tên miền</value></data>
+  <data name="GroupCustomCountFormat" xml:space="preserve"><value>{0}/{1} đang bật</value></data>
+  <data name="GroupViewButton" xml:space="preserve"><value>Xem</value></data>
+  <data name="GroupEditButton" xml:space="preserve"><value>Sửa…</value></data>
+  <data name="CustomDialogTitle" xml:space="preserve"><value>Tên miền tuỳ chỉnh</value></data>
+  <data name="CustomAddWatermark" xml:space="preserve"><value>Dán một hoặc nhiều tên miền / đường link…</value></data>
+  <data name="CustomAddButton" xml:space="preserve"><value>Thêm</value></data>
+  <data name="CustomProbeSelected" xml:space="preserve"><value>Kiểm tra đã chọn</value></data>
+  <data name="CustomProbeAll" xml:space="preserve"><value>Kiểm tra tất cả</value></data>
+  <data name="CustomImport" xml:space="preserve"><value>Nhập .txt</value></data>
+  <data name="CustomExport" xml:space="preserve"><value>Xuất .txt</value></data>
+  <data name="CustomUndo" xml:space="preserve"><value>Hoàn tác</value></data>
+  <data name="CustomSave" xml:space="preserve"><value>Lưu</value></data>
+  <data name="CustomCancel" xml:space="preserve"><value>Huỷ</value></data>
+  <data name="CustomApplying" xml:space="preserve"><value>Đang áp dụng…</value></data>
+  <data name="CustomDiscardQuestion" xml:space="preserve"><value>Bỏ các thay đổi chưa lưu?</value></data>
+  <data name="CustomNotChecked" xml:space="preserve"><value>chưa kiểm tra</value></data>
+  <data name="DomainsNewBadge" xml:space="preserve"><value>MỚI</value></data>
+  <data name="DomainsRoutedCountFormat" xml:space="preserve"><value>{0} tên miền đang định tuyến</value></data>
+  <data name="DomainsFootnote" xml:space="preserve"><value>Chỉ các tên miền đã chọn đi qua LunaDNS. Trang bị chặn theo IP thì LunaDNS không giúp được.</value></data>
+  <data name="GroupNotChecked" xml:space="preserve"><value>Chưa kiểm tra</value></data>
+  <data name="GroupCustomEmpty" xml:space="preserve"><value>Chưa có tên miền</value></data>
+  <data name="GroupKeptBack" xml:space="preserve"><value>Đã giữ lại</value></data>
+  <data name="GroupNotApplied" xml:space="preserve"><value>Chưa áp được</value></data>
+  <data name="CustomAddLabel" xml:space="preserve"><value>Thêm tên miền</value></data>
+  <data name="CustomAddHint" xml:space="preserve"><value>Mỗi dòng một tên miền, hoặc cách nhau bằng dấu phẩy. Luôn gồm cả tên miền con.</value></data>
+  <data name="CustomAddedFormat" xml:space="preserve"><value>Đã thêm {0} tên miền. {1} dòng còn lại trong ô để bạn sửa.</value></data>
+  <data name="CustomAddedAllFormat" xml:space="preserve"><value>Đã thêm {0} tên miền.</value></data>
+  <data name="CustomEmptyTitle" xml:space="preserve"><value>Chưa có tên miền tuỳ chỉnh</value></data>
+  <data name="CustomEmptyBody" xml:space="preserve"><value>Dán tên miền hoặc đường link vào ô ở trên, hoặc nhập từ file .txt. Tên miền đã có trong nhóm dựng sẵn đang bật thì không cần thêm.</value></data>
+  <data name="CustomApplyingDetailFormat" xml:space="preserve"><value>Tắt rồi bật lại Định tuyến DNS và Proxy SNI với {0} tên miền. Lỗi thì LunaDNS tự quay về danh sách cũ.</value></data>
+  <data name="CustomSaveFailedTitle" xml:space="preserve"><value>Chưa lưu được</value></data>
+  <data name="CustomSaveFailedSuffix" xml:space="preserve"><value>Máy vẫn đang chạy theo danh sách cũ; sửa xong bấm Lưu lại.</value></data>
+  <data name="CustomDiscardBody" xml:space="preserve"><value>Bạn đã thêm, sửa hoặc xoá tên miền nhưng chưa bấm Lưu. Bỏ thì danh sách trở lại như lúc mở hộp thoại.</value></data>
+  <data name="CustomDiscardKeepEditing" xml:space="preserve"><value>Tiếp tục sửa</value></data>
+  <data name="CustomDiscardConfirm" xml:space="preserve"><value>Bỏ thay đổi</value></data>
+  <data name="CustomEditLabel" xml:space="preserve"><value>Sửa tên miền</value></data>
+  <data name="CustomEditHintFormat" xml:space="preserve"><value>Enter để nhận · Esc để huỷ · sẽ lưu thành {0}</value></data>
+  <data name="CustomProbeSelectedFormat" xml:space="preserve"><value>Kiểm tra đã chọn ({0})</value></data>
+  <data name="CustomDeleteFormat" xml:space="preserve"><value>Xoá {0}</value></data>
+  <data name="CustomFileFailedFormat" xml:space="preserve"><value>Không đọc hoặc ghi được file: {0}</value></data>
+  <data name="GroupListTitleFormat" xml:space="preserve"><value>Nhóm {0}</value></data>
+  <data name="GroupListHeaderFormat" xml:space="preserve"><value>{0} · {1} tên miền</value></data>
+  <data name="GroupListSubtitle" xml:space="preserve"><value>Nhóm dựng sẵn, đã thử trên mạng Việt Nam. Mỗi tên miền gồm cả tên miền con.</value></data>
+  <data name="GroupListNote" xml:space="preserve"><value>Danh sách này do LunaDNS cập nhật theo mỗi bản phát hành, không sửa được. Muốn bỏ một tên miền: tắt cả nhóm, rồi thêm phần cần dùng vào Tuỳ chỉnh.</value></data>
+  <data name="CloseButton" xml:space="preserve"><value>Đóng</value></data>
+  <data name="ProbeCustomSummaryFormat" xml:space="preserve"><value>{0} tên miền giúp được, {1} tên miền LunaDNS không giúp được</value></data>
+  <data name="ProbeCustomHint" xml:space="preserve"><value>Tuỳ chỉnh chỉ kiểm 5 tên miền đầu đang bật. Kiểm từng tên miền trong hộp thoại Sửa….</value></data>
 </root>

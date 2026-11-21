@@ -10,7 +10,7 @@ public class DohStubNetworkTests
     public async Task Stub_with_real_doh_resolves_steam_over_udp_and_tcp()
     {
         using var doh = DohClient.Create(DohServer.Defaults);
-        var handler = new DnsQueryHandler(GameDomains.All, doh, new DnsCache());
+        var handler = new DnsQueryHandler(DomainCatalog.All, doh, new DnsCache());
         await using var server = DohStubServer.Start(new IPEndPoint(IPAddress.Loopback, 0), handler);
 
         var udp = await DnsTestClient.UdpAsync(server.LocalEndPoint, TestDnsMessage.Query("store.steampowered.com", id: 0x4242));

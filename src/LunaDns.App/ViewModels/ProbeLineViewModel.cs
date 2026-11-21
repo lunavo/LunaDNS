@@ -1,3 +1,4 @@
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Probing;
 
@@ -14,6 +15,7 @@ internal sealed record ProbeLineViewModel(string Group, string Detail, Tone Tone
     public static ProbeLineViewModel From(ProbeGroupSummary group, FeatureStatus status)
     {
         ArgumentNullException.ThrowIfNull(group);
+        if (group.Group == DomainGroup.Custom && ForCustom(group) is { } custom) return custom;
         var coverage = group.Coverage(status);
         var (suffix, tone) = coverage.State switch
         {
@@ -25,6 +27,19 @@ internal sealed record ProbeLineViewModel(string Group, string Detail, Tone Tone
         var verdict = Strings.Verdict(group.Worst);
         var detail = suffix.Length == 0 ? verdict : Strings.Format(nameof(Strings.ProbeDetailFormat), verdict, suffix);
         return new ProbeLineViewModel(Strings.GroupName(group.Group), detail, tone);
+    }
+
+    /// <summary>
+    /// Tuỳ chỉnh gồm nhiều trang không liên quan nên đếm thay cho một kết luận (mockup 1.2): DNS/SNI là "giúp được",
+    /// Unreachable là "không giúp được". Toàn bộ bình thường thì dùng dòng thường.
+    /// </summary>
+    private static ProbeLineViewModel? ForCustom(ProbeGroupSummary group)
+    {
+        var helped = group.Results.Count(r => r.Verdict is ProbeVerdict.DnsPoisoned or ProbeVerdict.SniFiltered);
+        var unhelped = group.Results.Count(r => r.Verdict == ProbeVerdict.Unreachable);
+        if (helped + unhelped == 0) return null;
+        var detail = Strings.Format(nameof(Strings.ProbeCustomSummaryFormat), helped, unhelped);
+        return new ProbeLineViewModel(Strings.GroupName(group.Group), detail, unhelped > 0 ? Tone.Error : Tone.Good);
     }
 
     private static string Names(ProbeRemedies remedies)

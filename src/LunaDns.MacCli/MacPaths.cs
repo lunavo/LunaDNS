@@ -15,6 +15,8 @@ internal sealed class MacPaths(string root = MacPaths.DefaultRoot)
 
     public string JournalFile => Path.Combine(Root, "journal.json");
 
+    public string SettingsFile => Path.Combine(Root, "settings.json");
+
     public string LockFile => Path.Combine(Root, "lunadns.lock");
 
     public string LogDirectory => Path.Combine(Root, "logs");

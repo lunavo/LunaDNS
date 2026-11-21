@@ -1,0 +1,207 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:LunaDns.App"
+        xmlns:vm="using:LunaDns.App.ViewModels"
+        xmlns:v="using:LunaDns.App.Views"
+        x:Class="LunaDns.App.Views.CustomDomainsWindow"
+        x:ClassModifier="internal"
+        x:DataType="vm:CustomDomainsViewModel"
+        Title="{x:Static app:Strings.CustomDialogTitle}"
+        Background="{DynamicResource Brush.Window}"
+        Width="680" Height="640" MinWidth="520" MinHeight="480"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+  <!-- Hộp thoại "Tên miền tuỳ chỉnh" (spec KH8 5.2, mockup 2.1–2.5). Chỉ nút Lưu mới áp lên máy. -->
+  <Window.Styles>
+    <!-- Ô nhập còn dòng lỗi: viền đỏ (mockup 2.2) -->
+    <Style Selector="TextBox.invalid /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Error}" />
+    </Style>
+    <Style Selector="TextBox.invalid:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Error}" />
+    </Style>
+    <Style Selector="TextBox.invalid:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Error}" />
+    </Style>
+    <!-- Ô sửa tại chỗ: viền cyan -->
+    <Style Selector="TextBox.edit /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="#00E5FF" />
+    </Style>
+    <Style Selector="TextBox.edit:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="#00E5FF" />
+    </Style>
+    <Style Selector="Border.list.busy">
+      <Setter Property="Opacity" Value="0.55" />
+    </Style>
+    <Style Selector="ListBox.domains ListBoxItem">
+      <Setter Property="Padding" Value="12,6" />
+    </Style>
+    <Style Selector="TextBlock.mono">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Menlo, monospace" />
+      <Setter Property="FontSize" Value="12.5" />
+    </Style>
+    <Style Selector="TextBox.mono">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Menlo, monospace" />
+      <Setter Property="FontSize" Value="12.5" />
+    </Style>
+  </Window.Styles>
+
+  <Grid Margin="20,16,20,18" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+
+    <!-- Thêm: dán nhiều dòng, dòng lỗi ở lại trong ô kèm lý do -->
+    <StackPanel Spacing="6">
+      <TextBlock Text="{x:Static app:Strings.CustomAddLabel}" FontWeight="SemiBold" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox x:Name="AddBox" Classes="mono" Classes.invalid="{Binding HasAddErrors}"
+                 Text="{Binding AddText}" Watermark="{x:Static app:Strings.CustomAddWatermark}"
+                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="40" MaxHeight="120"
+                 IsEnabled="{Binding IsIdle}"
+                 AutomationProperties.Name="{x:Static app:Strings.CustomAddLabel}" />
+        <Button Grid.Column="1" Classes="accent" Margin="8,0,0,0" VerticalAlignment="Top"
+                Content="{x:Static app:Strings.CustomAddButton}" IsEnabled="{Binding CanAdd}" Click="OnAdd" />
+      </Grid>
+      <TextBlock Classes="secondary" FontSize="12" Text="{x:Static app:Strings.CustomAddHint}" TextWrapping="Wrap" />
+      <Border Background="{DynamicResource Brush.ErrorSoft}" CornerRadius="8" Padding="12,8" IsVisible="{Binding HasAddErrors}">
+        <ItemsControl ItemsSource="{Binding AddErrors}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+                <PathIcon Classes="tone error" Width="12" Height="12" VerticalAlignment="Top" Margin="0,3,6,0" />
+                <SelectableTextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasReport}">
+        <PathIcon Classes="tone" Width="12" Height="12" VerticalAlignment="Center"
+                  IsVisible="{Binding ReportTone, Converter={x:Static v:ToneConverters.IsNotNeutral}}"
+                  Classes.good="{Binding ReportTone, Converter={x:Static v:ToneConverters.IsGood}}"
+                  Classes.error="{Binding ReportTone, Converter={x:Static v:ToneConverters.IsError}}" />
+        <TextBlock Classes="tone" FontSize="12" Text="{Binding ReportText}" TextWrapping="Wrap"
+                   Classes.good="{Binding ReportTone, Converter={x:Static v:ToneConverters.IsGood}}"
+                   Classes.error="{Binding ReportTone, Converter={x:Static v:ToneConverters.IsError}}" />
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Đang áp dụng (mockup 2.4) -->
+    <Border Grid.Row="1" Classes="banner" Margin="0,12,0,0" IsVisible="{Binding IsSaving}">
+      <Grid ColumnDefinitions="Auto,*">
+        <PathIcon Classes="tone info" VerticalAlignment="Top" Margin="0,2,10,0" />
+        <StackPanel Grid.Column="1" Spacing="2">
+          <TextBlock Text="{x:Static app:Strings.CustomApplying}" FontWeight="SemiBold" />
+          <TextBlock Classes="secondary" FontSize="12" Text="{Binding ApplyingDetail}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Lưu lỗi: hộp thoại ở lại, máy giữ danh sách cũ (mockup 2.5) -->
+    <Border Grid.Row="2" Classes="banner error" Margin="0,12,0,0" IsVisible="{Binding HasSaveError}">
+      <Grid ColumnDefinitions="Auto,*">
+        <PathIcon Classes="tone error" VerticalAlignment="Top" Margin="0,2,10,0" />
+        <StackPanel Grid.Column="1" Spacing="2">
+          <TextBlock Text="{x:Static app:Strings.CustomSaveFailedTitle}" FontWeight="SemiBold" />
+          <SelectableTextBlock Text="{Binding SaveErrorText}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Panel Grid.Row="3" Margin="0,12,0,0">
+      <!-- Màn trống (mockup 2.1) -->
+      <Border Classes="card" Padding="24" IsVisible="{Binding IsEmpty}">
+        <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <PathIcon Data="{DynamicResource Icon.Dns}" Width="40" Height="40" HorizontalAlignment="Center"
+                    Foreground="{DynamicResource Brush.TextSecondary}" />
+          <TextBlock Text="{x:Static app:Strings.CustomEmptyTitle}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+          <TextBlock Classes="secondary" Text="{x:Static app:Strings.CustomEmptyBody}" TextWrapping="Wrap"
+                     TextAlignment="Center" MaxWidth="380" />
+          <Button HorizontalAlignment="Center" Content="{x:Static app:Strings.CustomImport}"
+                  IsEnabled="{Binding IsIdle}" Click="OnImport" />
+        </StackPanel>
+      </Border>
+
+      <!-- Danh sách: tích = bật, bấm đúp để sửa, nút xoá chỉ có icon -->
+      <Border Classes="card list" Classes.busy="{Binding IsBusy}" Padding="0" IsVisible="{Binding !IsEmpty}">
+        <ListBox x:Name="List" Classes="domains" Background="Transparent" SelectionMode="Multiple"
+                 ItemsSource="{Binding Rows}" IsEnabled="{Binding IsIdle}" SelectionChanged="OnSelectionChanged">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:CustomDomainRowViewModel">
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Enabled}" MinWidth="0" Margin="0,0,8,0"
+                          AutomationProperties.Name="{Binding Domain}" />
+                <Panel Grid.Column="1" VerticalAlignment="Center">
+                  <TextBlock Classes="mono" Classes.secondary="{Binding !Enabled}" Text="{Binding Domain}"
+                             TextTrimming="CharacterEllipsis" IsVisible="{Binding !IsEditing}"
+                             Background="Transparent" DoubleTapped="OnRowDoubleTapped" />
+                  <StackPanel Spacing="4" IsVisible="{Binding IsEditing}">
+                    <TextBlock Classes="secondary" FontSize="11" Text="{x:Static app:Strings.CustomEditLabel}" />
+                    <TextBox Classes="mono edit" Text="{Binding EditText}" KeyDown="OnEditKeyDown"
+                             AutomationProperties.Name="{x:Static app:Strings.CustomEditLabel}" />
+                    <TextBlock Classes="secondary" FontSize="11" Text="{Binding EditHint}" TextWrapping="Wrap" />
+                    <TextBlock Classes="tone error" FontSize="11" Text="{Binding EditError}" TextWrapping="Wrap"
+                               IsVisible="{Binding HasEditError}" />
+                  </StackPanel>
+                </Panel>
+                <!-- Kết luận kiểm tra: icon theo mức (không dùng chấm màu) + chữ; di chuột thấy IP -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0" VerticalAlignment="Center"
+                            ToolTip.Tip="{Binding ProbeDetail}">
+                  <PathIcon Classes="tone" Width="12" Height="12" VerticalAlignment="Center"
+                            IsVisible="{Binding ProbeTone, Converter={x:Static ObjectConverters.IsNotNull}}"
+                            Classes.good="{Binding ProbeTone, Converter={x:Static v:ToneConverters.IsGood}}"
+                            Classes.warning="{Binding ProbeTone, Converter={x:Static v:ToneConverters.IsWarning}}"
+                            Classes.error="{Binding ProbeTone, Converter={x:Static v:ToneConverters.IsError}}" />
+                  <TextBlock Classes="tone" FontSize="12" MaxWidth="240" TextWrapping="Wrap" VerticalAlignment="Center"
+                             Text="{Binding ProbeText, TargetNullValue={x:Static app:Strings.CustomNotChecked}}"
+                             Classes.good="{Binding ProbeTone, Converter={x:Static v:ToneConverters.IsGood}}"
+                             Classes.warning="{Binding ProbeTone, Converter={x:Static v:ToneConverters.IsWarning}}"
+                             Classes.error="{Binding ProbeTone, Converter={x:Static v:ToneConverters.IsError}}" />
+                </StackPanel>
+                <Button Grid.Column="3" Width="32" Height="32" Padding="0" Background="Transparent" VerticalAlignment="Center"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        AutomationProperties.Name="{Binding DeleteName}" ToolTip.Tip="{Binding DeleteName}" Click="OnDelete">
+                  <PathIcon Data="{DynamicResource Icon.Delete}" Width="16" Height="16"
+                            Foreground="{DynamicResource Brush.TextSecondary}" />
+                </Button>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+    </Panel>
+
+    <!-- Hoàn tác 6 giây sau khi xoá -->
+    <Border Grid.Row="4" Margin="0,12,0,0" Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.CardBorder}"
+            BorderThickness="1" CornerRadius="10" Padding="14,6,8,6"
+            IsVisible="{Binding UndoText, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBlock Text="{Binding UndoText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="1" Classes="secondary" FontSize="12" Text="{Binding UndoSecondsText}"
+                   VerticalAlignment="Center" Margin="10,0" />
+        <Button Grid.Column="2" Content="{x:Static app:Strings.CustomUndo}" IsEnabled="{Binding IsIdle}" Click="OnUndo" />
+      </Grid>
+    </Border>
+
+    <!-- Hàng nút dưới -->
+    <Grid Grid.Row="5" Margin="0,12,0,0" ColumnDefinitions="*,Auto">
+      <WrapPanel VerticalAlignment="Center">
+        <Button Background="Transparent" Content="{Binding ProbeSelectedText}" IsEnabled="{Binding CanProbe}" Click="OnProbeSelected" />
+        <Button Background="Transparent" Content="{x:Static app:Strings.CustomProbeAll}" IsEnabled="{Binding CanProbe}" Click="OnProbeAll" />
+        <Button Background="Transparent" Content="{x:Static app:Strings.CustomImport}" IsEnabled="{Binding IsIdle}" Click="OnImport" />
+        <Button Background="Transparent" Content="{x:Static app:Strings.CustomExport}" IsEnabled="{Binding CanProbe}" Click="OnExport" />
+        <TextBlock Classes="secondary" FontSize="12" Text="{Binding CountText}" VerticalAlignment="Center" Margin="8,0" />
+      </WrapPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+        <Button Content="{x:Static app:Strings.CustomCancel}" IsEnabled="{Binding IsIdle}" Click="OnCancel" />
+        <Button Classes="accent" IsEnabled="{Binding CanSave}" Click="OnSave">
+          <Panel>
+            <TextBlock Text="{x:Static app:Strings.CustomSave}" IsVisible="{Binding !IsSaving}" />
+            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsSaving}">
+              <ProgressBar IsIndeterminate="True" Width="16" MinWidth="0" Height="3" MinHeight="0" VerticalAlignment="Center" />
+              <TextBlock Text="{x:Static app:Strings.CustomApplying}" />
+            </StackPanel>
+          </Panel>
+        </Button>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</Window>

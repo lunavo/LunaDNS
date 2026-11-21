@@ -1,3 +1,6 @@
+using LunaDns.App.Features;
+using LunaDns.Core.Domains;
+using LunaDns.Core.Features;
 using LunaDns.Core.Settings;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -32,5 +35,95 @@ public sealed class AppServicesTests : IDisposable
         var saved = new JsonFileSettingsStore(_app.Paths.SettingsFile).Load();
         Assert.True(saved.CheckPubg);
         Assert.True(saved.PubgWarningAccepted);
+    }
+
+    [Fact]
+    public async Task Apply_domains_saves_settings_when_local()
+    {
+        await using var services = new AppServices(_app.Paths, _app.Configurator, NullLoggerFactory.Instance);
+        var selection = new DomainSelection { EnabledGroups = [DomainGroup.Reddit, DomainGroup.Custom], Custom = [new("example.org")] };
+
+        var result = await services.ApplyDomainsAsync(selection);
+
+        Assert.True(result.Success);
+        Assert.True(services.Settings.Domains.SameAs(selection));
+        Assert.True(new JsonFileSettingsStore(services.Paths.SettingsFile).Load().Domains.SameAs(selection));
+        Assert.True((await services.GetDomainsAsync())!.SameAs(selection));
+    }
+
+    /// <summary>Brief dùng DnsRouting; ở đây dùng SniProxy (cổng cao) để test không cần cổng 53 trên máy chạy test.</summary>
+    [Fact]
+    public async Task Apply_domains_failure_keeps_old_settings()
+    {
+        await using var services = new AppServices(_app.Paths, _app.Configurator, NullLoggerFactory.Instance);
+        var enabled = await services.Features.EnableAsync(Feature.SniProxy, allowProxyOverride: true);
+        Assert.Equal(FeatureOutcome.Enabled, enabled.Outcome);
+        var before = services.Settings.Domains;
+
+        var result = await services.ApplyDomainsAsync(new DomainSelection { EnabledGroups = [] });
+
+        Assert.False(result.Success);
+        Assert.Equal(ErrorMessages.For(FeatureError.NoDomains), result.Message);
+        Assert.True(services.Settings.Domains.SameAs(before));
+        Assert.True(new JsonFileSettingsStore(services.Paths.SettingsFile).Load().Domains.SameAs(before));
+    }
+
+    [Fact]
+    public async Task Apply_domains_mentions_changes_left_behind_when_old_list_not_restored()
+    {
+        await using var services = new AppServices(_app.Paths, _app.Configurator, NullLoggerFactory.Instance);
+        await services.Features.EnableAsync(Feature.SniProxy, allowProxyOverride: true);
+        _app.Configurator.FailRevert = true;
+
+        var result = await services.ApplyDomainsAsync(new DomainSelection { EnabledGroups = [DomainGroup.Reddit] });
+        _app.Configurator.FailRevert = false;
+
+        Assert.False(result.Success);
+        Assert.EndsWith(Strings.ChangesLeftBehind, result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Probe_uses_controller_selection_and_falls_back_to_settings()
+    {
+        var daemonSide = new DomainSelection { EnabledGroups = [DomainGroup.Reddit] };
+        var controller = new SelectionOnlyController { Selection = daemonSide };
+        await using var services = new AppServices(_app.Paths, _ => controller, NullLoggerFactory.Instance);
+
+        Assert.True((await services.ProbeSelectionAsync()).SameAs(daemonSide));
+
+        controller.Selection = null;
+        Assert.True((await services.ProbeSelectionAsync()).SameAs(services.Settings.Domains));
+    }
+
+    /// <summary>Chỉ trả lựa chọn tên miền; các lệnh khác không dùng tới trong test này.</summary>
+    private sealed class SelectionOnlyController : IFeatureController
+    {
+        public DomainSelection? Selection { get; set; }
+
+        public event EventHandler<FeatureStoppedEventArgs>? FeatureStopped { add { } remove { } }
+
+        public ControllerAvailability Availability => ControllerAvailability.DaemonRunning;
+
+        public FeatureStatus Status { get; } = new(false, false, false, null, 0);
+
+        public LunaDns.Core.Journal.RollbackResult StartupRollback { get; } = new(0, []);
+
+        public int? JournalEntries => 0;
+
+        public Task<DomainSelection?> GetDomainsAsync() => Task.FromResult(Selection);
+
+        public Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection) => throw new NotSupportedException();
+
+        public Task RefreshAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<FeatureResult> EnableAsync(Feature feature, bool allowProxyOverride = false) => throw new NotSupportedException();
+
+        public Task<FeatureResult> DisableAsync(Feature feature) => throw new NotSupportedException();
+
+        public Task<DisableAllResult> DisableAllAsync() => throw new NotSupportedException();
+
+        public Task<int> ShutdownAsync() => Task.FromResult(0);
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

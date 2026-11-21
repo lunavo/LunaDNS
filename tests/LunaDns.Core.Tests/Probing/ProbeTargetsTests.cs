@@ -25,5 +25,30 @@ public class ProbeTargetsTests
 
     [Fact]
     public void Every_target_is_a_game_domain() =>
-        Assert.All(ProbeTargets.For(includePubg: true), host => Assert.True(DomainMatcher.Matches(host, GameDomains.All)));
+        Assert.All(ProbeTargets.For(includePubg: true), host => Assert.True(DomainMatcher.Matches(host, DomainCatalog.All)));
+
+    [Fact]
+    public void Default_selection_probes_only_steam() =>
+        Assert.Equal(ProbeTargets.Steam, ProbeTargets.For(new DomainSelection()));
+
+    [Fact]
+    public void Selection_adds_group_targets_and_first_five_enabled_custom_domains()
+    {
+        var custom = Enumerable.Range(0, 7).Select(i => new CustomDomain($"d{i}.example.org", Enabled: i != 0)).ToArray();
+        var selection = new DomainSelection { EnabledGroups = [DomainGroup.Reddit, DomainGroup.Custom], Custom = custom };
+
+        var targets = ProbeTargets.For(selection);
+
+        Assert.Equal([.. ProbeTargets.For(DomainGroup.Reddit), "d1.example.org", "d2.example.org", "d3.example.org", "d4.example.org", "d5.example.org"], targets);
+    }
+
+    [Fact]
+    public void Group_of_maps_hosts_back_to_their_group()
+    {
+        var selection = new DomainSelection { EnabledGroups = [DomainGroup.Steam, DomainGroup.Reddit, DomainGroup.Custom], Custom = [new("example.org")] };
+
+        Assert.Equal(DomainGroup.Steam, ProbeTargets.GroupOf("store.steampowered.com", selection));
+        Assert.Equal(DomainGroup.Reddit, ProbeTargets.GroupOf("i.redd.it", selection));
+        Assert.Equal(DomainGroup.Custom, ProbeTargets.GroupOf("example.org", selection));
+    }
 }

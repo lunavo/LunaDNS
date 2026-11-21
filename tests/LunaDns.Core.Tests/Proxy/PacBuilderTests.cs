@@ -18,7 +18,7 @@ public class PacBuilderTests
     [Fact]
     public void Lists_every_domain_quoted()
     {
-        var steam = GameDomains.For(DomainGroup.Steam);
+        var steam = DomainCatalog.For(DomainGroup.Steam);
         var pac = PacBuilder.Build(18080, steam);
         foreach (var d in steam) Assert.Contains($"\"{d}\"", pac);
     }
