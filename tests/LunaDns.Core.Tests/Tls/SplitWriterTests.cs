@@ -63,7 +63,7 @@ public class SplitWriterTests
 
         var writes = stream.Writes;
         Assert.Equal(2, writes.Count);
-        Assert.Equal(6, writes[0].Length);
+        Assert.Equal(11, writes[0].Length);
         Assert.Equal(Hello.Length + 5, writes.Sum(w => w.Length));
         Assert.All(writes, w => Assert.Equal(0x16, w[0]));
     }

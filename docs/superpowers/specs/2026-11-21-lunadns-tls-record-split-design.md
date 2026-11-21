@@ -46,7 +46,7 @@ public sealed record HelloSplit(SplitMode Mode, bool Records)
 | Đơn vị | Thay đổi |
 |---|---|
 | `Tls/TlsRecordSplitter` (mới, hàm thuần) | `Split(ReadOnlyMemory<byte> record, int cut)`: nhận một record handshake hoàn chỉnh và điểm cắt tính theo offset trong record (`5 < cut < 5 + độ dài thân`). Trả hai record; header mỗi record = content type + version chép từ record gốc + độ dài mới (big-endian). |
-| `Tls/HelloSplitter` | Nhận `HelloSplit`. `Records = false`: như hiện nay. `Records = true`: điểm cắt `FirstByte` = 6 (sau byte đầu của thân), `MidSni` = `sni.Offset + sni.Length / 2` (luôn ≥ 6 vì SNI nằm trong thân); trả hai record của `TlsRecordSplitter`. |
+| `Tls/HelloSplitter` | Nhận `HelloSplit`. `Records = false`: như hiện nay. `Records = true`: điểm cắt `FirstByte` = 11 (sau header handshake 4 byte + `legacy_version` 2 byte; xem ghi chú SChannel bên dưới), `MidSni` = `sni.Offset + sni.Length / 2` (luôn > 11 vì SNI nằm sau Random); trả hai record của `TlsRecordSplitter`. |
 | `Tls/SplitWriter`, `Proxy/TlsTunnel.WriteFirstRecordAsync` | Tham số `SplitMode` → `HelloSplit`. Mỗi phần một lần Write + Flush, độ trễ giữa các phần, byte thừa sau record đầu ghi nguyên: như cũ. |
 | `Probing/SplittingStream` | Nhận `HelloSplit`. Lần Write đầu: chỉ cắt record đầu tiên (giới hạn bằng `ClientHelloParser.RecordLength`); byte sau record đó ghi nguyên. |
 | `Probing/TlsProbe` | Tham số `SplitMode` → `HelloSplit`. |
@@ -70,13 +70,22 @@ Kiểm tra: `ProbeRunner` → `TlsProbe(HelloSplit)` → `SplittingStream` → `
 - Máy chủ từ chối handshake đã tách: lỗi TLS hiện ở Kiểm tra như mọi lỗi TLS khác; log của proxy ghi kiểu cắt đang
   dùng. Không tự tắt công tắc (tự chọn là việc của D3).
 
+### Ghi chú SChannel (21/11/2026)
+
+Bản đầu cắt FirstByte ở offset 6 (record đầu có thân 1 byte). CI Windows đỏ: SChannel làm server từ chối với
+"The message received was unexpected or badly formatted" và alert fatal 70 (`protocol_version`). Quét offset trên
+`windows-latest` (build 26100) và `windows-2022` (20348): 6–10 bị từ chối, 11 trở lên (11, 20, 43, giữa SNI, len−1)
+được nhận; gửi hai record trong một hay hai TCP segment cho cùng kết quả, nên lỗi do cấu trúc record chứ không do thời
+gian. Máy chủ macOS nhận mọi offset. Kết luận: SChannel cần record đầu chứa trọn header handshake và `legacy_version`.
+Vì vậy FirstByte khi tách record cắt ở 11; SNI vẫn nằm trọn ở record sau, đúng mục đích D1.
+
 ## Kiểm thử
 
 - `TlsRecordSplitterTests` (byte cố định): độ dài và header từng record đúng; nối thân hai record ra đúng thân gốc;
   version giữ nguyên; điểm cắt ngoài khoảng ném `ArgumentOutOfRangeException`; record cỡ tối đa (16 384 byte thân)
   cho hai record đều ≤ 16 384.
-- `HelloSplitterTests`: `Records = true` với FirstByte (record 1 có thân 1 byte), MidSni (tên host vắt hai record),
-  không SNI (về FirstByte), thân 1 byte (không cắt). Các test `Records = false` hiện có giữ nguyên kết quả.
+- `HelloSplitterTests`: `Records = true` với FirstByte (record 1 có thân 6 byte), MidSni (tên host vắt hai record),
+  không SNI (về FirstByte), thân quá ngắn cho điểm cắt (không cắt). Các test `Records = false` hiện có giữ nguyên kết quả.
 - `SplitWriterTests`, `SplittingStreamTests`: đúng 2 lần Write khi bật; có độ trễ; byte thừa sau record đầu ghi nguyên.
 - `TlsProbeTests` (tích hợp): máy chủ `SslStream` thật (`LoopbackTlsServer`) handshake thành công khi bật tách
   record, với cả hai điểm cắt. `SplitProxyTests`: proxy gửi lên đúng hai record (kiểm bằng upstream ghi lại byte).

@@ -6,10 +6,16 @@ namespace LunaDns.Core.Tls;
 /// </summary>
 public static class HelloSplitter
 {
+    /// <summary>
+    /// Điểm cắt FirstByte khi tách record: sau header handshake (4 byte) + legacy_version (2 byte). SChannel (Windows)
+    /// đọc version từ record đầu và trả alert protocol_version nếu record đầu ngắn hơn, dù RFC 8446 §5.1 cho phép.
+    /// </summary>
+    internal const int RecordsFirstCut = TlsRecordSplitter.HeaderLength + 6;
+
     public static int[] CutPoints(ReadOnlySpan<byte> hello, HelloSplit split)
     {
         ArgumentNullException.ThrowIfNull(split);
-        var cut = split.Records ? TlsRecordSplitter.HeaderLength + 1 : 1;
+        var cut = split.Records ? RecordsFirstCut : 1;
         if (split.Mode == SplitMode.MidSni && ClientHelloParser.TryFindSni(hello, out var sni) && sni.Length > 1)
             cut = sni.Offset + sni.Length / 2;
         return cut > 0 && cut < hello.Length ? [cut] : [];
