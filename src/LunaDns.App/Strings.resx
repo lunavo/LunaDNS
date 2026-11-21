@@ -175,6 +175,24 @@
   <data name="GroupReddit" xml:space="preserve"><value>Reddit</value></data>
   <data name="GroupCustom" xml:space="preserve"><value>Tuỳ chỉnh</value></data>
   <data name="GroupCountFormat" xml:space="preserve"><value>{0} tên miền</value></data>
+  <data name="DomainListSwitch" xml:space="preserve"><value>Tự cập nhật danh sách tên miền</value></data>
+  <data name="DomainListCheckNow" xml:space="preserve"><value>Cập nhật ngay</value></data>
+  <data name="DomainListOff" xml:space="preserve"><value>Đang dùng danh sách có sẵn</value></data>
+  <data name="DomainListNone" xml:space="preserve"><value>Chưa tải bản nào</value></data>
+  <data name="DomainListChecking" xml:space="preserve"><value>Đang kiểm…</value></data>
+  <data name="DomainListOkFormat" xml:space="preserve"><value>Bản {0:dd/MM} · kiểm lúc {1:HH:mm}</value></data>
+  <data name="DomainListFailedKeepFormat" xml:space="preserve"><value>Không kiểm được lúc {0:HH:mm}, giữ bản {1:dd/MM}</value></data>
+  <data name="DomainListFailedBuiltinFormat" xml:space="preserve"><value>Không kiểm được lúc {0:HH:mm}, dùng danh sách có sẵn</value></data>
+  <data name="DomainListReapplyFailedFormat" xml:space="preserve"><value>Không áp được bản {0:dd/MM}, xem Chẩn đoán</value></data>
+  <data name="DomainListAddedFormat" xml:space="preserve"><value>Đã thêm {0} tên miền</value></data>
+  <data name="DomainListUpToDate" xml:space="preserve"><value>Đã là bản mới nhất</value></data>
+  <data name="DomainListBadSignature" xml:space="preserve"><value>Chữ ký không hợp lệ, giữ bản cũ</value></data>
+  <data name="DomainListNeedsNewerApp" xml:space="preserve"><value>Cần bản LunaDNS mới hơn để đọc danh sách này</value></data>
+  <data name="DomainListDownloadFailed" xml:space="preserve"><value>Không tải được, thử lại sau</value></data>
+  <data name="GroupCountWithUpdateFormat" xml:space="preserve"><value>{0} tên miền ({1} từ bản cập nhật)</value></data>
+  <data name="DomainSourceBuiltin" xml:space="preserve"><value>Có sẵn</value></data>
+  <data name="DomainSourceUpdateFormat" xml:space="preserve"><value>Bản cập nhật {0:dd/MM}</value></data>
+  <data name="CustomAlsoInGroupFormat" xml:space="preserve"><value>Cũng có trong nhóm {0}</value></data>
   <data name="GroupCustomCountFormat" xml:space="preserve"><value>{0}/{1} đang bật</value></data>
   <data name="GroupViewButton" xml:space="preserve"><value>Xem</value></data>
   <data name="GroupEditButton" xml:space="preserve"><value>Sửa…</value></data>

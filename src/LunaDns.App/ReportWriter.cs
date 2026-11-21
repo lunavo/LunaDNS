@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using LunaDns.Core.Diagnostics;
+using LunaDns.Core.Domains;
 using LunaDns.Core.Logging;
 using LunaDns.Core.Probing;
 
@@ -12,7 +13,8 @@ namespace LunaDns.App;
 /// </summary>
 internal static partial class ReportWriter
 {
-    public static string Write(AppPaths paths, IReadOnlyList<ProbeResult>? probe, IPlatformDiagnostics diagnostics, DateTimeOffset? time = null)
+    public static string Write(AppPaths paths, IReadOnlyList<ProbeResult>? probe, IPlatformDiagnostics diagnostics, DateTimeOffset? time = null,
+        DomainListState? domainList = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(diagnostics);
@@ -27,7 +29,8 @@ internal static partial class ReportWriter
             diagnostics.ProxyLine(),
             diagnostics.MarkedHostsLines(),
             RollingFileLoggerProvider.ReadTail(paths.LogDirectory, DiagnosticReport.LogLines),
-            diagnostics.Labels);
+            diagnostics.Labels,
+            domainList);
         var text = DiagnosticReport.Build(input, new Redactor(Environment.UserName, Environment.MachineName));
 
         Directory.CreateDirectory(paths.ReportDirectory);

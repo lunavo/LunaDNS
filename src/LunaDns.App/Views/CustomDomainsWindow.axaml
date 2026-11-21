@@ -130,9 +130,12 @@
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Enabled}" MinWidth="0" Margin="0,0,8,0"
                           AutomationProperties.Name="{Binding Domain}" />
                 <Panel Grid.Column="1" VerticalAlignment="Center">
-                  <TextBlock Classes="mono" Classes.secondary="{Binding !Enabled}" Text="{Binding Domain}"
-                             TextTrimming="CharacterEllipsis" IsVisible="{Binding !IsEditing}"
-                             Background="Transparent" DoubleTapped="OnRowDoubleTapped" />
+                  <StackPanel IsVisible="{Binding !IsEditing}" Background="Transparent" DoubleTapped="OnRowDoubleTapped">
+                    <TextBlock Classes="mono" Classes.secondary="{Binding !Enabled}" Text="{Binding Domain}"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Classes="secondary" FontSize="11" Text="{Binding AlsoInGroupText}"
+                               IsVisible="{Binding AlsoInGroupText, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                  </StackPanel>
                   <StackPanel Spacing="4" IsVisible="{Binding IsEditing}">
                     <TextBlock Classes="secondary" FontSize="11" Text="{x:Static app:Strings.CustomEditLabel}" />
                     <TextBox Classes="mono edit" Text="{Binding EditText}" KeyDown="OnEditKeyDown"

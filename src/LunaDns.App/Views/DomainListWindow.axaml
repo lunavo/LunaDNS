@@ -16,7 +16,16 @@
     </StackPanel>
     <Border Grid.Row="1" Classes="card" Padding="0" Margin="0,12,0,0">
       <ListBox x:Name="Domains" Background="Transparent"
-               FontFamily="Cascadia Mono, Consolas, Menlo, monospace" FontSize="12.5" />
+               FontFamily="Cascadia Mono, Consolas, Menlo, monospace" FontSize="12.5">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{Binding Domain}" />
+              <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding Source}" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
     </Border>
     <Border Grid.Row="2" Classes="banner" Margin="0,12,0,0">
       <TextBlock FontSize="12" Text="{x:Static app:Strings.GroupListNote}" TextWrapping="Wrap" />

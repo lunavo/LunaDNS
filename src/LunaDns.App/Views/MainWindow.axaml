@@ -252,6 +252,19 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          <!-- Dòng "Tự cập nhật danh sách" (spec D4): ẩn khi dịch vụ nền là bản cũ -->
+          <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding DomainList.IsVisible}" Margin="0,8,0,0">
+            <CheckBox VerticalAlignment="Center" MinWidth="0" Content="{x:Static app:Strings.DomainListSwitch}"
+                      IsChecked="{Binding DomainList.IsEnabled, Mode=OneWay}" Command="{Binding DomainList.ToggleCommand}" />
+            <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+              <TextBlock Classes="tone" FontSize="12" Text="{Binding DomainList.StatusText}" TextWrapping="Wrap"
+                         Classes.error="{Binding DomainList.StatusTone, Converter={x:Static v:ToneConverters.IsError}}" />
+              <TextBlock Classes="secondary" FontSize="12" Text="{Binding DomainList.ResultText}"
+                         IsVisible="{Binding DomainList.ResultText, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+            <Button Grid.Column="2" Padding="10,4" FontSize="12" VerticalAlignment="Center" Classes="flat"
+                    Content="{x:Static app:Strings.DomainListCheckNow}" Command="{Binding DomainList.CheckNowCommand}" />
+          </Grid>
           <TextBlock Classes="secondary" FontSize="12" Text="{x:Static app:Strings.DomainsFootnote}" TextWrapping="Wrap"
                      Margin="0,4,0,0" />
         </StackPanel>

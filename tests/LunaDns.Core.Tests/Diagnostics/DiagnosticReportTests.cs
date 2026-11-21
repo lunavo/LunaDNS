@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using LunaDns.Core.Diagnostics;
+using LunaDns.Core.Domains;
 using LunaDns.Core.Journal;
 using LunaDns.Core.Platform;
 using LunaDns.Core.Probing;
@@ -11,7 +12,7 @@ public sealed class DiagnosticReportTests
 {
     private static readonly string[] Sections =
     [
-        "== Kết quả kiểm tra ==", "== Journal (", "== Luật NRPT của LunaDNS ==", "== AutoConfigURL ==",
+        "== Kết quả kiểm tra ==", "== Danh sách tên miền cập nhật ==", "== Journal (", "== Luật NRPT của LunaDNS ==", "== AutoConfigURL ==",
         "== Dòng hosts có # LunaDNS ==", "== 200 dòng log cuối ==",
     ];
 
@@ -53,6 +54,22 @@ public sealed class DiagnosticReportTests
     [Fact]
     public void Missing_probe_says_not_run() =>
         Assert.Contains("(chưa chạy)", DiagnosticReport.Build(Input(), Redactor), StringComparison.Ordinal);
+
+    [Fact]
+    public void Domain_list_section_shows_serial_and_layer_two_counts()
+    {
+        var state = new DomainListState(true, 5, new DateTimeOffset(2026, 11, 20, 0, 0, 0, TimeSpan.Zero), null,
+            new Dictionary<DomainGroup, IReadOnlyList<string>> { [DomainGroup.Steam] = ["cdn.example.net"] });
+
+        var report = DiagnosticReport.Build(Input() with { DomainList = state }, Redactor);
+
+        Assert.Contains("serial: 5", report, StringComparison.Ordinal);
+        Assert.Contains("Steam: 1 tên miền lớp 2", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Domain_list_section_without_state_says_none() =>
+        Assert.Contains("(không có)", DiagnosticReport.Build(Input(), Redactor), StringComparison.Ordinal);
 
     [Fact]
     public void Probe_line_shows_verdict_and_both_address_lists()

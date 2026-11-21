@@ -14,6 +14,22 @@ internal sealed class CustomDomainRowViewModel(string domain, bool enabled) : Ob
     private Tone? _probeTone;
     private string? _probeDetail;
     private string? _editError;
+    private string? _alsoInGroup;
+
+    /// <summary>
+    /// Tên nhóm dựng sẵn đang bật mà tên miền này cũng nằm trong (lớp 1 hoặc 2); null nếu không.
+    /// Chỉ là ghi chú xám dưới dòng, dòng Tuỳ chỉnh vẫn giữ nguyên (spec D4 "Gộp ba lớp").
+    /// </summary>
+    public string? AlsoInGroup
+    {
+        get => _alsoInGroup;
+        set
+        {
+            if (SetProperty(ref _alsoInGroup, value)) OnPropertyChanged(nameof(AlsoInGroupText));
+        }
+    }
+
+    public string? AlsoInGroupText => _alsoInGroup is null ? null : Strings.Format(nameof(Strings.CustomAlsoInGroupFormat), _alsoInGroup);
 
     /// <summary>Domain hoặc Enabled đổi: hộp thoại tính lại số đếm và IsDirty.</summary>
     public event EventHandler? Changed;
