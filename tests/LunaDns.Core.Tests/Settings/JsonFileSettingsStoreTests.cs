@@ -1,3 +1,4 @@
+using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Settings;
@@ -94,5 +95,48 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         new JsonFileSettingsStore(PathOf("settings.json")).Save(new AppSettings { SplitMode = SplitMode.MidSni });
 
         Assert.Contains("\"MidSni\"", File.ReadAllText(PathOf("settings.json")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Old_settings_with_prefer_google_load_as_google()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "PreferGoogleDoh": true }""");
+
+        var settings = new JsonFileSettingsStore(path).Load();
+
+        Assert.Null(settings.Doh);
+        Assert.Null(settings.CustomDoh);
+        Assert.Equal(DohProvider.Google, settings.EffectiveDoh());
+    }
+
+    [Fact]
+    public void Doh_choice_and_custom_url_round_trip()
+    {
+        var store = new JsonFileSettingsStore(PathOf("settings.json"));
+        var custom = new CustomDoh { Endpoint = "https://dns.example.net/q", ManualAddresses = ["1.2.3.4"], ResolvedAddresses = ["5.6.7.8"] };
+
+        store.Save(new AppSettings().WithDoh(DohProvider.Custom) with { CustomDoh = custom });
+        var loaded = store.Load();
+
+        Assert.Equal(DohProvider.Custom, loaded.Doh);
+        Assert.Equal(custom.Endpoint, loaded.CustomDoh!.Endpoint);
+        Assert.Equal(custom.ManualAddresses, loaded.CustomDoh.ManualAddresses);
+        Assert.Equal(custom.ResolvedAddresses, loaded.CustomDoh.ResolvedAddresses);
+        Assert.Contains("\"Custom\"", File.ReadAllText(PathOf("settings.json")), StringComparison.Ordinal);
+        Assert.DoesNotContain("EffectiveDoh", File.ReadAllText(PathOf("settings.json")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Custom_doh_with_missing_lists_loads_with_empty_lists()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "Doh": "Custom", "CustomDoh": { "Endpoint": "https://dns.example.net/q" } }""");
+
+        var settings = new JsonFileSettingsStore(path).Load();
+
+        Assert.Empty(settings.CustomDoh!.ManualAddresses);
+        Assert.Empty(settings.CustomDoh.ResolvedAddresses);
+        Assert.Equal("Cloudflare", settings.DohServers()[0].Name);
     }
 }

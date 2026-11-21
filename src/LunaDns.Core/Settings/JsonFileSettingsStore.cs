@@ -22,7 +22,11 @@ public sealed class JsonFileSettingsStore(string path)
             var domains = (loaded.Domains ?? new DomainSelection()).Sanitized(out var dropped);
 #pragma warning restore CA1508
             DroppedDomains = dropped;
-            return loaded with { Domains = domains };
+            // Source generator gán null cho thuộc tính init vắng trong JSON, nên bù danh sách rỗng cho URL tự nhập.
+            var custom = loaded.CustomDoh is { } c
+                ? c with { ManualAddresses = AsList(c.ManualAddresses), ResolvedAddresses = AsList(c.ResolvedAddresses) }
+                : null;
+            return loaded with { Domains = domains, CustomDoh = custom };
         }
         catch (JsonException)
         {
@@ -32,6 +36,8 @@ public sealed class JsonFileSettingsStore(string path)
             return new AppSettings();
         }
     }
+
+    private static IReadOnlyList<string> AsList(IReadOnlyList<string>? list) => list ?? [];
 
     public void Save(AppSettings settings)
     {
