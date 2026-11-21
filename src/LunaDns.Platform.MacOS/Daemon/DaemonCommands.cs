@@ -19,19 +19,22 @@ public sealed partial class DaemonCommands
     private readonly ChangeJournal journal;
     private readonly string version;
     private readonly SettingsHolder _settings;
+    private readonly DomainListService _domainList;
 
-    public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, JsonFileSettingsStore settingsStore, ILogger? logger = null)
-        : this(features, journal, version, new SettingsHolder(settingsStore ?? throw new ArgumentNullException(nameof(settingsStore))), logger)
+    public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, JsonFileSettingsStore settingsStore, DomainListService domainList,
+        ILogger? logger = null)
+        : this(features, journal, version, new SettingsHolder(settingsStore ?? throw new ArgumentNullException(nameof(settingsStore))), domainList, logger)
     {
     }
 
     /// <summary>Daemon thật: dùng chung SettingsHolder với Engine, để set-tuning đổi được DoH/tuning lúc dịch vụ khởi động lại.</summary>
-    public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, SettingsHolder settings, ILogger? logger = null)
+    public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, SettingsHolder settings, DomainListService domainList, ILogger? logger = null)
     {
         this.features = features;
         this.journal = journal;
         this.version = version;
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _domainList = domainList ?? throw new ArgumentNullException(nameof(domainList));
         // Daemon là bên giữ settings.json trên macOS: dòng bị bỏ lúc nạp phải để lại dấu (spec mục 7).
         if (settings.DroppedDomains > 0) LogDroppedDomains(logger ?? NullLogger.Instance, settings.DroppedDomains);
     }
@@ -74,6 +77,12 @@ public sealed partial class DaemonCommands
                 return Ok() with { Tuning = DaemonTuning.From(_settings.Current) };
             case DaemonProtocol.SetTuning:
                 return await SetTuningAsync(request.Tuning, cancellationToken).ConfigureAwait(false);
+            case DaemonProtocol.GetDomainList:
+                return Ok() with { DomainList = DaemonDomainList.From(_domainList.State) };
+            case DaemonProtocol.SetDomainList:
+                return await SetDomainListAsync(request.Envelope, cancellationToken).ConfigureAwait(false);
+            case DaemonProtocol.SetDomainListEnabled:
+                return await SetDomainListEnabledAsync(request.Enabled, cancellationToken).ConfigureAwait(false);
             default:
                 return new DaemonResponse(false, $"{DaemonProtocol.UnknownCommandPrefix} {request.Command}");
         }
@@ -92,26 +101,71 @@ public sealed partial class DaemonCommands
             return Refused(bad >= DomainPolicy.MaxCustomDomains
                 ? $"Tối đa {DomainPolicy.MaxCustomDomains} tên miền."
                 : $"Tên miền không hợp lệ ở dòng {bad + 1}.");
-        var result = await features.ReapplyAsync(FeatureDomains.Routed(wanted), cancellationToken).ConfigureAwait(false);
-        if (!result.Success)
-            return Ok() with { Ok = false, Error = result.Error.ToString(), Message = DescribeReapply(result) };
-        var updated = _settings.Current with { Domains = wanted };
+        // Routed tính bằng catalog đúng lúc áp, trong cổng của DomainListService (spec D4).
+        return await _domainList.WithCatalogAsync(async catalog =>
+        {
+            var result = await features.ReapplyAsync(FeatureDomains.Routed(wanted, catalog), cancellationToken).ConfigureAwait(false);
+            if (!result.Success)
+                return Ok() with { Ok = false, Error = result.Error.ToString(), Message = DescribeReapply(result) };
+            var updated = _settings.Current with { Domains = wanted };
+            try
+            {
+                _settings.Save(updated);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                var back = await features.ReapplyAsync(FeatureDomains.Routed(_settings.Current.Domains, catalog), CancellationToken.None).ConfigureAwait(false);
+                return Ok() with
+                {
+                    Ok = false,
+                    Message = back.Success
+                        ? $"Không lưu được settings.json ({ex.Message}); đã giữ danh sách cũ."
+                        : $"Không lưu được settings.json ({ex.Message}) và không quay về được danh sách cũ; chạy: sudo lunadns cleanup",
+                };
+            }
+            return Ok() with { Domains = wanted };
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>D4: không tin app. Daemon xác minh lại chữ ký, serial, DomainPolicy bằng khoá nhúng trong chính nó.</summary>
+    private async Task<DaemonResponse> SetDomainListAsync(string? envelope, CancellationToken cancellationToken)
+    {
+        if (envelope is null) return Refused("Thiếu danh sách tên miền.");
+        byte[] bytes;
         try
         {
-            _settings.Save(updated);
+            bytes = Convert.FromBase64String(envelope);
+        }
+        catch (FormatException)
+        {
+            return Refused("Danh sách tên miền không đọc được.");
+        }
+        var result = await _domainList.OfferAsync(bytes, cancellationToken).ConfigureAwait(false);
+        return Ok() with
+        {
+            Ok = result.Success,
+            DomainListResult = DaemonDomainListResult.From(result),
+            DomainList = DaemonDomainList.From(_domainList.State),
+        };
+    }
+
+    /// <summary>Áp trước, lưu settings.json sau; lưu lỗi thì bật/tắt ngược lại để tính năng khớp file.</summary>
+    private async Task<DaemonResponse> SetDomainListEnabledAsync(bool? enabled, CancellationToken cancellationToken)
+    {
+        if (enabled is not { } value) return Refused("Thiếu giá trị công tắc.");
+        var result = await _domainList.SetEnabledAsync(value, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+            return Ok() with { Ok = false, DomainListResult = DaemonDomainListResult.From(result), DomainList = DaemonDomainList.From(_domainList.State) };
+        try
+        {
+            _settings.Save(_settings.Current with { DomainListUpdates = value });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            var back = await features.ReapplyAsync(FeatureDomains.Routed(_settings.Current.Domains), CancellationToken.None).ConfigureAwait(false);
-            return Ok() with
-            {
-                Ok = false,
-                Message = back.Success
-                    ? $"Không lưu được settings.json ({ex.Message}); đã giữ danh sách cũ."
-                    : $"Không lưu được settings.json ({ex.Message}) và không quay về được danh sách cũ; chạy: sudo lunadns cleanup",
-            };
+            await _domainList.SetEnabledAsync(!value, CancellationToken.None).ConfigureAwait(false);
+            return Ok() with { Ok = false, Message = $"Không lưu được settings.json ({ex.Message}); giữ công tắc cũ." };
         }
-        return Ok() with { Domains = wanted };
+        return Ok() with { DomainListResult = DaemonDomainListResult.From(result), DomainList = DaemonDomainList.From(_domainList.State) };
     }
 
     /// <summary>

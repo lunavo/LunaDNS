@@ -1,4 +1,5 @@
 using System.Net;
+using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
 using LunaDns.Core.Logging;
@@ -28,9 +29,13 @@ internal sealed class Engine : IAsyncDisposable
         Settings = new SettingsHolder(new JsonFileSettingsStore(paths.SettingsFile));
         var services = new CoreFeatureServices(() => Settings.Current.DohServers(), loggers,
             dnsEndPoint: new IPEndPoint(IPAddress.Loopback, configurator.Dns.Port));
+        // Lambda đọc Features lúc chạy, sau khi ctor đã gán. Service sống cùng Engine, Dispose ở DisposeAsync.
+        DomainList = new DomainListService(new DomainListStore(paths.DomainListFile, DomainListKeys.Production), DomainListKeys.Production,
+            Settings.Current.DomainListUpdates, () => Settings.Current.Domains,
+            (domains, ct) => Features!.ReapplyAsync(domains, ct), logger: loggers.CreateLogger<DomainListService>());
         Features = new FeatureSet(Journal, new SystemChanges(Journal, configurator), services,
             () => Settings.Current.Tuning(), logger: loggers.CreateLogger<FeatureSet>(),
-            routedDomains: FeatureDomains.Routed(Settings.Current.Domains));
+            routedDomains: FeatureDomains.Routed(Settings.Current.Domains, DomainList.Catalog));
     }
 
     public MacPaths Paths { get; }
@@ -42,6 +47,9 @@ internal sealed class Engine : IAsyncDisposable
     public ChangeJournal Journal { get; }
 
     public FeatureSet Features { get; }
+
+    /// <summary>Lớp 2 của danh sách tên miền (D4), dùng chung với DaemonCommands.</summary>
+    public DomainListService DomainList { get; }
 
     /// <summary>settings.json của daemon, dùng chung với DaemonCommands (set-domains, set-tuning).</summary>
     public SettingsHolder Settings { get; }
@@ -79,6 +87,7 @@ internal sealed class Engine : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await Features.DisposeAsync().ConfigureAwait(false);
+        DomainList.Dispose();
         Loggers.Dispose();
         await _lock.DisposeAsync().ConfigureAwait(false);
     }

@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
+using LunaDns.Core.Features;
 using LunaDns.Core.Probing;
 using LunaDns.Core.Settings;
 using LunaDns.Core.Tls;
@@ -12,13 +13,14 @@ namespace LunaDns.Platform.MacOS.Daemon;
 /// <summary>
 /// Giao thức giữa giao diện/CLI (quyền user) và daemon (root, launchd): mỗi kết nối một dòng JSON yêu cầu, một dòng JSON trả lời.
 /// Lệnh: <c>ping</c>, <c>status</c>, <c>enable</c> (kèm Feature), <c>disable</c> (kèm Feature), <c>disable-all</c>,
-/// <c>get-domains</c>, <c>set-domains</c> (kèm Domains), <c>get-tuning</c>, <c>set-tuning</c> (kèm Tuning).
+/// <c>get-domains</c>, <c>set-domains</c> (kèm Domains), <c>get-tuning</c>, <c>set-tuning</c> (kèm Tuning),
+/// <c>get-domain-list</c>, <c>set-domain-list</c> (kèm Envelope), <c>set-domain-list-enabled</c> (kèm Enabled).
 /// </summary>
 public static class DaemonProtocol
 {
     public const string Label = "vn.lunavo.lunadns";
     public const string SocketPath = "/var/run/lunadns.sock";
-    public const int MaxLineBytes = 65536; // set-domains: 200 tên miền × tối đa 253 ký tự
+    public const int MaxLineBytes = 131072; // set-domain-list: envelope 64 KB → base64 ~88 KB + JSON
 
     public const string Ping = "ping";
     public const string Status = "status";
@@ -29,6 +31,9 @@ public static class DaemonProtocol
     public const string SetDomains = "set-domains";
     public const string GetTuning = "get-tuning";
     public const string SetTuning = "set-tuning";
+    public const string GetDomainList = "get-domain-list";
+    public const string SetDomainList = "set-domain-list";
+    public const string SetDomainListEnabled = "set-domain-list-enabled";
 
     /// <summary>Đầu câu trả lời cho lệnh daemon không biết. Bản cũ cũng dùng đúng câu này, nên giao diện nhận ra daemon cần cài lại.</summary>
     public const string UnknownCommandPrefix = "Lệnh lạ:";
@@ -66,11 +71,13 @@ public static class DaemonProtocol
 [JsonSerializable(typeof(DaemonRequest))]
 [JsonSerializable(typeof(DaemonResponse))]
 [JsonSerializable(typeof(DaemonTuning))]
+[JsonSerializable(typeof(DaemonDomainList))]
+[JsonSerializable(typeof(DaemonDomainListResult))]
 internal sealed partial class DaemonJsonContext : JsonSerializerContext;
 
 /// <summary>Feature là khoá trong FeatureKeys ("dns-routing", "sni-proxy").</summary>
 public sealed record DaemonRequest(string Command, string? Feature = null, bool AllowProxyOverride = false, DomainSelection? Domains = null,
-    DaemonTuning? Tuning = null);
+    DaemonTuning? Tuning = null, string? Envelope = null, bool? Enabled = null);
 
 /// <summary>
 /// Outcome/Error là tên enum FeatureOutcome/FeatureError dạng chuỗi (để client cũ không vỡ khi thêm giá trị).
@@ -84,7 +91,9 @@ public sealed record DaemonResponse(
     string? Outcome = null,
     string? Error = null,
     DomainSelection? Domains = null,
-    DaemonTuning? Tuning = null);
+    DaemonTuning? Tuning = null,
+    DaemonDomainList? DomainList = null,
+    DaemonDomainListResult? DomainListResult = null);
 
 /// <summary>Máy DoH và tổ hợp cắt gói của daemon (D3). Enum dạng chuỗi camelCase ("quad9", "midSni").</summary>
 public sealed record DaemonTuning(DohProvider Doh, SplitMode SplitMode, bool SplitRecords, int SplitDelayMs)
@@ -106,3 +115,38 @@ public sealed record DaemonTuning(DohProvider Doh, SplitMode SplitMode, bool Spl
 }
 
 public sealed record DaemonStatus(bool DnsRouting, bool SniProxy, int? ProxyPort, int ProxyConnections, int JournalEntries);
+
+/// <summary>Trạng thái lớp 2 của daemon (D4). Added theo khoá nhóm của file ("steam"), để không phụ thuộc cách ghi enum.</summary>
+public sealed record DaemonDomainList(bool Enabled, long Serial, DateTimeOffset? Issued, DateTimeOffset? CheckedAt, Dictionary<string, string[]> Added)
+{
+    public static DaemonDomainList From(DomainListState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        return new(state.Enabled, state.Serial, state.Issued, state.CheckedAt,
+            state.Added.ToDictionary(kv => DomainListVerifier.GroupKey(kv.Key), kv => kv.Value.ToArray(), StringComparer.Ordinal));
+    }
+
+    public DomainListState ToState()
+    {
+        var added = new Dictionary<DomainGroup, IReadOnlyList<string>>();
+        foreach (var (key, list) in Added ?? [])
+            if (DomainListVerifier.TryParseGroup(key, out var group) && list is not null) added[group] = list;
+        return new(Enabled, Serial, Issued, CheckedAt, added);
+    }
+}
+
+/// <summary>Kết quả set-domain-list / set-domain-list-enabled. Outcome, Error là tên enum dạng chuỗi.</summary>
+public sealed record DaemonDomainListResult(string Outcome, int Added, int Dropped, string? Error, bool PreviousRestored)
+{
+    public static DaemonDomainListResult From(DomainListOfferResult r)
+    {
+        ArgumentNullException.ThrowIfNull(r);
+        return new(r.Outcome.ToString(), r.Added, r.Dropped, r.Error == FeatureError.None ? null : r.Error.ToString(), r.PreviousRestored);
+    }
+
+    public DomainListOfferResult ToResult() => new(
+        Enum.TryParse<DomainListOutcome>(Outcome, out var o) ? o : DomainListOutcome.Unavailable,
+        Added, Dropped,
+        Enum.TryParse<FeatureError>(Error, out var e) ? e : FeatureError.None,
+        PreviousRestored);
+}
