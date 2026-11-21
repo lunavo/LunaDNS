@@ -59,6 +59,19 @@ public sealed class DaemonServerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Refusal_is_read_even_when_daemon_closes_before_request_is_sent()
+    {
+        // Daemon trả lời từ chối rồi đóng mà không đọc yêu cầu; đôi khi việc gửi của client gặp EPIPE (~2% lần trên macOS).
+        _allow = false;
+        var client = new DaemonClient(_socket);
+        for (var i = 0; i < 1000; i++)
+        {
+            Assert.False((await client.SendAsync(new DaemonRequest(DaemonProtocol.DisableAll))).Ok);
+        }
+        Assert.Null(_last);
+    }
+
+    [Fact]
     public async Task Garbage_and_oversized_requests_are_refused()
     {
         Assert.False((await Raw("not json\n")).Ok);
