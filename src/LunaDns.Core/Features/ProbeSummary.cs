@@ -55,6 +55,14 @@ public sealed record ProbeSummary(IReadOnlyList<ProbeGroupSummary> Groups, DateT
         return new ProbeSummary(groups, checkedAt);
     }
 
+    public static ProbeSummary Create(IReadOnlyList<ProbeResult> results, DateTimeOffset checkedAt, Func<string, DomainGroup> groupOf)
+    {
+        ArgumentNullException.ThrowIfNull(results);
+        ArgumentNullException.ThrowIfNull(groupOf);
+        var groups = results.GroupBy(r => groupOf(r.Host)).Select(g => new ProbeGroupSummary(g.Key, [.. g])).ToList();
+        return new ProbeSummary(groups, checkedAt);
+    }
+
     /// <summary>Biện pháp cho nhóm Steam (bảng spec 4.1), bỏ những gì đang bật. Dùng cho nút "Áp dụng đề xuất".</summary>
     public ProbeRemedies PendingSteamRemedies(FeatureStatus status)
     {

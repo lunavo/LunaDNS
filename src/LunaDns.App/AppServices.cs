@@ -79,10 +79,14 @@ internal sealed class AppServices : IAsyncDisposable
 
     public async Task<ProbeSummary> ProbeAsync(CancellationToken cancellationToken)
     {
-        var results = await _probes.RunAsync(cancellationToken);
+        var selection = Settings.Domains;
+        var results = await _probes.RunAsync(selection, cancellationToken);
         LastProbe = results;
-        return ProbeSummary.Create(results, _time.GetLocalNow());
+        return ProbeSummary.Create(results, _time.GetLocalNow(), h => ProbeTargets.GroupOf(h, selection));
     }
+
+    public Task<IReadOnlyList<ProbeResult>> ProbeDomainsAsync(IReadOnlyList<string> hosts, CancellationToken cancellationToken) =>
+        _probes.RunAsync(hosts, cancellationToken);
 
     public Task<int> ShutdownAsync() => Features.ShutdownAsync();
 

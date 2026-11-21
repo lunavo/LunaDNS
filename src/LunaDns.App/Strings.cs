@@ -27,6 +27,11 @@ internal static class Strings
     public static string ProbeDetailFormat => Get(nameof(ProbeDetailFormat));
     public static string ProbeCoveredFormat => Get(nameof(ProbeCoveredFormat));
     public static string ProbeMissingFormat => Get(nameof(ProbeMissingFormat));
+    public static string DomainProbeOk => Get(nameof(DomainProbeOk));
+    public static string DomainProbeNeedsDns => Get(nameof(DomainProbeNeedsDns));
+    public static string DomainProbeNeedsSni => Get(nameof(DomainProbeNeedsSni));
+    public static string DomainProbeUnreachable => Get(nameof(DomainProbeUnreachable));
+    public static string DomainProbeFailed => Get(nameof(DomainProbeFailed));
     public static string AllOk => Get(nameof(AllOk));
     public static string UnreachableHint => Get(nameof(UnreachableHint));
     public static string ApplyRecommendedButton => Get(nameof(ApplyRecommendedButton));

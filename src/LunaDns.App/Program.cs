@@ -57,7 +57,7 @@ internal static partial class Program
         {
             try
             {
-                probe = Task.Run(() => new ProbeRunner(() => settings, loggerFactory).RunAsync(timeout.Token)).GetAwaiter().GetResult();
+                probe = Task.Run(() => new ProbeRunner(() => settings, loggerFactory).RunAsync(settings.Domains, timeout.Token)).GetAwaiter().GetResult();
             }
             catch (OperationCanceledException)
             {

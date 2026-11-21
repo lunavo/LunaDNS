@@ -114,4 +114,9 @@
   <data name="Error_AccessDenied_Mac" xml:space="preserve"><value>Dịch vụ nền không đủ quyền sửa cấu hình mạng.</value></data>
   <data name="Error_DnsRouteConflict_Mac" xml:space="preserve"><value>Các tên miền Steam đã có file /etc/resolver của phần mềm khác (VPN hoặc script tự tạo). Gỡ file đó rồi thử lại.</value></data>
   <data name="Error_RollbackFailed_Mac" xml:space="preserve"><value>Chưa hoàn tác được thay đổi. Chạy trong Terminal: sudo lunadns cleanup</value></data>
+  <data name="DomainProbeOk" xml:space="preserve"><value>Không bị chặn, không cần LunaDNS</value></data>
+  <data name="DomainProbeNeedsDns" xml:space="preserve"><value>Giúp được (cần Định tuyến DNS)</value></data>
+  <data name="DomainProbeNeedsSni" xml:space="preserve"><value>Giúp được (cần Proxy SNI)</value></data>
+  <data name="DomainProbeUnreachable" xml:space="preserve"><value>Chặn theo IP hoặc cách khác, LunaDNS không giúp được</value></data>
+  <data name="DomainProbeFailed" xml:space="preserve"><value>Không kiểm tra được, thử lại</value></data>
 </root>
