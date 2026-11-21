@@ -45,6 +45,19 @@ public sealed class CustomDohParserTests
     public void Any_bad_address_rejects_the_whole_box(string text) =>
         Assert.False(CustomDohParser.TryParseAddresses(text, out _));
 
+    [Theory]
+    [InlineData("https://[fe80::1%25eth0]/dns-query")]
+    [InlineData("https://[fe80::1%25nosuchif]/dns-query")]
+    // Chưa dựng được input làm IPAddress.Parse văng trên macOS (Windows có thể văng); test giữ làm lưới an toàn.
+    public void Literal_address_with_odd_scope_id_does_not_throw(string url)
+    {
+        var uri = new Uri(url);
+
+        var exception = Record.Exception(() => CustomDohParser.LiteralAddress(uri));
+
+        Assert.Null(exception);
+    }
+
     [Fact]
     public void Literal_address_comes_from_ip_host()
     {

@@ -45,6 +45,15 @@ public sealed class AppSettingsTests
     }
 
     [Fact]
+    public void Undefined_doh_value_falls_back_to_legacy_preference()
+    {
+        var settings = new AppSettings { Doh = (DohProvider)7 };
+
+        Assert.Equal(DohProvider.Cloudflare, settings.EffectiveDoh());
+        Assert.Equal("Cloudflare", settings.DohServers()[0].Name);
+    }
+
+    [Fact]
     public void Doh_overrides_legacy_preference()
     {
         var settings = new AppSettings { PreferGoogleDoh = true, Doh = DohProvider.Quad9 };

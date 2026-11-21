@@ -37,8 +37,10 @@ public static class CustomDohParser
     public static IPAddress? LiteralAddress(Uri endpoint)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
+        // TryParse: host IPv6 có scope id lạ không được làm văng exception.
         return endpoint.HostNameType is UriHostNameType.IPv4 or UriHostNameType.IPv6
-            ? IPAddress.Parse(endpoint.DnsSafeHost)
+            && IPAddress.TryParse(endpoint.DnsSafeHost, out var address)
+            ? address
             : null;
     }
 

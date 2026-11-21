@@ -76,8 +76,8 @@ internal sealed partial class MainViewModel : ObservableObject
         DismissMessageCommand = new AsyncCommand(DismissMessageAsync, OnError);
         QuitCommand = new AsyncCommand(quit, OnError);
         InstallServiceCommand = new AsyncCommand(InstallServiceAsync, OnError);
-        MeasureDohCommand = new AsyncCommand(MeasureDohAsync, OnError);
-        SaveCustomDohCommand = new AsyncCommand(SaveCustomDohAsync, OnError);
+        MeasureDohCommand = new AsyncCommand(MeasureDohAsync, OnError, () => !_isSavingCustomDoh);
+        SaveCustomDohCommand = new AsyncCommand(SaveCustomDohAsync, OnError, () => !_isMeasuringDoh);
         _customDohUrl = _services.Settings.CustomDoh?.Endpoint ?? string.Empty;
         _customDohAddresses = string.Join(", ", _services.Settings.CustomDoh?.ManualAddresses ?? []);
         RefreshCustomDohStatus();
@@ -211,6 +211,7 @@ internal sealed partial class MainViewModel : ObservableObject
     private IReadOnlyDictionary<DohProvider, DohLatency> _dohLatencies = new Dictionary<DohProvider, DohLatency>();
     private IReadOnlyList<string> _dohItems = BuildDohItems(new Dictionary<DohProvider, DohLatency>());
     private bool _isMeasuringDoh;
+    private bool _isSavingCustomDoh;
     private string _customDohUrl = string.Empty;
     private string _customDohAddresses = string.Empty;
     private string _customDohStatus = string.Empty;
@@ -278,13 +279,18 @@ internal sealed partial class MainViewModel : ObservableObject
     private async Task MeasureDohAsync()
     {
         _isMeasuringDoh = true;
+        SaveCustomDohCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(DohMeasureLabel));
         using var cts = new CancellationTokenSource(DohMeasureTimeout);
         _cancelDoh = cts.Cancel;
         try
         {
             var token = cts.Token;
-            var results = await Task.Run(() => _services.MeasureDohAsync(token));
+            var measurement = await Task.Run(() => _services.MeasureDohAsync(token));
+            var results = measurement.Results;
+            // Ghi settings chỉ ở luồng UI; bỏ qua nếu URL Tự nhập đã đổi trong lúc đo.
+            if (measurement.Resolved is { } resolvedCustom)
+                SaveSettings(s => s.CustomDoh?.Endpoint == resolvedCustom.Endpoint ? s with { CustomDoh = resolvedCustom } : s);
             _dohLatencies = results.ToDictionary(r => r.Provider);
             DohItems = BuildDohItems(_dohLatencies);
             if (results.FirstOrDefault(r => r.Median is not null) is { Median: { } median } best)
@@ -307,6 +313,7 @@ internal sealed partial class MainViewModel : ObservableObject
         {
             _cancelDoh = null;
             _isMeasuringDoh = false;
+            SaveCustomDohCommand.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(DohMeasureLabel));
         }
     }
@@ -333,6 +340,8 @@ internal sealed partial class MainViewModel : ObservableObject
             ResolvedAddresses = old is not null && old.Endpoint == endpoint ? old.ResolvedAddresses : [],
         };
         CustomDohStatus = Strings.DohCustomResolving;
+        _isSavingCustomDoh = true;
+        MeasureDohCommand.RaiseCanExecuteChanged();
         using var timeout = new CancellationTokenSource(DohMeasureTimeout);
         try
         {
@@ -344,6 +353,11 @@ internal sealed partial class MainViewModel : ObservableObject
         {
             SaveSettings(s => s with { CustomDoh = draft });
             CustomDohStatus = Strings.DohCustomResolveFailed;
+        }
+        finally
+        {
+            _isSavingCustomDoh = false;
+            MeasureDohCommand.RaiseCanExecuteChanged();
         }
     }
 

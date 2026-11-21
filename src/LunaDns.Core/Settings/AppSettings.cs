@@ -36,7 +36,10 @@ public sealed record AppSettings
     public bool DomainsIntroSeen { get; init; }
 
     /// <summary>Hàm chứ không phải thuộc tính, để không bị ghi ra settings.json.</summary>
-    public DohProvider EffectiveDoh() => Doh ?? (PreferGoogleDoh ? DohProvider.Google : DohProvider.Cloudflare);
+    public DohProvider EffectiveDoh() =>
+        Doh is { } doh && Enum.IsDefined(doh)
+            ? doh // giá trị lạ do sửa tay settings.json (ví dụ "Doh": 7) thì coi như chưa chọn
+            : PreferGoogleDoh ? DohProvider.Google : DohProvider.Cloudflare;
 
     public AppSettings WithDoh(DohProvider provider) =>
         this with { Doh = provider, PreferGoogleDoh = provider == DohProvider.Google };
