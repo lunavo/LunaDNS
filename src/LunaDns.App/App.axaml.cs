@@ -53,6 +53,7 @@ internal sealed partial class App : Application, IDisposable
             desktop.ShutdownRequested += OnShutdownRequested;
             CreateTray();
             Instance?.ListenForShow(() => Dispatcher.UIThread.Post(() => ShowWindow()));
+            ListenForDockReopen();
 
             _window.Show();
             _viewModel.Start();
@@ -70,6 +71,16 @@ internal sealed partial class App : Application, IDisposable
 #else
         return null;
 #endif
+    }
+
+    /// <summary>macOS: nút X chỉ ẩn cửa sổ, nên bấm icon Dock (applicationShouldHandleReopen) phải hiện lại cửa sổ chính.</summary>
+    private void ListenForDockReopen()
+    {
+        if (this.TryGetFeature<IActivatableLifetime>() is not { } activatable) return;
+        activatable.Activated += (_, e) =>
+        {
+            if (e.Kind == ActivationKind.Reopen && Volatile.Read(ref _shuttingDown) == 0) ShowWindow();
+        };
     }
 
     private void CreateTray()
