@@ -261,7 +261,7 @@ internal sealed partial class AppServices : IAsyncDisposable
     public Task<IReadOnlyList<ProbeResult>> ProbeDomainsAsync(IReadOnlyList<string> hosts, CancellationToken cancellationToken) =>
         _probes.RunAsync(hosts, cancellationToken);
 
-    public Task<int> ShutdownAsync() => Features.ShutdownAsync();
+    public Task<int> ShutdownAsync(ShutdownReason reason) => Features.ShutdownAsync(reason);
 
     public async ValueTask DisposeAsync()
     {

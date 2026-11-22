@@ -12,7 +12,7 @@ namespace LunaDns.MacCli;
 
 /// <summary>
 /// Phần chạy bằng root, dùng chung cho <c>run</c> (tiền cảnh) và <c>daemon</c> (launchd): thư mục dữ liệu, khoá độc quyền,
-/// hoàn tác journal còn sót, FeatureSet. Dispose = tắt mọi tính năng và hoàn tác.
+/// hoàn tác journal còn sót, FeatureSet, FeatureResumer (F1). Dispose = tắt mọi tính năng và hoàn tác, giữ wanted.
 /// </summary>
 internal sealed class Engine : IAsyncDisposable
 {
@@ -36,6 +36,7 @@ internal sealed class Engine : IAsyncDisposable
         Features = new FeatureSet(Journal, new SystemChanges(Journal, configurator), services,
             () => Settings.Current.Tuning(), logger: loggers.CreateLogger<FeatureSet>(),
             routedDomains: FeatureDomains.Routed(Settings.Current.Domains, DomainList.Catalog));
+        Resumer = new FeatureResumer(Features, () => Settings.Current, Settings.Save, logger: loggers.CreateLogger<FeatureResumer>());
     }
 
     public MacPaths Paths { get; }
@@ -55,6 +56,9 @@ internal sealed class Engine : IAsyncDisposable
     public SettingsHolder Settings { get; }
 
     public RollbackResult StartupRollback { get; }
+
+    /// <summary>F1: nhớ wanted và tự bật lại lúc daemon khởi động. Chế độ <c>run</c> không dùng.</summary>
+    public FeatureResumer Resumer { get; }
 
     /// <summary>Null nếu đã có phiên khác (run hoặc daemon) giữ khoá.</summary>
     public static Engine? TryOpen(MacPaths paths, Action<string> warn)

@@ -20,6 +20,7 @@ public sealed partial class DaemonCommands
     private readonly string version;
     private readonly SettingsHolder _settings;
     private readonly DomainListService _domainList;
+    private readonly FeatureResumer? _resumer;
 
     public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, JsonFileSettingsStore settingsStore, DomainListService domainList,
         ILogger? logger = null)
@@ -27,9 +28,14 @@ public sealed partial class DaemonCommands
     {
     }
 
-    /// <summary>Daemon thật: dùng chung SettingsHolder với Engine, để set-tuning đổi được DoH/tuning lúc dịch vụ khởi động lại.</summary>
-    public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, SettingsHolder settings, DomainListService domainList, ILogger? logger = null)
+    /// <summary>
+    /// Daemon thật: dùng chung SettingsHolder với Engine, để set-tuning đổi được DoH/tuning lúc dịch vụ khởi động lại.
+    /// <paramref name="resumer"/> null (<c>lunadns run</c>): không nhớ wanted, câu trả lời không có Resume.
+    /// </summary>
+    public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, SettingsHolder settings, DomainListService domainList, ILogger? logger = null,
+        FeatureResumer? resumer = null)
     {
+        _resumer = resumer;
         this.features = features;
         this.journal = journal;
         this.version = version;
@@ -55,16 +61,21 @@ public sealed partial class DaemonCommands
                 {
                     if (Parse(request.Feature) is not { } feature) return BadFeature(request.Feature);
                     var result = await features.EnableAsync(feature, request.AllowProxyOverride, cancellationToken).ConfigureAwait(false);
+                    if (result.Outcome is FeatureOutcome.Enabled or FeatureOutcome.Unchanged) _resumer?.Record(feature, true);
                     return From(result);
                 }
             case DaemonProtocol.Disable:
                 {
                     if (Parse(request.Feature) is not { } feature) return BadFeature(request.Feature);
-                    return From(await features.DisableAsync(feature).ConfigureAwait(false));
+                    var result = await features.DisableAsync(feature).ConfigureAwait(false);
+                    if (result.Outcome is FeatureOutcome.Disabled or FeatureOutcome.Unchanged) _resumer?.Record(feature, false);
+                    return From(result);
                 }
             case DaemonProtocol.DisableAll:
                 {
                     var result = await features.DisableAllAsync().ConfigureAwait(false);
+                    // Người dùng tắt hết hoặc thoát app: lần khởi động sau không tự bật. Đăng xuất/tắt máy thì giữ (F1).
+                    if (request.SessionEnd != true) _resumer?.Forget();
                     return result.Success
                         ? Ok()
                         : Ok() with { Ok = false, Message = $"Còn {result.RemainingEntries} thay đổi chưa hoàn tác; xem log." };
@@ -83,6 +94,8 @@ public sealed partial class DaemonCommands
                 return await SetDomainListAsync(request.Envelope, cancellationToken).ConfigureAwait(false);
             case DaemonProtocol.SetDomainListEnabled:
                 return await SetDomainListEnabledAsync(request.Enabled, cancellationToken).ConfigureAwait(false);
+            case DaemonProtocol.SetAutoResume:
+                return SetAutoResume(request.Enabled);
             default:
                 return new DaemonResponse(false, $"{DaemonProtocol.UnknownCommandPrefix} {request.Command}");
         }
@@ -156,6 +169,13 @@ public sealed partial class DaemonCommands
         var result = await _domainList.SetEnabledAsync(value, () => _settings.Save(_settings.Current with { DomainListUpdates = value }),
             cancellationToken).ConfigureAwait(false);
         return Ok() with { Ok = result.Success, DomainListResult = DaemonDomainListResult.From(result), DomainList = DaemonDomainList.From(_domainList.State) };
+    }
+
+    private DaemonResponse SetAutoResume(bool? enabled)
+    {
+        if (_resumer is null) return Refused("Chế độ 'lunadns run' không tự bật lại.");
+        if (enabled is not { } value) return Refused("Thiếu giá trị công tắc.");
+        return _resumer.SetEnabled(value) ? Ok() : Refused("Không lưu được settings.json; xem log.");
     }
 
     /// <summary>
@@ -237,7 +257,8 @@ public sealed partial class DaemonCommands
     {
         var s = features.GetStatus();
         return new DaemonResponse(true, Version: version,
-            Status: new DaemonStatus(s.DnsRouting, s.SniProxy, s.ProxyPort, s.ProxyConnections, journal.Entries.Count));
+            Status: new DaemonStatus(s.DnsRouting, s.SniProxy, s.ProxyPort, s.ProxyConnections, journal.Entries.Count),
+            Resume: _resumer is null ? null : DaemonResume.From(_resumer.State));
     }
 
     private DaemonResponse From(FeatureResult result) =>

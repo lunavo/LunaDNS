@@ -201,7 +201,13 @@ public sealed class AppServicesTests : IDisposable
 
         public Task<DomainListOfferResult> SetDomainListEnabledAsync(bool enabled) => Task.FromResult(new DomainListOfferResult(DomainListOutcome.Accepted));
 
-        public Task<int> ShutdownAsync() => Task.FromResult(0);
+        public ResumeState? Resume => null;
+
+        public Task ResumeAsync() => Task.CompletedTask;
+
+        public Task<string?> SetAutoResumeAsync(bool enabled) => Task.FromResult<string?>(null);
+
+        public Task<int> ShutdownAsync(ShutdownReason reason) => Task.FromResult(0);
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

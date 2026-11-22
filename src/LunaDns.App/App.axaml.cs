@@ -155,7 +155,7 @@ internal sealed partial class App : Application, IDisposable
     private async Task QuitAsync()
     {
         if (Interlocked.Exchange(ref _shuttingDown, 1) == 1) return;
-        var result = await Task.Run(Services!.ShutdownAsync);
+        var result = await Task.Run(() => Services!.ShutdownAsync(Features.ShutdownReason.UserQuit));
         if (result > 0) await new DialogPrompts(() => ShowWindow()).InformAsync(Strings.AppTitle, Strings.RestoreFailed);
         CloseTray();
         _desktop!.Shutdown();
@@ -164,15 +164,18 @@ internal sealed partial class App : Application, IDisposable
     /// <summary>
     /// Đăng xuất/tắt máy (WM_QUERYENDSESSION): hoàn tác trong tối đa 4 giây (KH5 quyết định 14). Chưa chắc Avalonia 11.3 phát sự kiện
     /// này khi session kết thúc; T8 bước 6 đo bằng các dòng log ở đây. Không kịp thì lần mở sau hoặc --cleanup sẽ hoàn tác.
+    /// macOS phát cả cho Cmd+Q và Quit trên Dock: đọc lý do của Apple Event quit để biết là người dùng thoát (xoá wanted) hay hết
+    /// phiên (giữ wanted, F1). Phải đọc ngay tại đây, trên luồng chính, trong lúc hệ thống còn đang xử lý yêu cầu thoát.
     /// </summary>
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
         if (Interlocked.Exchange(ref _shuttingDown, 1) == 1) return;
-        LogSessionEnding(_logger);
+        var reason = SessionEnding() ? Features.ShutdownReason.SessionEnd : Features.ShutdownReason.UserQuit;
+        LogSessionEnding(_logger, reason);
         var watch = Stopwatch.StartNew();
         try
         {
-            var shutdown = Task.Run(Services!.ShutdownAsync);
+            var shutdown = Task.Run(() => Services!.ShutdownAsync(reason));
             if (!shutdown.Wait(SessionEndBudget)) LogSessionEndTimedOut(_logger);
             else if (shutdown.Result > 0) LogSessionEndLeftovers(_logger, shutdown.Result);
             else LogSessionEndDone(_logger, watch.ElapsedMilliseconds);
@@ -182,6 +185,16 @@ internal sealed partial class App : Application, IDisposable
             LogSessionEndFailed(_logger, ex);
         }
         CloseTray();
+    }
+
+    /// <summary>Windows: ShutdownRequested chỉ đến từ WM_QUERYENDSESSION. macOS: hỏi lý do của Apple Event quit.</summary>
+    private static bool SessionEnding()
+    {
+#if MACOS
+        return Platform.MacOS.AppleEvents.QuitReason.IsSessionEnding();
+#else
+        return true;
+#endif
     }
 
     public void Dispose() => CloseTray();
@@ -205,8 +218,8 @@ internal sealed partial class App : Application, IDisposable
         e.Handled = true;
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Nhận ShutdownRequested (đăng xuất/tắt máy), bắt đầu hoàn tác.")]
-    private static partial void LogSessionEnding(ILogger logger);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Nhận ShutdownRequested ({Reason}), bắt đầu hoàn tác.")]
+    private static partial void LogSessionEnding(ILogger logger, Features.ShutdownReason reason);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Hoàn tác khi đăng xuất xong sau {ElapsedMs} ms.")]
     private static partial void LogSessionEndDone(ILogger logger, long elapsedMs);

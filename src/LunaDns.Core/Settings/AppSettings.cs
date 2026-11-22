@@ -39,6 +39,12 @@ public sealed record AppSettings
     /// <summary>D4: công tắc "Tự cập nhật danh sách tên miền". Tắt = ngừng tải và bỏ lớp 2 khỏi định tuyến.</summary>
     public bool DomainListUpdates { get; init; } = true;
 
+    /// <summary>F1: công tắc "Tự bật lại". Mặc định bật; tắt thì vẫn nhớ <see cref="Wanted"/> để giao diện đề nghị bật lại.</summary>
+    public bool AutoResume { get; init; } = true;
+
+    /// <summary>F1: tính năng người dùng để bật lần cuối. Chỉ FeatureResumer đổi trường này.</summary>
+    public WantedFeatures? Wanted { get; init; } = WantedFeatures.None;
+
     /// <summary>Hàm chứ không phải thuộc tính, để không bị ghi ra settings.json.</summary>
     public DohProvider EffectiveDoh() =>
         Doh is { } doh && Enum.IsDefined(doh)

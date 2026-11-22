@@ -66,6 +66,29 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Old_settings_without_resume_fields_turn_auto_resume_on_with_nothing_wanted()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "SplitMode": "FirstByte" }""");
+
+        var settings = new JsonFileSettingsStore(path).Load();
+
+        Assert.True(settings.AutoResume);
+        Assert.Equal(WantedFeatures.None, settings.Wanted);
+    }
+
+    [Fact]
+    public void Resume_fields_round_trip()
+    {
+        var store = new JsonFileSettingsStore(PathOf("settings.json"));
+        var settings = new AppSettings { AutoResume = false, Wanted = new WantedFeatures(true, false) };
+
+        store.Save(settings);
+
+        Assert.Equal(settings, store.Load());
+    }
+
+    [Fact]
     public void Save_then_load_round_trips()
     {
         var store = new JsonFileSettingsStore(PathOf("sub/settings.json"));

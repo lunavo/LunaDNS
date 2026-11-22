@@ -14,7 +14,8 @@ namespace LunaDns.Platform.MacOS.Daemon;
 /// Giao thức giữa giao diện/CLI (quyền user) và daemon (root, launchd): mỗi kết nối một dòng JSON yêu cầu, một dòng JSON trả lời.
 /// Lệnh: <c>ping</c>, <c>status</c>, <c>enable</c> (kèm Feature), <c>disable</c> (kèm Feature), <c>disable-all</c>,
 /// <c>get-domains</c>, <c>set-domains</c> (kèm Domains), <c>get-tuning</c>, <c>set-tuning</c> (kèm Tuning),
-/// <c>get-domain-list</c>, <c>set-domain-list</c> (kèm Envelope), <c>set-domain-list-enabled</c> (kèm Enabled).
+/// <c>get-domain-list</c>, <c>set-domain-list</c> (kèm Envelope), <c>set-domain-list-enabled</c> (kèm Enabled),
+/// <c>set-auto-resume</c> (kèm Enabled, F1). <c>disable-all</c> kèm SessionEnd = true (đăng xuất/tắt máy) thì không xoá wanted.
 /// </summary>
 public static class DaemonProtocol
 {
@@ -34,6 +35,7 @@ public static class DaemonProtocol
     public const string GetDomainList = "get-domain-list";
     public const string SetDomainList = "set-domain-list";
     public const string SetDomainListEnabled = "set-domain-list-enabled";
+    public const string SetAutoResume = "set-auto-resume";
 
     /// <summary>Đầu câu trả lời cho lệnh daemon không biết. Bản cũ cũng dùng đúng câu này, nên giao diện nhận ra daemon cần cài lại.</summary>
     public const string UnknownCommandPrefix = "Lệnh lạ:";
@@ -73,11 +75,15 @@ public static class DaemonProtocol
 [JsonSerializable(typeof(DaemonTuning))]
 [JsonSerializable(typeof(DaemonDomainList))]
 [JsonSerializable(typeof(DaemonDomainListResult))]
+[JsonSerializable(typeof(DaemonResume))]
 internal sealed partial class DaemonJsonContext : JsonSerializerContext;
 
-/// <summary>Feature là khoá trong FeatureKeys ("dns-routing", "sni-proxy").</summary>
+/// <summary>
+/// Feature là khoá trong FeatureKeys ("dns-routing", "sni-proxy"). SessionEnd chỉ dùng với disable-all: app thoát vì đăng
+/// xuất/tắt máy, không phải người dùng thoát, nên daemon giữ wanted (F1). Daemon cũ bỏ qua trường này.
+/// </summary>
 public sealed record DaemonRequest(string Command, string? Feature = null, bool AllowProxyOverride = false, DomainSelection? Domains = null,
-    DaemonTuning? Tuning = null, string? Envelope = null, bool? Enabled = null);
+    DaemonTuning? Tuning = null, string? Envelope = null, bool? Enabled = null, bool? SessionEnd = null);
 
 /// <summary>
 /// Outcome/Error là tên enum FeatureOutcome/FeatureError dạng chuỗi (để client cũ không vỡ khi thêm giá trị).
@@ -93,7 +99,8 @@ public sealed record DaemonResponse(
     DomainSelection? Domains = null,
     DaemonTuning? Tuning = null,
     DaemonDomainList? DomainList = null,
-    DaemonDomainListResult? DomainListResult = null);
+    DaemonDomainListResult? DomainListResult = null,
+    DaemonResume? Resume = null);
 
 /// <summary>Máy DoH và tổ hợp cắt gói của daemon (D3). Enum dạng chuỗi camelCase ("quad9", "midSni").</summary>
 public sealed record DaemonTuning(DohProvider Doh, SplitMode SplitMode, bool SplitRecords, int SplitDelayMs)
@@ -149,4 +156,35 @@ public sealed record DaemonDomainListResult(string Outcome, int Added, int Dropp
         Added, Dropped,
         Enum.TryParse<FeatureError>(Error, out var e) ? e : FeatureError.None,
         PreviousRestored);
+}
+
+/// <summary>
+/// F1: công tắc Tự bật lại, wanted, đang tự bật dở hay không, và lỗi lần tự bật cuối (FailedFeature là khoá FeatureKeys,
+/// Outcome/Error là tên enum dạng chuỗi). Có trong mọi câu trả lời kèm Status của daemon; null với daemon cũ và "lunadns run".
+/// </summary>
+public sealed record DaemonResume(bool Enabled, bool DnsRouting, bool SniProxy, bool Restoring, string? FailedFeature = null, string? Outcome = null,
+    string? Error = null)
+{
+    public static DaemonResume From(ResumeState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        var failure = state.Failure;
+        return new(state.Enabled, state.Wanted.DnsRouting, state.Wanted.SniProxy, state.Restoring,
+            failure is null ? null : FeatureKeys.For(failure.Feature),
+            failure?.Outcome.ToString(),
+            failure is null || failure.Error == FeatureError.None ? null : failure.Error.ToString());
+    }
+
+    public ResumeState ToState()
+    {
+        FeatureResult? failure = null;
+        if (FeatureKeys.TryParse(FailedFeature, out var feature))
+        {
+            var outcome = Enum.TryParse<FeatureOutcome>(Outcome, out var o) && Enum.IsDefined(o) ? o : FeatureOutcome.Failed;
+            var error = Enum.TryParse<FeatureError>(Error, out var e) && Enum.IsDefined(e) ? e : FeatureError.None;
+            if (outcome == FeatureOutcome.Failed && error == FeatureError.None) error = FeatureError.Other;
+            failure = new FeatureResult(feature, outcome, error);
+        }
+        return new(Enabled, new WantedFeatures(DnsRouting, SniProxy), Restoring, failure);
+    }
 }

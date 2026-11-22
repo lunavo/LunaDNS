@@ -22,4 +22,23 @@ public static class FeatureKeys
         Feature.PubgMode => PubgMode,
         _ => throw new ArgumentOutOfRangeException(nameof(feature), feature, null),
     };
+
+    public static bool TryParse(string? key, out Feature feature)
+    {
+        switch (key)
+        {
+            case DnsRouting:
+                feature = Feature.DnsRouting;
+                return true;
+            case SniProxy:
+                feature = Feature.SniProxy;
+                return true;
+            case PubgMode:
+                feature = Feature.PubgMode;
+                return true;
+            default:
+                feature = default;
+                return false;
+        }
+    }
 }

@@ -116,7 +116,7 @@ Kết quả là một `ProbeVerdict` cho mỗi host:
 - Bật mặc định khi người dùng bật tính năng đầu tiên. App copy chính nó vào `%ProgramFiles%\LunaDNS\LunaDNS.exe` (chỉ Admin ghi được), rồi đăng ký task `LunaDNS Cleanup` với trigger lúc khởi động máy, chạy bằng tài khoản `SYSTEM` với lệnh `LunaDNS.exe --cleanup`.
 - `--cleanup` chỉ hoàn tác Journal rồi thoát, không bật tính năng nào và không có giao diện.
 - Gỡ task bằng nút "Gỡ khỏi máy" trong Cài đặt, nút này đồng thời xoá `%ProgramFiles%\LunaDNS` và `%ProgramData%\LunaDNS`.
-- v1 không tự bật tính năng khi khởi động. Người dùng mở app khi cần chơi.
+- v1 không tự bật tính năng khi khởi động. Người dùng mở app khi cần chơi. (22/11/2026: F1 thêm "Tự bật lại" lúc mở app trên Windows và lúc dịch vụ nền khởi động trên macOS; xem [2026-11-22-lunadns-auto-resume-design.md](2026-11-22-lunadns-auto-resume-design.md). `--cleanup` vẫn chỉ hoàn tác.)
 
 ### 4.8 Giao diện (Avalonia)
 - **Màn hình chính:** nút "Kiểm tra", sau đó hiện kết quả theo từng nhóm (Steam, PUBG) cùng biện pháp đề xuất và nút "Áp dụng đề xuất".

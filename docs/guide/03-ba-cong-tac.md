@@ -13,7 +13,7 @@ Cửa sổ chính chia theo việc bạn muốn làm, từ trên xuống:
 | Khu | Có gì | Xem |
 |---|---|---|
 | **Kiểm tra** | Kết quả kiểm theo nhóm, **Kiểm tra**, **Áp dụng đề xuất**, **Tìm cấu hình hợp mạng**, **Chẩn đoán**; ngay dưới là mục **Nâng cao** (chỉ Windows) | [Kiểm tra và đề xuất](04-kiem-tra-va-de-xuat.md), [Nâng cao](05-nang-cao.md) |
-| **Trạng thái** | Hai công tắc và mục **TÊN MIỀN** | trang này |
+| **Trạng thái** | Hai công tắc, ô **Tự bật lại** và mục **TÊN MIỀN** | trang này |
 | **Cập nhật** | Dòng *"Đang dùng LunaDNS x.y.z"*, **Kiểm tra cập nhật**, **Tự cập nhật danh sách tên miền** | [Cài đặt](01-cai-dat.md#nâng-cấp), [Tự cập nhật danh sách](#tự-cập-nhật-danh-sách) |
 | **Gỡ & dọn** | **Tắt hết & khôi phục**, **Gỡ khỏi máy** (bản Setup) hoặc dòng chỉ cách gỡ (bản portable, macOS) | [Tắt](#tắt), [Gỡ và dọn](07-go-va-don-dep.md) |
 
@@ -60,6 +60,23 @@ Dòng **Tự cập nhật danh sách tên miền** nằm ở khu **Cập nhật*
 | *Không lưu được cài đặt, giữ như cũ* | Bật/tắt công tắc nhưng không ghi được settings.json; app trả cấu hình về như trước. |
 | *Không áp được bản dd/MM, xem Chẩn đoán* | Áp vào công tắc đang bật bị lỗi; app giữ cấu hình cũ. **Chẩn đoán** có khối "Danh sách tên miền cập nhật". |
 
+## Tự bật lại
+
+App nhớ hai công tắc bạn để bật lần cuối và tự bật lại chúng:
+
+- **Windows:** lúc mở app (sau khi hoàn tác phần còn sót của lần chạy trước). Ô có tên *"Tự bật lại khi mở LunaDNS"*.
+- **macOS:** lúc dịch vụ nền khởi động, tức là sau khi khởi động lại máy hoặc **Cài lại dịch vụ nền**, kể cả khi chưa mở app. Ô có tên *"Tự bật lại sau khi khởi động máy hoặc cài lại dịch vụ nền"*. Xem [macOS](09-macos.md#dịch-vụ-nền-khuyên-dùng).
+
+Ô nằm ngay dưới hai công tắc, mặc định **bật**. Những gì được nhớ:
+
+- Gạt công tắc bật/tắt, **Áp dụng đề xuất**, **Tìm cấu hình hợp mạng**: nhớ đúng trạng thái sau lệnh đó.
+- **Tắt hết & khôi phục**, **Thoát & khôi phục** (macOS: cả Cmd+Q và Quit trên Dock): lần sau không tự bật gì.
+- Đăng xuất, tắt máy, tính năng tự dừng vì lỗi lặp lại: vẫn nhớ, lần sau bật lại.
+
+Tự bật **không bao giờ ghi đè proxy/PAC có sẵn** của máy, kể cả khi lần trước bạn đã đồng ý. Chế độ PUBG không tự bật.
+
+Khi một tính năng lần trước để bật mà đang tắt (ô Tự bật lại đang tắt, tự bật lỗi, máy đang dùng proxy/PAC, tính năng tự dừng…), đầu cửa sổ hiện dải *"Định tuyến DNS đang tắt dù lần trước bạn để bật."* kèm lý do và nút **Bật lại**. Nút này bật như gạt công tắc bằng tay (có hộp thoại hỏi thay proxy nếu cần). Bấm **×** để ẩn dải tới khi danh sách tính năng còn thiếu đổi.
+
 ## Chế độ PUBG: chưa hỗ trợ
 
 LunaDNS hiện **không hỗ trợ PUBG**; giao diện không có công tắc hay ô kiểm tra nào cho PUBG. Nếu file hosts còn dòng `# LunaDNS` từ bản thử nghiệm cũ, "Tắt hết & khôi phục" hoặc `--cleanup` sẽ hoàn tác.
@@ -67,5 +84,5 @@ LunaDNS hiện **không hỗ trợ PUBG**; giao diện không có công tắc ha
 ## Tắt
 
 - Gạt công tắc tắt: hoàn tác phần của tính năng đó. Nếu hoàn tác lỗi, dịch vụ **vẫn chạy**, mục giữ lại trong journal, thông báo *"Một số thay đổi chưa hoàn tác được…"*, bấm tắt lại để thử tiếp.
-- **Tắt hết & khôi phục** (khu **Gỡ & dọn**, hoặc menu khay): tắt mọi công tắc và trả cấu hình mạng như trước (*"Đã tắt hết và trả lại cấu hình mạng như trước."*).
+- **Tắt hết & khôi phục** (khu **Gỡ & dọn**, hoặc menu khay): tắt mọi công tắc và trả cấu hình mạng như trước (*"Đã tắt hết và trả lại cấu hình mạng như trước."*). Lần sau app không [tự bật lại](#tự-bật-lại) gì.
 - Tính năng gặp lỗi lặp lại sẽ tự dừng và báo *"… gặp lỗi lặp lại nên đã được tắt."*

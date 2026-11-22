@@ -65,7 +65,9 @@ The window has the same four zones as on Windows (Kiểm tra, Trạng thái, C�
 - **The interface runs with user rights and does not change system settings itself.** Every on/off action and the status go through the background service (socket `/var/run/lunadns.sock`). The check (probe) still runs inside the interface.
 - **Background service not installed:** the interface shows a banner with the **Cài dịch vụ nền** (Install background service) button. This button opens the macOS password box (`osascript … with administrator privileges`) and then runs the `lunadns install` that ships inside the `.app`. If it is installed but not answering, or the background service is older than the app (usual right after upgrading the app), the banner shows **Cài lại dịch vụ nền** (Reinstall background service). The two switches stay grey until the background service answers.
 - The interface asks the background service every 2 seconds, so switching on/off with `lunadns on|off` in Terminal also shows up in the interface.
-- **Thoát & khôi phục** (Quit & restore) (menu bar, or Cmd+Q, or signing out) sends the turn-everything-off command to the background service, meaning the same as the button on Windows. This is true even when a feature was turned on with `lunadns on`. To keep LunaDNS running, only close the window (red button): the app stays as an icon in the menu bar.
+- **Thoát & khôi phục** (Quit & restore) (menu bar, or Cmd+Q, or Quit in the Dock) sends the turn-everything-off command to the background service, meaning the same as the button on Windows, and the background service forgets the remembered state, so the next start does not [turn anything back on](03-switches.md#turn-back-on-automatically-tự-bật-lại). This is true even when a feature was turned on with `lunadns on`. Signing out or shutting down also turns everything off but **keeps** the remembered state (the app reads the quit reason macOS sends). To keep LunaDNS running, only close the window (red button): the app stays as an icon in the menu bar.
+- The **Tự bật lại sau khi khởi động máy hoặc cài lại dịch vụ nền** (Turn back on after a restart or a background service reinstall) box in the Status zone is saved as `AutoResume` in `/Library/Application Support/LunaDNS/settings.json`; the remembered state is `Wanted`. If the box is missing, the background service is an old version: click **Cài lại dịch vụ nền** (Reinstall background service).
+- **Cài lại dịch vụ nền** while features are on: the new background service turns them back on. When upgrading from an old version that does not remember (0.10.0 or earlier), the app takes a snapshot before installing and turns things back on afterwards; if the Turn back on box is off, the app shows a band with a **Bật lại** (Turn back on) button.
 - The **Find a configuration that works** button is available on macOS: the background service checks, applies and saves the result. An older background service must be reinstalled (**Cài lại dịch vụ nền**) before it can apply. There is no custom DoH field.
 - The **Tự cập nhật danh sách tên miền** (Auto-update domain list) row (in the **Cập nhật** zone) is available on macOS: the background service verifies the signature, applies and saves the list (`DomainListUpdates` lives in `/Library/Application Support/LunaDNS/settings.json`). If the row is missing, the background service is an older version: click **Cài lại dịch vụ nền** (Reinstall background service).
 - The **Kiểm tra** (Check) zone has no **Nâng cao** (Advanced) section yet (split type, delay, DoH): the background service uses the default settings.
@@ -83,8 +85,8 @@ sudo artifacts/publish/osx-arm64/lunadns install
 
 This command copies the runnable build to `/Library/PrivilegedHelperTools/vn.lunavo.lunadns/` (only root can write there), creates `/Library/LaunchDaemons/vn.lunavo.lunadns.plist`, loads the daemon and creates the shortcut command `/usr/local/bin/lunadns` (if that folder already exists).
 
-- Each time the daemon starts (including after a restart or when the daemon dies) it **undoes any leftover journal** and then waits for commands. It does not turn any feature on by itself.
-- On shutdown or when the daemon is removed: launchd sends SIGTERM, and the daemon turns everything off and undoes it.
+- Each time the daemon starts (including after a restart, a reinstall, or when the daemon dies) it **undoes any leftover journal**, opens the socket, then **turns back on** what the user last left on (unless the Turn back on box is off, or the undo was not clean). If that fails it tries again after 5 and then 15 seconds. It never replaces an existing PAC/proxy by itself: if the machine uses a PAC, the SNI proxy waits until the user clicks **Bật lại** (Turn back on) in the app. `lunadns status` shows a *"Tự bật lại: …"* line.
+- On shutdown or when the daemon is removed: launchd sends SIGTERM, and the daemon turns everything off and undoes it, but keeps the remembered state to turn it back on at the next start.
 - Only **root** and **the person sitting at the machine** (the owner of `/dev/console`) can control the daemon; connections from another account (SSH, another user) are refused. The UID comes from the kernel (`getpeereid`) and cannot be faked.
 - Data, journal, log: `/Library/Application Support/LunaDNS` (root, permissions 700); the daemon's logs are in `logs/daemon.out` and `logs/lunadns.log`.
 
@@ -94,10 +96,11 @@ This command copies the runnable build to `/Library/PrivilegedHelperTools/vn.lun
 |---|---|
 | `lunadns on` | Turns on DNS routing (through the background service). |
 | `lunadns on --proxy` | Also turns on the SNI proxy. If the Mac already has an active PAC/manual proxy it refuses; add `--allow-proxy-override` to replace it temporarily. |
-| `lunadns off` | Turns everything off and restores. |
+| `lunadns off` | Turns everything off and restores; nothing is turned back on at the next start. |
+| `lunadns auto-resume on\|off` | Turns Turn back on (Tự bật lại) on or off (on by default). |
 | `lunadns status` | Status. Without the background service, it reads LunaDNS's resolver files, PAC and hosts lines itself. |
 | `sudo lunadns uninstall` | Turns off, restores, removes the background service, the shortcut command and the data folder. |
-| `sudo lunadns run [--proxy]` | No background service installed: runs in the foreground, **Ctrl+C** to turn off and restore. Cannot run while the background service is running. |
+| `sudo lunadns run [--proxy]` | No background service installed: runs in the foreground, **Ctrl+C** to turn off and restore. Does not remember or turn anything back on. Cannot run while the background service is running. |
 | `sudo lunadns cleanup` | Undoes every change still in the journal. Does not run while the background service or `run` holds the lock. |
 
 Exit codes: `0` done · `1` some work not finished, or the background service is not running (see `/Library/Application Support/LunaDNS/logs`) · `2` wrong or missing arguments, or sudo missing.

@@ -45,6 +45,7 @@ internal sealed partial class LocalFeatureController : IFeatureController
         Features = new FeatureSet(Journal, new SystemChanges(Journal, configurator), services,
             () => settings().Tuning(), clock, loggerFactory.CreateLogger<FeatureSet>(),
             routedDomains: FeatureDomains.Routed(settings().Domains, DomainList.Catalog));
+        Resumer = new FeatureResumer(Features, settings, _saveSettings, time: clock, logger: loggerFactory.CreateLogger<FeatureResumer>());
     }
 
     public event EventHandler<FeatureStoppedEventArgs>? FeatureStopped
@@ -60,6 +61,11 @@ internal sealed partial class LocalFeatureController : IFeatureController
     /// <summary>Lớp 2 của danh sách tên miền (D4). Controller sở hữu, Dispose cùng controller.</summary>
     public DomainListService DomainList { get; }
 
+    /// <summary>F1: wanted và công tắc nằm trong settings.json của app; tự bật lúc mở app.</summary>
+    public FeatureResumer Resumer { get; }
+
+    public ResumeState? Resume => Resumer.State;
+
     public ControllerAvailability Availability => ControllerAvailability.Local;
 
     public FeatureStatus Status => Features.GetStatus();
@@ -72,12 +78,32 @@ internal sealed partial class LocalFeatureController : IFeatureController
 
     public Task RefreshAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-    public Task<FeatureResult> EnableAsync(Feature feature, bool allowProxyOverride = false) =>
-        Features.EnableAsync(feature, allowProxyOverride);
+    public async Task<FeatureResult> EnableAsync(Feature feature, bool allowProxyOverride = false)
+    {
+        var result = await Features.EnableAsync(feature, allowProxyOverride).ConfigureAwait(false);
+        if (result.Outcome is FeatureOutcome.Enabled or FeatureOutcome.Unchanged) Resumer.Record(feature, true);
+        return result;
+    }
 
-    public Task<FeatureResult> DisableAsync(Feature feature) => Features.DisableAsync(feature);
+    public async Task<FeatureResult> DisableAsync(Feature feature)
+    {
+        var result = await Features.DisableAsync(feature).ConfigureAwait(false);
+        if (result.Outcome is FeatureOutcome.Disabled or FeatureOutcome.Unchanged) Resumer.Record(feature, false);
+        return result;
+    }
 
-    public Task<DisableAllResult> DisableAllAsync() => Features.DisableAllAsync();
+    public async Task<DisableAllResult> DisableAllAsync()
+    {
+        var result = await Features.DisableAllAsync().ConfigureAwait(false);
+        Resumer.Forget();
+        return result;
+    }
+
+    /// <summary>Sau khi ctor hoàn tác journal: hoàn tác không sạch thì không tự bật.</summary>
+    public Task ResumeAsync() => Resumer.RunAsync(StartupRollback.Success);
+
+    public Task<string?> SetAutoResumeAsync(bool enabled) =>
+        Task.FromResult(Resumer.SetEnabled(enabled) ? null : Strings.AutoResumeSaveFailed);
 
     public Task<DomainSelection?> GetDomainsAsync() => Task.FromResult<DomainSelection?>(_settings().Domains);
 
@@ -118,7 +144,11 @@ internal sealed partial class LocalFeatureController : IFeatureController
         return new(false, restore is null || result.PreviousRestored ? message : $"{message} {Strings.ChangesLeftBehind}", result.Error);
     }
 
-    public async Task<int> ShutdownAsync() => (await Features.ShutdownAsync().ConfigureAwait(false)).Failed.Count;
+    public async Task<int> ShutdownAsync(ShutdownReason reason)
+    {
+        if (reason == ShutdownReason.UserQuit) Resumer.Forget();
+        return (await Features.ShutdownAsync().ConfigureAwait(false)).Failed.Count;
+    }
 
     public ValueTask DisposeAsync() => Features.DisposeAsync();
 

@@ -206,7 +206,7 @@ public sealed class DaemonFeatureControllerTests
         await using var controller = Create();
         await controller.RefreshAsync();
 
-        var remaining = await controller.ShutdownAsync();
+        var remaining = await controller.ShutdownAsync(ShutdownReason.UserQuit);
 
         Assert.Equal(0, remaining);
         Assert.Equal(DaemonProtocol.DisableAll, _daemon.Requests.Last().Command);
@@ -220,7 +220,7 @@ public sealed class DaemonFeatureControllerTests
         await controller.RefreshAsync();
         _daemon.Requests.Clear();
 
-        Assert.Equal(0, await controller.ShutdownAsync());
+        Assert.Equal(0, await controller.ShutdownAsync(ShutdownReason.UserQuit));
         Assert.Empty(_daemon.Requests);
     }
 
@@ -408,6 +408,65 @@ public sealed class DaemonFeatureControllerTests
         Assert.Equal(ErrorMessages.For(FeatureError.ServiceUnavailable), down.Message);
     }
 
+    [Fact]
+    public async Task Resume_comes_from_the_daemon_reply_and_clears_when_it_stops_answering()
+    {
+        _daemon.Resume = new DaemonResume(false, true, false, false, FeatureKeys.DnsRouting, "Failed", "DnsPortBusy");
+        await using var controller = Create();
+
+        await controller.RefreshAsync();
+
+        Assert.Equal(new ResumeState(false, new WantedFeatures(true, false), false,
+            new FeatureResult(Feature.DnsRouting, FeatureOutcome.Failed, FeatureError.DnsPortBusy)), controller.Resume);
+        _daemon.Down = true;
+        await controller.RefreshAsync();
+        Assert.Null(controller.Resume);
+    }
+
+    [Fact]
+    public async Task Session_end_shutdown_asks_the_daemon_to_keep_wanted()
+    {
+        _daemon.Dns = true;
+        await using var controller = Create();
+        await controller.RefreshAsync();
+
+        await controller.ShutdownAsync(ShutdownReason.SessionEnd);
+
+        Assert.Equal(new DaemonRequest(DaemonProtocol.DisableAll, SessionEnd: true), _daemon.LastRequest);
+    }
+
+    [Fact]
+    public async Task User_quit_with_nothing_on_still_clears_wanted_left_in_the_daemon()
+    {
+        _daemon.Resume = new DaemonResume(false, true, false, false);
+        await using var controller = Create();
+        await controller.RefreshAsync();
+
+        await controller.ShutdownAsync(ShutdownReason.UserQuit);
+        Assert.Equal(new DaemonRequest(DaemonProtocol.DisableAll), _daemon.LastRequest);
+
+        _daemon.Resume = new DaemonResume(true, false, false, false);
+        await controller.RefreshAsync();
+        _daemon.Requests.Clear();
+        await controller.ShutdownAsync(ShutdownReason.UserQuit);
+        Assert.Empty(_daemon.Requests);
+    }
+
+    [Fact]
+    public async Task Set_auto_resume_reports_old_daemons_and_errors()
+    {
+        await using var controller = Create();
+        Assert.Null(await controller.SetAutoResumeAsync(false));
+        Assert.Equal(new DaemonRequest(DaemonProtocol.SetAutoResume, Enabled: false), _daemon.LastRequest);
+
+        _daemon.Reply = r => new DaemonResponse(false, $"{DaemonProtocol.UnknownCommandPrefix} {r.Command}");
+        Assert.Equal(Strings.DaemonNeedsUpdate, await controller.SetAutoResumeAsync(true));
+
+        _daemon.Reply = null;
+        _daemon.Down = true;
+        Assert.Equal(ErrorMessages.For(FeatureError.ServiceUnavailable), await controller.SetAutoResumeAsync(true));
+    }
+
     private sealed class FakeDaemon : IDaemonTransport
     {
         public bool Down { get; set; }
@@ -415,6 +474,7 @@ public sealed class DaemonFeatureControllerTests
         public bool Dns { get; set; }
         public bool Proxy { get; set; }
         public bool DisableAllFails { get; set; }
+        public DaemonResume? Resume { get; set; }
         public (string Outcome, string Error)? FailWith { get; set; }
         public List<DaemonRequest> Requests { get; } = [];
         /// <summary>Trả lời riêng cho một yêu cầu; null thì xử lý như bình thường.</summary>
@@ -462,6 +522,6 @@ public sealed class DaemonFeatureControllerTests
         }
 
         private DaemonResponse Ok() =>
-            new(true, Version: "test", Status: new DaemonStatus(Dns, Proxy, Proxy ? 18080 : null, 0, Dns || Proxy ? 1 : 0));
+            new(true, Version: "test", Status: new DaemonStatus(Dns, Proxy, Proxy ? 18080 : null, 0, Dns || Proxy ? 1 : 0), Resume: Resume);
     }
 }

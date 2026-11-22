@@ -21,6 +21,8 @@ return command switch
 {
     "on" => await OnAsync(options.Contains("--proxy"), options.Contains("--allow-proxy-override")),
     "off" => await SendAsync(new DaemonRequest(DaemonProtocol.DisableAll)),
+    "auto-resume" when args.Length == 2 && args[1] is "on" or "off" =>
+        await SendAsync(new DaemonRequest(DaemonProtocol.SetAutoResume, Enabled: args[1] == "on")),
     "status" => await StatusAsync(),
     "run" => await RunAsync(options.Contains("--proxy"), options.Contains("--allow-proxy-override")),
     "daemon" => await DaemonAsync(version),
@@ -40,7 +42,10 @@ static int Help(int code)
           sudo lunadns install   Cài dịch vụ nền (launchd) vào /Library/PrivilegedHelperTools.
           lunadns on [--proxy] [--allow-proxy-override]
                                  Bật Định tuyến DNS; --proxy bật thêm Proxy SNI. Không cần sudo.
-          lunadns off            Tắt hết và khôi phục.
+          lunadns off            Tắt hết và khôi phục; lần khởi động sau không tự bật.
+          lunadns auto-resume on|off
+                                 Bật/tắt Tự bật lại: sau khi khởi động máy hoặc cài lại dịch vụ nền,
+                                 bật lại những gì bạn để bật lần trước (mặc định bật).
           lunadns status         Xem LunaDNS đang đổi gì trên máy.
           sudo lunadns uninstall Tắt, khôi phục, gỡ dịch vụ nền và dữ liệu.
 
@@ -68,11 +73,16 @@ static void PrintRollback(RollbackResult result)
         Console.Error.WriteLine($"Chưa hoàn tác được {failure.Entry.Op} ({failure.Entry.Feature}): {failure.Error.Message}");
 }
 
-static void PrintStatus(DaemonStatus s)
+static void PrintStatus(DaemonStatus s, DaemonResume? resume)
 {
     Console.WriteLine($"Định tuyến DNS: {(s.DnsRouting ? $"bật (127.0.0.1:{MacNetworkConfigurator.DefaultDnsPort})" : "tắt")}");
     Console.WriteLine($"Proxy SNI: {(s.SniProxy ? $"bật (127.0.0.1:{s.ProxyPort}, {s.ProxyConnections} kết nối)" : "tắt")}");
     Console.WriteLine($"Journal: {s.JournalEntries} mục");
+    if (resume is null) return;
+    var wanted = string.Join(", ", new[] { resume.DnsRouting ? "Định tuyến DNS" : null, resume.SniProxy ? "Proxy SNI" : null }.OfType<string>());
+    Console.WriteLine($"Tự bật lại: {(resume.Enabled ? "bật" : "tắt")}{(wanted.Length > 0 ? $" (nhớ: {wanted})" : "")}"
+        + (resume.Restoring ? ", đang bật lại" : "")
+        + (resume.FailedFeature is { } failed ? $", lần cuối lỗi: {failed} {resume.Outcome} {resume.Error}".TrimEnd() : ""));
 }
 
 static async Task<int> SendAsync(DaemonRequest request)
@@ -81,7 +91,7 @@ static async Task<int> SendAsync(DaemonRequest request)
     {
         var response = await new DaemonClient().SendAsync(request);
         if (response.Message is { } message) (response.Ok ? Console.Out : Console.Error).WriteLine(message);
-        if (response.Status is { } status) PrintStatus(status);
+        if (response.Status is { } status) PrintStatus(status, response.Resume);
         return response.Ok ? Ok : Pending;
     }
     catch (DaemonUnavailableException ex)
@@ -105,7 +115,7 @@ static async Task<int> StatusAsync()
     {
         var response = await new DaemonClient().SendAsync(new DaemonRequest(DaemonProtocol.Status));
         Console.WriteLine($"Dịch vụ nền: đang chạy ({response.Version})");
-        if (response.Status is { } status) PrintStatus(status);
+        if (response.Status is { } status) PrintStatus(status, response.Resume);
         else if (response.Message is { } message) Console.Error.WriteLine(message);
         return response.Ok ? Ok : Pending;
     }
@@ -219,8 +229,9 @@ static async Task<int> RunAsync(bool proxy, bool allowProxyOverride)
 }
 
 /// <summary>
-/// Chạy dưới launchd bằng root. Lúc khởi động hoàn tác journal còn sót (thay tác vụ dọn dẹp lúc boot của Windows),
-/// không tự bật tính năng nào (spec 4.7). SIGTERM (tắt máy, bootout) = tắt hết và hoàn tác.
+/// Chạy dưới launchd bằng root. Lúc khởi động hoàn tác journal còn sót (thay tác vụ dọn dẹp lúc boot của Windows), mở socket,
+/// rồi mới tự bật lại wanted ở nền (F1; installer chỉ chờ ping vài giây). SIGTERM (tắt máy, bootout) = tắt hết và hoàn tác,
+/// giữ wanted cho lần khởi động sau.
 /// </summary>
 static async Task<int> DaemonAsync(string version)
 {
@@ -233,7 +244,8 @@ static async Task<int> DaemonAsync(string version)
     }
     PrintRollback(engine.StartupRollback);
 
-    var commands = new DaemonCommands(engine.Features, engine.Journal, version, engine.Settings, engine.DomainList, engine.Loggers.CreateLogger<DaemonCommands>());
+    var commands = new DaemonCommands(engine.Features, engine.Journal, version, engine.Settings, engine.DomainList, engine.Loggers.CreateLogger<DaemonCommands>(),
+        engine.Resumer);
     var consoleUser = new ConsoleUser(new ProcessRunner());
     var stopped = WaitForStopSignalAsync(out var registrations);
     using (registrations)
@@ -241,11 +253,28 @@ static async Task<int> DaemonAsync(string version)
         await using var server = DaemonServer.Start(DaemonProtocol.SocketPath, commands.HandleAsync, consoleUser.IsAllowed,
             engine.Loggers.CreateLogger<DaemonServer>());
         Console.WriteLine($"LunaDNS {version}: dịch vụ nền nghe {DaemonProtocol.SocketPath}.");
+        using var stopResume = new CancellationTokenSource();
+        var resume = ResumeAsync(engine, stopResume.Token);
         await Task.WhenAny(stopped, server.Completion);
+        await stopResume.CancelAsync();
+        await resume;
     }
     var final = await engine.Features.ShutdownAsync();
     PrintRollback(final);
     return final.Success ? Ok : Pending;
+}
+
+/// <summary>Ranh giới của việc nền: lỗi lạ chỉ ghi ra stderr (launchd log), không làm daemon chết.</summary>
+static async Task ResumeAsync(Engine engine, CancellationToken cancellationToken)
+{
+    try
+    {
+        await engine.Resumer.RunAsync(engine.StartupRollback.Success, cancellationToken);
+    }
+    catch (Exception ex) when (ex is not OutOfMemoryException)
+    {
+        Console.Error.WriteLine($"Tự bật lại lỗi: {ex}");
+    }
 }
 
 static async Task<int> InstallAsync()

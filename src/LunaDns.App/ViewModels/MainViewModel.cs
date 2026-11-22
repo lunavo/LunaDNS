@@ -55,6 +55,14 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _applyingDomains;
     private bool _daemonNeedsUpdate;
     private bool _showProbeCustomHint;
+    private static readonly TimeSpan ResumeWaitStep = TimeSpan.FromMilliseconds(500);
+    private const int ResumeWaitSteps = 20;
+    private WantedFeatures _carried = WantedFeatures.None;
+    private WantedFeatures? _dismissedResume;
+    private ResumeNotice? _resumeNotice;
+    private (bool Show, bool On) _autoResumeShown;
+    /// <summary>Windows: chưa chạy xong tự bật lúc mở app, nên chưa hiện banner U1 (tránh hiện rồi tắt ngay).</summary>
+    private bool _startupResumePending;
 
     /// <param name="installService">macOS: cài dịch vụ nền (osascript). null trên Windows.</param>
     public MainViewModel(AppServices services, IUserPrompts prompts, ISystemShell shell, Func<Task> quit,
@@ -82,6 +90,9 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         DismissMessageCommand = new AsyncCommand(DismissMessageAsync, OnError);
         QuitCommand = new AsyncCommand(quit, OnError);
         InstallServiceCommand = new AsyncCommand(InstallServiceAsync, OnError);
+        ResumeCommand = new AsyncCommand(ResumeMissingAsync, OnError);
+        DismissResumeCommand = new AsyncCommand(DismissResumeAsync, OnError);
+        ToggleAutoResumeCommand = new AsyncCommand(ToggleAutoResumeAsync, OnError);
         MeasureDohCommand = new AsyncCommand(MeasureDohAsync, OnError, () => !_isSavingCustomDoh && !_isTuning);
         // Không dò khi việc khác đang chạy: Đo/Lưu Tự nhập/thẻ/Kiểm tra có thể ghi settings giữa lúc áp cấu hình dò được.
         TuneCommand = new AsyncCommand(TuneAsync, OnError, () => !_isTuning && !_isMeasuringDoh && !_isSavingCustomDoh && _busyCount == 0);
@@ -111,6 +122,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         _services.Features.FeatureStopped += OnFeatureStopped;
         _timer = new DispatcherTimer(StatusInterval, DispatcherPriority.Background, async (_, _) => await PollAsync());
         _overall = OverallState.From(_services.Features.Status, busy: false, attention: false);
+        _startupResumePending = _services.Features.Availability == ControllerAvailability.Local;
         Refresh();
     }
 
@@ -153,6 +165,22 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     public AsyncCommand QuitCommand { get; }
 
     public AsyncCommand InstallServiceCommand { get; }
+
+    /// <summary>U1: bật lại các tính năng lần trước để bật mà đang tắt (đường bật tay, có hộp thoại ghi đè proxy).</summary>
+    public AsyncCommand ResumeCommand { get; }
+
+    public AsyncCommand DismissResumeCommand { get; }
+
+    public AsyncCommand ToggleAutoResumeCommand { get; }
+
+    public bool ShowResumeNotice => _resumeNotice is not null;
+
+    public string ResumeNoticeText => _resumeNotice?.Text ?? string.Empty;
+
+    /// <summary>F1: ô "Tự bật lại"; ẩn khi không biết trạng thái (daemon cũ hoặc không trả lời).</summary>
+    public bool ShowAutoResume => _services.Features.Resume is not null;
+
+    public bool AutoResume => _services.Features.Resume?.Enabled ?? true;
 
     public UpdateBannerViewModel UpdateBanner { get; }
 
@@ -443,8 +471,28 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         _ = PollAsync();
         _ = LoadDomainsSafeAsync();
         _ = StartDomainListAsync();
-        CheckCommand.Execute(null);
+        _ = ResumeThenCheckAsync();
         _ = CheckUpdateSilentlyAsync();
+    }
+
+    /// <summary>
+    /// Windows: tự bật lại wanted (F1) rồi mới "Kiểm tra", để kết quả kiểm phản ánh trạng thái sau khi bật. macOS: daemon tự bật,
+    /// kiểm ngay như trước.
+    /// </summary>
+    private async Task ResumeThenCheckAsync()
+    {
+        try
+        {
+            if (_services.Features.Availability == ControllerAvailability.Local)
+                await RunBusyAsync(Features, () => Task.Run(_services.Features.ResumeAsync));
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            OnError(ex);
+        }
+        _startupResumePending = false;
+        UpdateResume();
+        CheckCommand.Execute(null);
     }
 
     /// <summary>Dựng bốn dòng của khu Tên miền theo lựa chọn của nơi giữ thật (macOS: dịch vụ nền), hỏi không được thì theo settings.json.</summary>
@@ -627,6 +675,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task ToggleAsync(FeatureViewModel item) => RunBusyAsync([item], async () =>
     {
         item.SetError(string.Empty);
+        _carried = WantedFeatures.None;
         var feature = item.Feature;
         var result = IsEnabled(_services.Features.Status, feature)
             ? await Task.Run(() => _services.Features.DisableAsync(feature))
@@ -791,6 +840,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task DisableAllAsync() => RunBusyAsync(Features, async () =>
     {
         var result = await Task.Run(_services.Features.DisableAllAsync);
+        _carried = WantedFeatures.None;
         if (!result.Success)
         {
             ShowMessage(Strings.RestoreFailed, Tone.Error);
@@ -820,6 +870,8 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task InstallServiceAsync() => RunBusyAsync(Features, async () =>
     {
         if (_installService is null) return;
+        // Daemon cũ (≤ 0.10.0) chưa nhớ wanted: chụp trước những gì đang bật, vì cài lại sẽ tắt hết (U1).
+        var before = WantedFeatures.From(_services.Features.Status).Union(_services.Features.Resume?.Wanted ?? WantedFeatures.None);
         var result = await _installService();
         if (result.Success)
         {
@@ -831,8 +883,85 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowMessage(Strings.Format(nameof(Strings.ServiceInstallFailedFormat), result.Output), Tone.Error);
         }
         await Task.Run(() => _services.Features.RefreshAsync());
-        if (result.Success) await LoadDomainsAsync();
+        if (!result.Success) return;
+        await LoadDomainsAsync();
+        await RestoreAfterInstallAsync(before);
     });
+
+    /// <summary>
+    /// Chờ daemon mới tự bật xong (tối đa ~10 giây). Còn thiếu gì đã bật trước khi cài: công tắc Tự bật lại bật thì bật luôn
+    /// (đường bật tay), tắt thì để banner U1 đề nghị.
+    /// </summary>
+    private async Task RestoreAfterInstallAsync(WantedFeatures before)
+    {
+        for (var i = 0; i < ResumeWaitSteps && _services.Features.Resume?.Restoring == true; i++)
+        {
+            await Task.Delay(ResumeWaitStep);
+            await Task.Run(() => _services.Features.RefreshAsync());
+        }
+        var missing = before.Missing(_services.Features.Status);
+        if (missing.IsEmpty()) return;
+        if (_services.Features.Resume is { Enabled: false } or { Restoring: true })
+        {
+            _carried = missing;
+            return;
+        }
+        var failures = new List<string?>();
+        foreach (var feature in missing.List()) failures.Add(Failure(await EnableAsync(feature)));
+        if (failures.Any(f => f is not null)) ShowFailures(failures);
+    }
+
+    private Task ResumeMissingAsync() => RunBusyAsync(Features, async () =>
+    {
+        if (_resumeNotice is not { } notice) return;
+        _carried = WantedFeatures.None;
+        var failures = new List<string?>();
+        foreach (var feature in notice.Missing.List()) failures.Add(Failure(await EnableAsync(feature)));
+        ShowFailures(failures);
+    });
+
+    private Task DismissResumeAsync()
+    {
+        _dismissedResume = _resumeNotice?.Missing;
+        _carried = WantedFeatures.None;
+        UpdateResume();
+        return Task.CompletedTask;
+    }
+
+    private async Task ToggleAutoResumeAsync()
+    {
+        var error = await Task.Run(() => _services.Features.SetAutoResumeAsync(!AutoResume));
+        if (error is not null)
+        {
+            if (error == Strings.DaemonNeedsUpdate) SetDaemonNeedsUpdate(true);
+            ShowMessage(error, Tone.Error);
+        }
+        await Task.Run(() => _services.Features.RefreshAsync());
+        UpdateResume();
+        OnPropertyChanged(nameof(AutoResume)); // lưu lỗi: CheckBox đã tự đảo, phải kéo về giá trị thật
+    }
+
+    /// <summary>Tính lại banner U1 và ô Tự bật lại; chỉ báo binding khi có đổi.</summary>
+    private void UpdateResume()
+    {
+        var controller = _services.Features;
+        var notice = _startupResumePending
+            ? null
+            : ResumeNotice.From(controller.Availability, controller.Resume, controller.Status, _carried, _dismissedResume);
+        if (notice != _resumeNotice)
+        {
+            _resumeNotice = notice;
+            OnPropertyChanged(nameof(ShowResumeNotice));
+            OnPropertyChanged(nameof(ResumeNoticeText));
+        }
+        var autoResume = (ShowAutoResume, AutoResume);
+        if (autoResume != _autoResumeShown)
+        {
+            _autoResumeShown = autoResume;
+            OnPropertyChanged(nameof(ShowAutoResume));
+            OnPropertyChanged(nameof(AutoResume));
+        }
+    }
 
     private async Task CheckUpdateAsync() =>
         UpdateBanner.Show(await _maintenance.CheckForUpdateAsync(FetchUpdateAsync, AppInfo.Version, CancellationToken.None).ConfigureAwait(true));
@@ -966,6 +1095,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         _shown = (status.DnsRouting, status.SniProxy, availability, outdated);
         UpdateOverall(status);
+        UpdateResume();
     }
 
     /// <summary>
@@ -999,6 +1129,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (_services.Features.ServiceOutdated != _shown.Outdated) Refresh();
             RefreshStatusText();
+            if (!Features.Any(f => f.IsBusy)) UpdateResume(); // daemon tự bật xong hoặc lỗi: banner U1 đổi mà trạng thái chưa chắc đổi
         }
     }
 

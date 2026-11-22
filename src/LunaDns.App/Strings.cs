@@ -153,6 +153,16 @@ internal static class Strings
     public static string DaemonNeedsUpdate => Get(nameof(DaemonNeedsUpdate));
     public static string DaemonNeedsUpdateTuning => Get(nameof(DaemonNeedsUpdateTuning));
 
+    // F1 + U1: Tự bật lại (spec 2026-11-22)
+    public static string AutoResumeSwitch => Get(nameof(AutoResumeSwitch));
+    public static string AutoResumeHint => Get(nameof(AutoResumeHint));
+    public static string AutoResumeSaveFailed => Get(nameof(AutoResumeSaveFailed));
+    public static string ResumeNoticeFormat => Get(nameof(ResumeNoticeFormat));
+    public static string ResumeNoticeSwitchOff => Get(nameof(ResumeNoticeSwitchOff));
+    public static string ResumeNoticeProxy => Get(nameof(ResumeNoticeProxy));
+    public static string ResumeBothFormat => Get(nameof(ResumeBothFormat));
+    public static string ResumeButton => Get(nameof(ResumeButton));
+
     public static string DomainsSectionTitle => Get(nameof(DomainsSectionTitle));
     public static string GroupSteam => Get(nameof(GroupSteam));
     public static string GroupOtherGames => Get(nameof(GroupOtherGames));

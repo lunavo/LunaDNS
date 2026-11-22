@@ -26,7 +26,7 @@ trước khi code. Tài liệu này chỉ chốt phạm vi và thứ tự.
 - Bộ dịch vụ chọn sẵn ngoài Steam (Epic, Discord…), proxy vẫn chỉ nhận tên miền trong danh sách.
 - Chia sẻ cho máy khác trong mạng LAN (Steam Deck): đổi mô hình bảo mật "chỉ nghe 127.0.0.1", cần thiết kế riêng.
 - Chế độ lưu lượng game UDP (chế độ PUBG).
-- Tự bật khi khởi động máy trên Windows.
+- Tự bật khi khởi động máy trên Windows. (22/11/2026: phần "nhớ và tự bật lại lúc mở app" đã làm trong F1, xem [2026-11-22-lunadns-auto-resume-design.md](2026-11-22-lunadns-auto-resume-design.md); còn lại là app tự chạy khi đăng nhập.)
 
 ## Không làm
 

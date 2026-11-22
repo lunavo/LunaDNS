@@ -41,7 +41,7 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         _isInstalled = isInstalled;
         _logger = loggerFactory.CreateLogger<DaemonFeatureController>();
         _appVersion = appVersion ?? typeof(DaemonFeatureController).Assembly.GetName().Version;
-        _snapshot = new Snapshot(ControllerAvailability.DaemonConnecting, AllOff, null, null);
+        _snapshot = new Snapshot(ControllerAvailability.DaemonConnecting, AllOff, null, null, null);
     }
 
     public static DaemonFeatureController CreateDefault(ILoggerFactory loggerFactory) =>
@@ -61,6 +61,9 @@ internal sealed partial class DaemonFeatureController : IFeatureController
     public RollbackResult StartupRollback => NothingRolledBack;
 
     public int? JournalEntries => _snapshot.JournalEntries;
+
+    /// <summary>Từ trường resume của câu trả lời gần nhất; null với daemon cũ hoặc khi daemon không trả lời.</summary>
+    public ResumeState? Resume => _snapshot.Resume;
 
     /// <summary>Phiên bản daemon đang chạy (từ ping/status), để ghi vào báo cáo.</summary>
     public string? DaemonVersion => _snapshot.Version;
@@ -174,13 +177,30 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         return response?.DomainListResult?.ToResult() ?? new DomainListOfferResult(DomainListOutcome.Unavailable);
     }
 
-    /// <summary>Không có gì bật thì không làm phiền daemon; daemon không chạy thì không còn gì để giao diện hoàn tác.</summary>
-    public async Task<int> ShutdownAsync()
+    /// <summary>Daemon tự bật lại lúc khởi động; giao diện không làm gì.</summary>
+    public Task ResumeAsync() => Task.CompletedTask;
+
+    /// <summary>Daemon cũ chưa biết set-auto-resume trả "Lệnh lạ:" nên đề nghị cài lại.</summary>
+    public async Task<string?> SetAutoResumeAsync(bool enabled)
+    {
+        var response = await SendAsync(new DaemonRequest(DaemonProtocol.SetAutoResume, Enabled: enabled)).ConfigureAwait(false);
+        if (response is null) return ErrorMessages.For(FeatureError.ServiceUnavailable);
+        if (response.Ok) return null;
+        return IsUnknownCommand(response) ? Strings.DaemonNeedsUpdate : response.Message ?? Strings.AutoResumeSaveFailed;
+    }
+
+    /// <summary>
+    /// Không có gì bật (và, khi người dùng thoát, không còn wanted để xoá) thì không làm phiền daemon; daemon không chạy thì không
+    /// còn gì để giao diện hoàn tác. Hết phiên thì gửi kèm SessionEnd để daemon giữ wanted (F1).
+    /// </summary>
+    public async Task<int> ShutdownAsync(ShutdownReason reason)
     {
         var snapshot = _snapshot;
         if (snapshot.Availability != ControllerAvailability.DaemonRunning) return 0;
-        if (!snapshot.Status.DnsRouting && !snapshot.Status.SniProxy && snapshot.JournalEntries is 0 or null) return 0;
-        var response = await SendAsync(new DaemonRequest(DaemonProtocol.DisableAll)).ConfigureAwait(false);
+        var wantedLeft = reason == ShutdownReason.UserQuit && snapshot.Resume is { } resume && !resume.Wanted.IsEmpty();
+        if (!snapshot.Status.DnsRouting && !snapshot.Status.SniProxy && snapshot.JournalEntries is 0 or null && !wantedLeft) return 0;
+        var request = new DaemonRequest(DaemonProtocol.DisableAll, SessionEnd: reason == ShutdownReason.SessionEnd ? true : null);
+        var response = await SendAsync(request).ConfigureAwait(false);
         return response is null ? 0 : Remaining(response);
     }
 
@@ -217,7 +237,7 @@ internal sealed partial class DaemonFeatureController : IFeatureController
             if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested) throw;
             var availability = _isInstalled() ? ControllerAvailability.DaemonNotResponding : ControllerAvailability.DaemonNotInstalled;
             if (_snapshot.Availability != availability) LogUnavailable(_logger, availability, ex);
-            _snapshot = new Snapshot(availability, AllOff, null, null);
+            _snapshot = new Snapshot(availability, AllOff, null, null, null);
             return null;
         }
 
@@ -225,7 +245,7 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         {
             _snapshot = new Snapshot(ControllerAvailability.DaemonRunning,
                 new FeatureStatus(s.DnsRouting, s.SniProxy, PubgMode: false, s.ProxyPort, s.ProxyConnections),
-                s.JournalEntries, response.Version ?? _snapshot.Version);
+                s.JournalEntries, response.Version ?? _snapshot.Version, response.Resume?.ToState());
         }
         else if (IsUnknownCommand(response))
         {
@@ -237,7 +257,7 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         {
             // Không kèm trạng thái: daemon từ chối (UID khác chủ /dev/console) hoặc yêu cầu lỗi.
             LogRejected(_logger, request.Command, response.Message);
-            _snapshot = new Snapshot(ControllerAvailability.DaemonNotResponding, AllOff, null, null);
+            _snapshot = new Snapshot(ControllerAvailability.DaemonNotResponding, AllOff, null, null, null);
         }
         if (!response.Ok && response.Status is not null) LogDaemonFailed(_logger, request.Command, response.Message);
         return response;
@@ -266,7 +286,7 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         return new FeatureResult(feature, outcome, error, ChangesLeftBehind: error == FeatureError.RollbackFailed);
     }
 
-    private sealed record Snapshot(ControllerAvailability Availability, FeatureStatus Status, int? JournalEntries, string? Version);
+    private sealed record Snapshot(ControllerAvailability Availability, FeatureStatus Status, int? JournalEntries, string? Version, ResumeState? Resume);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Không nói chuyện được với dịch vụ nền ({Availability}).")]
     private static partial void LogUnavailable(ILogger logger, ControllerAvailability availability, Exception error);

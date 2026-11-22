@@ -65,7 +65,9 @@ Cửa sổ có bốn khu như bản Windows (Kiểm tra, Trạng thái, Cập nh
 - **Giao diện chạy quyền user, không tự đổi cấu hình hệ thống.** Mọi bật/tắt và trạng thái đều đi qua dịch vụ nền (socket `/var/run/lunadns.sock`). Kiểm tra (probe) vẫn chạy trong giao diện.
 - **Dịch vụ nền chưa cài:** giao diện hiện banner kèm nút **Cài dịch vụ nền**. Nút này mở hộp thoại mật khẩu của macOS (`osascript … with administrator privileges`) rồi chạy `lunadns install` đi kèm `.app`. Đã cài mà không trả lời, hoặc dịch vụ nền là bản cũ hơn ứng dụng (thường gặp sau khi nâng cấp app), thì banner hiện nút **Cài lại dịch vụ nền**. Hai công tắc xám tới khi dịch vụ nền trả lời.
 - Giao diện hỏi lại dịch vụ nền mỗi 2 giây, nên bật/tắt bằng `lunadns on|off` trong Terminal cũng hiện lên giao diện.
-- **Thoát & khôi phục** (menu bar, hoặc Cmd+Q, hoặc đăng xuất) gửi lệnh tắt hết cho dịch vụ nền, giống nghĩa nút trên Windows. Kể cả khi tính năng được bật bằng `lunadns on`. Muốn để LunaDNS tiếp tục chạy thì chỉ đóng cửa sổ (nút đỏ): app vẫn ở biểu tượng trên thanh menu.
+- **Thoát & khôi phục** (menu bar, hoặc Cmd+Q, hoặc Quit trên Dock) gửi lệnh tắt hết cho dịch vụ nền, giống nghĩa nút trên Windows, và dịch vụ nền quên trạng thái đã nhớ nên lần khởi động sau không [tự bật lại](03-ba-cong-tac.md#tự-bật-lại). Kể cả khi tính năng được bật bằng `lunadns on`. Đăng xuất hoặc tắt máy cũng tắt hết, nhưng **giữ** trạng thái đã nhớ (app đọc lý do thoát macOS gửi kèm). Muốn để LunaDNS tiếp tục chạy thì chỉ đóng cửa sổ (nút đỏ): app vẫn ở biểu tượng trên thanh menu.
+- Ô **Tự bật lại sau khi khởi động máy hoặc cài lại dịch vụ nền** (khu Trạng thái) lưu vào `AutoResume` trong `/Library/Application Support/LunaDNS/settings.json`; trạng thái đã nhớ là `Wanted`. Ô không hiện nghĩa là dịch vụ nền bản cũ: bấm **Cài lại dịch vụ nền**.
+- **Cài lại dịch vụ nền** khi có tính năng đang bật: dịch vụ nền mới tự bật lại. Nâng cấp từ bản cũ chưa biết nhớ (0.10.0 trở về trước) thì app chụp trạng thái trước khi cài và tự bật lại sau khi cài; ô Tự bật lại đang tắt thì app hiện dải kèm nút **Bật lại**.
 - Nút **Tìm cấu hình hợp mạng** có trên macOS: dịch vụ nền tự kiểm, áp và lưu kết quả. Dịch vụ nền bản cũ cần **Cài lại dịch vụ nền** mới áp được. Chưa có ô Tự nhập DoH.
 - Dòng **Tự cập nhật danh sách tên miền** (khu **Cập nhật**) có trên macOS: dịch vụ nền tự xác minh chữ ký, áp và lưu (`DomainListUpdates` nằm trong `/Library/Application Support/LunaDNS/settings.json`). Dòng không hiện nghĩa là dịch vụ nền bản cũ: bấm **Cài lại dịch vụ nền**.
 - Khu **Kiểm tra** chưa có mục **Nâng cao** (kiểu cắt gói, độ trễ, DoH): dịch vụ nền đang dùng cài đặt mặc định.
@@ -83,8 +85,8 @@ sudo artifacts/publish/osx-arm64/lunadns install
 
 Lệnh này chép bản chạy được vào `/Library/PrivilegedHelperTools/vn.lunavo.lunadns/` (chỉ root ghi được), tạo `/Library/LaunchDaemons/vn.lunavo.lunadns.plist`, nạp daemon và tạo lệnh tắt `/usr/local/bin/lunadns` (nếu thư mục đó có sẵn).
 
-- Mỗi lần daemon khởi động (kể cả sau khi khởi động lại máy hoặc daemon chết) nó **hoàn tác journal còn sót** rồi chờ lệnh. Không tự bật tính năng nào.
-- Tắt máy hoặc gỡ daemon: launchd gửi SIGTERM, daemon tắt hết và hoàn tác.
+- Mỗi lần daemon khởi động (kể cả sau khi khởi động lại máy, cài lại, hoặc daemon chết) nó **hoàn tác journal còn sót**, mở socket, rồi **tự bật lại** những gì người dùng để bật lần cuối (trừ khi ô Tự bật lại tắt, hoặc hoàn tác không sạch). Bật lỗi thì thử lại sau 5 rồi 15 giây. Không bao giờ tự thay PAC/proxy có sẵn: máy đang dùng PAC thì Proxy SNI chờ người dùng bấm **Bật lại** trong app. `lunadns status` có dòng *"Tự bật lại: …"*.
+- Tắt máy hoặc gỡ daemon: launchd gửi SIGTERM, daemon tắt hết và hoàn tác, nhưng vẫn nhớ trạng thái để lần khởi động sau bật lại.
 - Chỉ **root** và **người đang ngồi trước máy** (chủ của `/dev/console`) điều khiển được daemon; kết nối từ tài khoản khác (SSH, user khác) bị từ chối. UID lấy từ kernel (`getpeereid`), không giả được.
 - Dữ liệu, journal, log: `/Library/Application Support/LunaDNS` (root, quyền 700); log của daemon ở `logs/daemon.out` và `logs/lunadns.log`.
 
@@ -94,10 +96,11 @@ Lệnh này chép bản chạy được vào `/Library/PrivilegedHelperTools/vn.
 |---|---|
 | `lunadns on` | Bật Định tuyến DNS (qua dịch vụ nền). |
 | `lunadns on --proxy` | Bật thêm Proxy SNI. Máy đã có PAC/proxy thủ công đang bật thì từ chối; thêm `--allow-proxy-override` để thay tạm. |
-| `lunadns off` | Tắt hết và khôi phục. |
+| `lunadns off` | Tắt hết và khôi phục; lần khởi động sau không tự bật. |
+| `lunadns auto-resume on\|off` | Bật/tắt Tự bật lại (mặc định bật). |
 | `lunadns status` | Trạng thái. Không có dịch vụ nền thì tự đọc file resolver, PAC, dòng hosts của LunaDNS. |
 | `sudo lunadns uninstall` | Tắt, khôi phục, gỡ dịch vụ nền, lệnh tắt và thư mục dữ liệu. |
-| `sudo lunadns run [--proxy]` | Không cài dịch vụ nền: chạy tiền cảnh, **Ctrl+C** để tắt và khôi phục. Không chạy được khi dịch vụ nền đang chạy. |
+| `sudo lunadns run [--proxy]` | Không cài dịch vụ nền: chạy tiền cảnh, **Ctrl+C** để tắt và khôi phục. Không nhớ, không tự bật lại. Không chạy được khi dịch vụ nền đang chạy. |
 | `sudo lunadns cleanup` | Hoàn tác mọi thay đổi còn trong journal. Không chạy khi dịch vụ nền hoặc `run` đang giữ khoá. |
 
 Mã thoát: `0` xong · `1` còn việc chưa xong, hoặc dịch vụ nền chưa chạy (xem `/Library/Application Support/LunaDNS/logs`) · `2` tham số sai hoặc thiếu sudo.

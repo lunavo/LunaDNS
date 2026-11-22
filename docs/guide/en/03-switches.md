@@ -13,7 +13,7 @@ The main window is arranged by what you want to do, top to bottom:
 | Zone | What is in it | See |
 |---|---|---|
 | **Kiểm tra** (Check) | Check results by group, **Kiểm tra** (Check), **Áp dụng đề xuất** (Apply suggestions), **Tìm cấu hình hợp mạng** (Find a configuration that works), **Chẩn đoán** (Diagnose); right below is the **Nâng cao** (Advanced) section (Windows only) | [Check and suggestions](04-check-and-suggestions.md), [Advanced](05-advanced.md) |
-| **Trạng thái** (Status) | The two switches and the **TÊN MIỀN** (Domains) section | this page |
+| **Trạng thái** (Status) | The two switches, the **Tự bật lại** (Turn back on) box and the **TÊN MIỀN** (Domains) section | this page |
 | **Cập nhật** (Update) | The line *"Đang dùng LunaDNS x.y.z"* ("Using LunaDNS x.y.z"), **Kiểm tra cập nhật** (Check for updates), **Tự cập nhật danh sách tên miền** (Auto-update domain list) | [Install](01-install.md#upgrade), [Auto-update the domain list](#auto-update-the-domain-list) |
 | **Gỡ & dọn** (Remove & clean up) | **Tắt hết & khôi phục** (Turn all off & restore), **Gỡ khỏi máy** (Remove from this PC; Setup version) or a line telling you how to uninstall (portable, macOS) | [Turning off](#turning-off), [Uninstall and cleanup](07-uninstall-and-cleanup.md) |
 
@@ -60,6 +60,23 @@ The **Tự cập nhật danh sách tên miền** (Auto-update domain list) row s
 | *Không lưu được cài đặt, giữ như cũ* | The switch changed but settings.json could not be written; the app puts the previous configuration back. |
 | *Không áp được bản dd/MM, xem Chẩn đoán* | Applying it to the running switches failed; the old configuration stays. **Chẩn đoán** (Diagnostics) has a "Danh sách tên miền cập nhật" block. |
 
+## Turn back on automatically (Tự bật lại)
+
+The app remembers which of the two switches you left on and turns them back on by itself:
+
+- **Windows:** when the app opens (after it undoes anything left over from the last run). The box reads *"Tự bật lại khi mở LunaDNS"* ("Turn back on when LunaDNS opens").
+- **macOS:** when the background service starts, that is after a restart or after **Cài lại dịch vụ nền** (Reinstall background service), even before you open the app. The box reads *"Tự bật lại sau khi khởi động máy hoặc cài lại dịch vụ nền"* ("Turn back on after a restart or a background service reinstall"). See [macOS](09-macos.md#background-service-recommended).
+
+The box sits right under the two switches and is **on** by default. What is remembered:
+
+- Flipping a switch on or off, **Áp dụng đề xuất** (Apply suggestions), **Tìm cấu hình hợp mạng** (Find settings that suit your network): the state right after that action.
+- **Tắt hết & khôi phục** (Turn all off & restore), **Thoát & khôi phục** (Quit & restore; on macOS also Cmd+Q and Quit in the Dock): nothing is turned back on next time.
+- Signing out, shutting down, a feature stopping itself after repeated errors: still remembered, turned back on next time.
+
+Turning back on **never overrides an existing proxy/PAC** on the machine, even if you agreed to it last time. PUBG mode is never turned back on.
+
+When a feature you left on is now off (the box is off, turning back on failed, the machine uses a proxy/PAC, the feature stopped itself…), a band at the top of the window says *"Định tuyến DNS đang tắt dù lần trước bạn để bật."* ("DNS routing is off although you left it on last time.") with the reason and a **Bật lại** (Turn back on) button. The button works like flipping the switch by hand (including the proxy override question). Click **×** to hide the band until the set of missing features changes.
+
 ## PUBG mode: not supported
 
 LunaDNS currently **does not support PUBG**; the interface has no switch or check box for PUBG. If the hosts file still has `# LunaDNS` lines from an old test build, "Tắt hết & khôi phục" (Turn all off & restore) or `--cleanup` will undo them.
@@ -67,5 +84,5 @@ LunaDNS currently **does not support PUBG**; the interface has no switch or chec
 ## Turning off
 
 - Flip a switch off: undoes that feature's part. If the undo fails, the service **keeps running**, the entry stays in the journal, and the message *"Một số thay đổi chưa hoàn tác được…"* ("Some changes could not be undone…") appears; turn it off again to retry.
-- **Tắt hết & khôi phục** (Turn all off & restore; in the **Gỡ & dọn** zone, or the tray menu): turns off every switch and puts the network settings back as before (*"Đã tắt hết và trả lại cấu hình mạng như trước."*, "Everything is off and the network settings are back as before.").
+- **Tắt hết & khôi phục** (Turn all off & restore; in the **Gỡ & dọn** zone, or the tray menu): turns off every switch and puts the network settings back as before (*"Đã tắt hết và trả lại cấu hình mạng như trước."*, "Everything is off and the network settings are back as before."). Next time the app does not [turn anything back on](#turn-back-on-automatically-tự-bật-lại).
 - A feature that keeps failing stops by itself and says *"… gặp lỗi lặp lại nên đã được tắt."* ("… kept failing, so it was turned off.")

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using LunaDns.Core.Domains;
+using LunaDns.Core.Features;
 
 namespace LunaDns.Core.Settings;
 
@@ -28,7 +29,12 @@ public sealed class JsonFileSettingsStore(string path)
                 : null;
             // Cùng lý do: file settings cũ không có công tắc cập nhật danh sách thì coi như đang bật (D4).
             var listUpdates = HasProperty(bytes, nameof(AppSettings.DomainListUpdates)) ? loaded.DomainListUpdates : true;
-            return loaded with { Domains = domains, CustomDoh = custom, DomainListUpdates = listUpdates };
+            // F1: file cũ không có công tắc Tự bật lại thì coi như bật; "Wanted": null (sửa tay) thì coi như chưa muốn gì.
+            var autoResume = HasProperty(bytes, nameof(AppSettings.AutoResume)) ? loaded.AutoResume : true;
+#pragma warning disable CA1508 // như Domains: JSON null ghi đè giá trị mặc định.
+            var wanted = loaded.Wanted ?? WantedFeatures.None;
+#pragma warning restore CA1508
+            return loaded with { Domains = domains, CustomDoh = custom, DomainListUpdates = listUpdates, AutoResume = autoResume, Wanted = wanted };
         }
         catch (JsonException)
         {

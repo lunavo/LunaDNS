@@ -20,6 +20,15 @@ internal enum ControllerAvailability
     DaemonNotResponding,
 }
 
+/// <summary>Vì sao app thoát (F1): người dùng thoát thì xoá wanted, hết phiên (đăng xuất/tắt máy) thì giữ.</summary>
+internal enum ShutdownReason
+{
+    /// <summary>Thoát &amp; khôi phục trên khay/thanh menu, Cmd+Q, Quit trên Dock.</summary>
+    UserQuit,
+    /// <summary>Đăng xuất, khởi động lại, tắt máy.</summary>
+    SessionEnd,
+}
+
 /// <summary>
 /// Lớp giữa MainViewModel và nơi thật sự bật/tắt tính năng. Windows: <see cref="LocalFeatureController"/> bọc FeatureSet.
 /// macOS: DaemonFeatureController gửi lệnh qua Unix socket tới daemon chạy bằng root.
@@ -72,6 +81,20 @@ internal interface IFeatureController : IDomainListSink, IAsyncDisposable
     /// </summary>
     Task<DomainListOfferResult> SetDomainListEnabledAsync(bool enabled);
 
-    /// <summary>"Thoát &amp; khôi phục" và đăng xuất. Trả số thay đổi chưa hoàn tác được (0 = sạch).</summary>
-    Task<int> ShutdownAsync();
+    /// <summary>
+    /// F1: công tắc Tự bật lại, wanted, đang tự bật dở, lỗi lần tự bật cuối. null nếu không biết (daemon cũ hoặc không trả lời).
+    /// </summary>
+    ResumeState? Resume { get; }
+
+    /// <summary>Bản Local: tự bật lại wanted lúc mở app. Bản daemon không làm gì (daemon tự bật lúc khởi động).</summary>
+    Task ResumeAsync();
+
+    /// <summary>Lưu công tắc Tự bật lại. null nếu xong, ngược lại là câu báo lỗi cho người dùng.</summary>
+    Task<string?> SetAutoResumeAsync(bool enabled);
+
+    /// <summary>
+    /// "Thoát &amp; khôi phục", Cmd+Q, đăng xuất. Trả số thay đổi chưa hoàn tác được (0 = sạch).
+    /// <see cref="ShutdownReason.UserQuit"/> còn xoá wanted, để lần khởi động sau không tự bật.
+    /// </summary>
+    Task<int> ShutdownAsync(ShutdownReason reason);
 }
