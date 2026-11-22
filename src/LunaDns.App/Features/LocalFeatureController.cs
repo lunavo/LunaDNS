@@ -11,7 +11,7 @@ namespace LunaDns.App.Features;
 
 /// <summary>
 /// Giao diện tự giữ FeatureSet và Journal (bản Windows, chạy bằng quyền Admin). Ctor hoàn tác Journal còn sót từ lần chạy trước
-/// (spec 4.5); bên gọi phải giữ khoá một-bản-chạy trước. Hành vi y như AppServices trước Bước 3 của macOS.
+/// (spec 4.5) rồi quét dấu vết LunaDNS mồ côi (B5 + F7); bên gọi phải giữ khoá một-bản-chạy trước. Hành vi y như AppServices trước Bước 3 của macOS.
 /// </summary>
 internal sealed partial class LocalFeatureController : IFeatureController
 {
@@ -32,10 +32,13 @@ internal sealed partial class LocalFeatureController : IFeatureController
         _saveSettings = saveSettings ?? (_ => { });
         _logger = loggerFactory.CreateLogger<LocalFeatureController>();
 
-        Journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile), SystemChanges.Reverters(configurator), clock);
+        Journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile, loggerFactory.CreateLogger<JsonFileJournalStore>()),
+            SystemChanges.Reverters(configurator), clock);
         StartupRollback = Journal.RollbackAll();
         if (StartupRollback.Reverted > 0) LogStartupReverted(_logger, StartupRollback.Reverted);
         if (!StartupRollback.Success) LogStartupLeftovers(_logger, StartupRollback.Failed.Count);
+        // B5 + F7: vẫn giữ mutex, chưa tính năng nào chạy; phải trước ResumeAsync (F1) để không gỡ thứ sắp tự bật lại.
+        OrphanSweeper.Sweep(Journal, configurator, _logger);
 
         // Service dựng trước FeatureSet để Routed ban đầu đã có lớp 2; lambda đọc Features lúc chạy, sau khi ctor gán xong.
         DomainList = new DomainListService(new DomainListStore(paths.DomainListFile, DomainListKeys.Production), DomainListKeys.Production,

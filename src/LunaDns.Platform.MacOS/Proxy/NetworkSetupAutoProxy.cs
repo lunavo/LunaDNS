@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using LunaDns.Core.Platform;
+using LunaDns.Core.Proxy;
 using LunaDns.Platform.MacOS.Processes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -76,6 +78,38 @@ public sealed partial class NetworkSetupAutoProxy(IProcessRunner runner, ILogger
     public IReadOnlyList<string> ServicesUsingLunaDnsPac() =>
         [.. ListServices().Where(s => GetAutoProxy(s) is { Enabled: true, Url: { } u }
             && Uri.TryCreate(u, UriKind.Absolute, out var url) && url.IsLoopback && url.AbsolutePath == "/proxy.pac")];
+
+    /// <summary>
+    /// Quét dọn (spec F7): service (kể cả service đang tắt) còn bật PAC đúng địa chỉ LunaDNS ghi
+    /// (<c>http://127.0.0.1:&lt;18080–18090&gt;/proxy.pac</c>) mà <paramref name="coveredUrls"/> không giữ thì tắt auto-proxy.
+    /// URL cũ của người dùng đã mất cùng journal nên trả về "tắt" (máy đi thẳng). Trả số service đã tắt.
+    /// </summary>
+    public int SweepOrphans(IReadOnlySet<string> coveredUrls)
+    {
+        ArgumentNullException.ThrowIfNull(coveredUrls);
+        var removed = 0;
+        foreach (var service in ListServices(includeDisabled: true))
+        {
+            var (url, enabled) = GetAutoProxy(service);
+            if (!enabled || url is null || !IsLunaDnsPac(url) || coveredUrls.Contains(url)) continue;
+            Run("-setautoproxystate", service, "off");
+            LogOrphanTurnedOff(_logger, service);
+            removed++;
+        }
+        return removed;
+    }
+
+    /// <summary>Đúng dạng SplitProxy.PacUrl trong dải cổng mặc định; PAC loopback của phần mềm khác không khớp.</summary>
+    internal static bool IsLunaDnsPac(string url)
+    {
+        const string Prefix = "http://127.0.0.1:";
+        const string Suffix = "/proxy.pac";
+        if (!url.StartsWith(Prefix, StringComparison.Ordinal) || !url.EndsWith(Suffix, StringComparison.Ordinal)) return false;
+        var port = url[Prefix.Length..^Suffix.Length];
+        return int.TryParse(port, NumberStyles.None, CultureInfo.InvariantCulture, out var n)
+            && n is >= SplitProxyOptions.DefaultFirstPort and <= SplitProxyOptions.DefaultLastPort
+            && string.Equals(port, n.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+    }
 
     internal IReadOnlyList<string> ListServices(bool includeDisabled = false) =>
         ParseServiceOrder(Run("-listnetworkserviceorder"), includeDisabled);
@@ -163,4 +197,7 @@ public sealed partial class NetworkSetupAutoProxy(IProcessRunner runner, ILogger
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Auto-proxy của service {Service} đã bị đổi sau khi LunaDNS bật; giữ nguyên.")]
     private static partial void LogChangedByOther(ILogger logger, string service);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Quét dọn: service {Service} còn bật PAC của LunaDNS không có trong journal; đã tắt auto-proxy.")]
+    private static partial void LogOrphanTurnedOff(ILogger logger, string service);
 }

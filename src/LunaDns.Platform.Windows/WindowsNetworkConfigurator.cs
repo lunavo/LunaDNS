@@ -60,6 +60,17 @@ public sealed partial class WindowsNetworkConfigurator : INetworkConfigurator
 
     public void RevertHostsEntries(HostsSnapshot snapshot) => RewriteHosts(content => HostsEditor.Revert(content, snapshot));
 
+    /// <summary>PAC không quét: AutoConfigURL nằm trong HKU của từng người dùng, tác vụ dọn chạy bằng SYSTEM (spec F7 mục 4).</summary>
+    public OrphanSweepResult SweepOrphans(JournalCoverage coverage) =>
+        OrphanSweeper.RunParts(coverage, _dns.SweepOrphans, proxy: null, SweepHostsOrphans);
+
+    private int SweepHostsOrphans(IReadOnlySet<string> coveredLines)
+    {
+        var removed = 0;
+        RewriteHosts(content => HostsEditor.RemoveOrphans(content, coveredLines, out removed));
+        return removed;
+    }
+
     public void FlushDnsCache()
     {
         if (!_flush()) LogFlushFailed(_logger);

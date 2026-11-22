@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using LunaDns.Core.Features;
 using LunaDns.Core.Hosts;
 using LunaDns.Core.Journal;
+using LunaDns.Core.Platform;
 using LunaDns.MacCli;
 using LunaDns.Platform.MacOS;
 using LunaDns.Platform.MacOS.Daemon;
@@ -64,6 +65,14 @@ static bool RequireRoot()
     if (Environment.UserName == "root") return true;
     Console.Error.WriteLine("Lệnh này đổi cấu hình hệ thống, cần chạy bằng sudo.");
     return false;
+}
+
+static void PrintSweep(OrphanSweepResult result)
+{
+    if (result.Removed > 0)
+        Console.WriteLine($"Đã gỡ {result.Removed} thay đổi LunaDNS không còn trong journal ({result.DnsRoutes} định tuyến DNS, {result.AutoProxies} PAC, {result.HostsLines} dòng hosts).");
+    foreach (var failure in result.Failed)
+        Console.Error.WriteLine($"Chưa gỡ được thay đổi mồ côi {failure.Op}: {failure.Error.Message}");
 }
 
 static void PrintRollback(RollbackResult result)
@@ -142,9 +151,12 @@ static async Task<int> StatusAsync()
     var hosts = System.Text.Encoding.UTF8.GetString(configurator.Hosts.Read()).Split('\n')
         .Count(l => l.Contains(HostsEditor.Marker, StringComparison.Ordinal));
     Console.WriteLine(hosts == 0 ? "Dòng hosts của LunaDNS: không có" : $"Dòng hosts của LunaDNS: {hosts}");
+    // Load không ném (B5) mà coi file không đọc được là rỗng: thử mở trước để vẫn báo đúng khi thiếu sudo.
+    var journalFile = new MacPaths().JournalFile;
     try
     {
-        Console.WriteLine($"Journal: {new JsonFileJournalStore(new MacPaths().JournalFile).Load().Count} mục");
+        if (File.Exists(journalFile)) File.OpenRead(journalFile).Dispose();
+        Console.WriteLine($"Journal: {new JsonFileJournalStore(journalFile).Load().Count} mục");
     }
     catch (UnauthorizedAccessException)
     {
@@ -167,11 +179,14 @@ static int Cleanup()
     using var loggers = new LoggerFactory();
     loggers.AddProvider(new LunaDns.Core.Logging.RollingFileLoggerProvider(paths.LogDirectory));
     var configurator = MacNetworkConfigurator.CreateDefault(loggerFactory: loggers);
-    var journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile), LunaDns.Core.Platform.SystemChanges.Reverters(configurator));
+    var journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile, loggers.CreateLogger<JsonFileJournalStore>()),
+        SystemChanges.Reverters(configurator));
     var result = journal.RollbackAll();
     PrintRollback(result);
-    if (result.Success && result.Reverted == 0) Console.WriteLine("Không còn thay đổi nào cần hoàn tác.");
-    return result.Success ? Ok : Pending;
+    var sweep = OrphanSweeper.Sweep(journal, configurator, loggers.CreateLogger("Cleanup"));
+    PrintSweep(sweep);
+    if (result.Success && result.Reverted == 0 && sweep.Success && sweep.Removed == 0) Console.WriteLine("Không còn thay đổi nào cần hoàn tác.");
+    return result.Success && sweep.Success ? Ok : Pending;
 }
 
 static Task WaitForStopSignalAsync(out IDisposable registrations)
@@ -202,6 +217,7 @@ static async Task<int> RunAsync(bool proxy, bool allowProxyOverride)
         return Pending;
     }
     PrintRollback(engine.StartupRollback);
+    PrintSweep(engine.StartupSweep);
     if (!engine.StartupRollback.Success) return Pending;
 
     var commands = new DaemonCommands(engine.Features, engine.Journal, "run", engine.Settings, engine.DomainList, engine.Loggers.CreateLogger<DaemonCommands>(),
@@ -245,6 +261,7 @@ static async Task<int> DaemonAsync(string version)
         return Pending;
     }
     PrintRollback(engine.StartupRollback);
+    PrintSweep(engine.StartupSweep);
 
     var consoleUser = new ConsoleUser();
     var commands = new DaemonCommands(engine.Features, engine.Journal, version, engine.Settings, engine.DomainList, engine.Loggers.CreateLogger<DaemonCommands>(),

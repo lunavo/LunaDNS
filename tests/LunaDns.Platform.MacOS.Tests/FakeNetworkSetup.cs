@@ -39,6 +39,9 @@ internal sealed class FakeNetworkSetup : IProcessRunner
     /// <summary>Lần -setautoproxyurl kế tiếp trả mã 4 với câu này (một lần), như networksetup thật khi service vừa đổi tên.</summary>
     public string? FailNextSetUrl { get; set; }
 
+    /// <summary>-listnetworkserviceorder lỗi (giả lập networksetup hỏng).</summary>
+    public bool FailList { get; set; }
+
     public ProcessResult Run(string fileName, IReadOnlyList<string> arguments)
     {
         Calls.Add(fileName + " " + string.Join(' ', arguments));
@@ -46,6 +49,8 @@ internal sealed class FakeNetworkSetup : IProcessRunner
         var cmd = arguments[0];
         switch (cmd)
         {
+            case "-listnetworkserviceorder" when FailList:
+                return new ProcessResult(1, "** Error: giả lập");
             case "-listnetworkserviceorder":
                 return new ProcessResult(0, ServiceOrder);
             case "-getautoproxyurl":

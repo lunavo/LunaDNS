@@ -20,6 +20,9 @@ macOS: log của giao diện ở `~/Library/Application Support/LunaDNS/logs` (n
 | Kiểm tra vẫn "Bị lọc SNI" sau khi đã bật | Kiểm tra đo mạng gốc | Thử mở Steam thật |
 | Store Steam màn đen | Đang chọn MidSni | Chọn FirstByte ở Nâng cao, tắt/bật lại Proxy SNI |
 | Mạng/Steam hỏng sau khi app chết | Thay đổi còn sót | [Gỡ và dọn](07-go-va-don-dep.md) |
+| Log có *"Không đọc được journal … coi như rỗng"* và có file `journal.json.corrupt-<thời gian>` | `journal.json` hỏng (mất điện, app bị kill đúng lúc ghi) hoặc không đọc được | Không cần làm gì: app/dịch vụ nền vẫn chạy và tự quét dọn thay đổi mang dấu LunaDNS. Windows: kiểm PAC ([Kiểm tra đã sạch chưa](07-go-va-don-dep.md#kiểm-tra-đã-sạch-chưa-powershell-admin)) |
+| Log có *"Quét dọn: đã gỡ thay đổi LunaDNS không còn trong journal"* | Lần trước để sót file `/etc/resolver`, PAC, luật NRPT hay dòng hosts mà journal không còn giữ | Bình thường, đã dọn xong |
+| Log có *"Quét dọn: không gỡ được …"* | Thiếu quyền, NRPT/`networksetup` lỗi | Chạy lại bằng Admin / `sudo lunadns cleanup`; vẫn còn thì [dọn tay](07-go-va-don-dep.md#khi---cleanup-không-đủ-thủ-công-chỉ-khi-cần) |
 | macOS: thẻ báo *"Lỗi không xác định"* hoặc câu có *"Bấm Chẩn đoán"* | Dịch vụ nền lỗi mà không có lý do viết sẵn | Bấm **Chẩn đoán**, gửi báo cáo: cuối báo cáo có log của dịch vụ nền |
 | macOS: báo cáo ghi *"Dịch vụ nền là bản cũ, chưa gửi được log"* | Dịch vụ nền cũ hơn app | Bấm **Cài lại dịch vụ nền** rồi chạy Chẩn đoán lại |
 | *"… gặp lỗi lặp lại nên đã được tắt"* | Dịch vụ chết 3 lần trong 1 phút | Xem log rồi bật lại; nếu có *"chưa hoàn tác hết"* thì chạy `--cleanup` |

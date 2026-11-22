@@ -52,6 +52,20 @@ internal sealed class FakeConfigurator : INetworkConfigurator
 
     public void FlushDnsCache() => Calls.Add("flush");
 
+    public JournalCoverage? SweptWith { get; private set; }
+
+    public OrphanSweepResult SweepResult { get; set; } = OrphanSweepResult.Empty;
+
+    public bool SweepThrows { get; set; }
+
+    public OrphanSweepResult SweepOrphans(JournalCoverage coverage)
+    {
+        Calls.Add("sweep");
+        SweptWith = coverage;
+        if (SweepThrows) throw new InvalidOperationException("giả lập lỗi quét");
+        return SweepResult;
+    }
+
     private void Revert(string call)
     {
         Calls.Add(call);

@@ -59,7 +59,7 @@ Ways to clean up, choose one:
 Get-Content C:\ProgramData\LunaDNS\logs\lunadns.log -Tail 20 -Encoding UTF8
 ```
 
-Both rely on `journal.json`, so they only work while that file still exists.
+All three undo what `journal.json` lists, then **sweep**: NRPT rules whose Comment is `LunaDNS …` and hosts lines `… # LunaDNS` that the journal no longer holds are removed too (the journal was deleted, or damaged and renamed `journal.json.corrupt-<time>`). Rules without a Comment from Tailscale/VPN and other hosts lines are never touched. The PAC (`AutoConfigURL`) alone is not swept: it lives in each user's registry, see the manual cleanup below. When something is removed, the log says *"Quét dọn: đã gỡ thay đổi LunaDNS không còn trong journal: …"* ("Sweep: removed LunaDNS changes no longer in the journal: …").
 
 ## Check that it is clean (PowerShell as Admin)
 
@@ -77,16 +77,16 @@ If all three show nothing (and `AutoConfigURL` is not `http://127.0.0.1:.../prox
 
 ## When `--cleanup` is not enough (manual, only if needed)
 
-- **Orphaned NRPT rules** (no longer in the journal, for example `journal.json` was lost): `--cleanup` does **not** remove these. Remove by hand only the rules whose Comment is `LunaDNS …`, and **never** touch the rules without a Comment that belong to Tailscale/VPN:
+- **Orphaned NRPT rules** (no longer in the journal): `--cleanup` and app startup already remove them (see above). If some are still there (the log says *"Quét dọn: không gỡ được …"*, "Sweep: could not remove …"), remove by hand only the rules whose Comment is `LunaDNS …`, and **never** touch the rules without a Comment that belong to Tailscale/VPN:
 
 ```powershell
 Get-DnsClientNrptRule | Where-Object Comment -like 'LunaDNS *' | Remove-DnsClientNrptRule -Force
 ipconfig /flushdns
 ```
 
-- **hosts:** delete the lines with `# LunaDNS` in `C:\Windows\System32\drivers\etc\hosts` (open Notepad as Admin).
-- **PAC:** if `AutoConfigURL` is exactly LunaDNS's PAC, reset it in Settings → Network & Internet → Proxy, or delete that value.
-- A damaged `journal.json` is renamed `journal.json.corrupt-<time>`; in that case you have to clean up by hand as above.
+- **hosts:** if some are still there, delete the lines with `# LunaDNS` in `C:\Windows\System32\drivers\etc\hosts` (open Notepad as Admin).
+- **PAC:** not swept automatically. If `AutoConfigURL` is exactly LunaDNS's PAC (`http://127.0.0.1:1808x/proxy.pac`) while LunaDNS is off, reset it in Settings → Network & Internet → Proxy, or delete that value.
+- A damaged or unreadable `journal.json` is renamed `journal.json.corrupt-<time>` and treated as empty; the app still opens. NRPT and hosts are swept automatically; only the PAC may need a manual reset as above.
 
 ## The data folder is editable only by Admin
 

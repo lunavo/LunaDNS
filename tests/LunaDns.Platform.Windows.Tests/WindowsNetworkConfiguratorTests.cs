@@ -6,6 +6,7 @@ using LunaDns.Platform.Windows.Hosts;
 using LunaDns.Platform.Windows.Nrpt;
 using LunaDns.Platform.Windows.Proxy;
 using LunaDns.Platform.Windows.Tests.Nrpt;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Win32;
 
 namespace LunaDns.Platform.Windows.Tests;
@@ -80,6 +81,33 @@ public sealed class WindowsNetworkConfiguratorTests : IDisposable
         using var key = Registry.Users.OpenSubKey($@"{_sid}\{_proxyKey}")!;
         Assert.Null(key.GetValue(AutoProxyRegistry.ValueName));
         Assert.Equal(4, _flushes); // apply dns, apply hosts, revert hosts, revert dns
+    }
+
+    [WindowsFact]
+    public void Corrupt_journal_startup_sweep_removes_nrpt_and_hosts_but_not_pac()
+    {
+        var cfg = NewConfigurator();
+        var changes = new SystemChanges(NewJournal(cfg), cfg);
+        changes.AddDnsRoute("dns-routing", Steam, IPAddress.Loopback);
+        changes.SetAutoProxy("sni-proxy", PacUrl);
+        changes.AddHostsEntries("pubg", Pubg);
+        File.WriteAllText(JournalPath, "[{\"Id\": \"dở");
+
+        var restarted = NewJournal(NewConfigurator());
+        Assert.Empty(restarted.Entries);
+        var result = OrphanSweeper.Sweep(restarted, NewConfigurator(), NullLogger.Instance);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.DnsRoutes);
+        Assert.Equal(1, result.HostsLines);
+        Assert.Same(_tailscale, Assert.Single(_nrpt.Rules));
+        var hosts = File.ReadAllBytes(HostsPath);
+        Assert.DoesNotContain("# LunaDNS", Encoding.UTF8.GetString(hosts));
+        Assert.Equal(OriginalHosts, hosts[..OriginalHosts.Length]);
+        Assert.Equal(FileAttributes.ReadOnly, File.GetAttributes(HostsPath));
+        // PAC Windows nằm trong HKU của từng người dùng: không quét (spec F7 mục 4).
+        using var key = Registry.Users.OpenSubKey($@"{_sid}\{_proxyKey}")!;
+        Assert.Equal(PacUrl.AbsoluteUri, key.GetValue(AutoProxyRegistry.ValueName));
     }
 
     [WindowsFact]

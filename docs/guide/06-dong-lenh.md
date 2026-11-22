@@ -14,7 +14,7 @@ $p.ExitCode
 | Lệnh | Mã thoát |
 |---|---|
 | `LunaDNS.exe` | giao diện |
-| `--cleanup` | `0` = xong hoặc không có gì làm; `1` = còn mục lỗi (giữ trong journal) |
+| `--cleanup` | `0` = xong hoặc không có gì làm; `1` = còn mục lỗi (giữ trong journal) hoặc quét dọn có lỗi |
 | `--report` | `0` = ghi được; `1` = không ghi được file |
 | `--install-system` | `0` = xong; `1` = lỗi (xem log); `3` = exe không nằm trong Program Files, không đổi gì |
 | `--uninstall` | `0` = xong; `1` = còn việc chưa xong (xem log); `4` = LunaDNS đang chạy |
@@ -24,12 +24,12 @@ Mọi lệnh (kể cả mở giao diện) đều khoá quyền `%ProgramData%\Lu
 
 ## --cleanup
 
-Hoàn tác mọi mục trong `%ProgramData%\LunaDNS\journal.json` theo thứ tự ngược, rồi thoát.
+Hoàn tác mọi mục trong `%ProgramData%\LunaDNS\journal.json` theo thứ tự ngược, quét dọn thay đổi mồ côi, rồi thoát.
 
 - Đang có bản LunaDNS chạy: **không làm gì**, thoát mã 0 (log *"LunaDNS đang chạy, bỏ qua."*). Hãy dùng "Thoát & khôi phục" trong app.
-- Journal không có hoặc trống: mã 0.
-- **Không** dọn luật NRPT "mồ côi" không còn trong journal (xem [Gỡ và dọn](07-go-va-don-dep.md)).
-- Kết quả ghi ở `logs\lunadns.log`: *"--cleanup: đã hoàn tác N mục, còn M mục lỗi."*
+- **Quét dọn:** gỡ luật NRPT có Comment `LunaDNS …` và dòng hosts `… # LunaDNS` mà journal không còn giữ ("mồ côi", ví dụ journal bị xoá hoặc hỏng). Luật không Comment của Tailscale/VPN và dòng hosts khác không bị đụng. PAC (`AutoConfigURL`) không được quét (xem [Gỡ và dọn](07-go-va-don-dep.md#khi---cleanup-không-đủ-thủ-công-chỉ-khi-cần)). Bước này chạy cả khi không có journal.
+- Không có gì để hoàn tác hay quét: mã 0.
+- Kết quả ghi ở `logs\lunadns.log`: *"--cleanup: đã hoàn tác N mục, còn M mục lỗi; quét dọn gỡ K mục mồ côi, L loại lỗi."*
 
 ## --install-system
 
@@ -43,7 +43,7 @@ Setup gọi lệnh này sau khi chép file; thường bạn không cần chạy 
 Trình gỡ của Setup gọi lệnh này; với bản portable, chạy tay trước khi xoá thư mục.
 
 1. LunaDNS đang chạy thì thoát mã **4**, không làm gì. Thoát app ("Thoát & khôi phục") rồi chạy lại.
-2. Hoàn tác mọi mục trong `journal.json`. Còn mục lỗi thì dừng ở đây với mã **1**, giữ journal và tác vụ dọn dẹp để làm tiếp lần sau.
+2. Hoàn tác mọi mục trong `journal.json` và quét dọn như `--cleanup`. Còn mục lỗi thì dừng ở đây với mã **1**, giữ journal và tác vụ dọn dẹp để làm tiếp lần sau.
 3. Xoá tác vụ `\LunaDNS\Cleanup` (bản portable không có thì bỏ qua).
 4. Xoá thư mục `%ProgramData%\LunaDNS` (journal, settings, log). Không xoá được thì mã **1**.
 

@@ -53,4 +53,40 @@ public sealed class MacNetworkConfiguratorTests : IDisposable
         Assert.Equal(OriginalHosts, File.ReadAllText(_tmp.Combine("hosts")));
         Assert.Equal(("http://127.0.0.1:8099/canopi.pac", false), _ns.Auto["Luna Wifi"]);
     }
+
+    [Fact]
+    public void Corrupt_journal_leaves_nothing_behind_after_startup_sweep()
+    {
+        var changes = new SystemChanges(NewJournal(), _cfg);
+        changes.AddDnsRoute("dns", FeatureDomains.Routed(new DomainSelection()), IPAddress.Loopback);
+        changes.SetAutoProxy("proxy", new Uri("http://127.0.0.1:18080/proxy.pac"));
+        changes.AddHostsEntries("pubg", FeatureDomains.PubgHosts);
+        File.WriteAllText(_tmp.Combine("journal.json"), "[{\"Id\": \"dở"); // kill -9 lúc đang ghi
+
+        var journal = NewJournal();
+        Assert.True(journal.RollbackAll().Success);
+        var result = OrphanSweeper.Sweep(journal, _cfg, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+
+        Assert.True(result.Success);
+        Assert.Empty(_cfg.Dns.ListOurs());
+        Assert.Empty(_cfg.Proxy.ServicesUsingLunaDnsPac());
+        Assert.Equal(OriginalHosts, File.ReadAllText(_tmp.Combine("hosts")));
+        Assert.Single(Directory.GetFiles(_tmp.Path, "journal.json.corrupt-*"));
+    }
+
+    [Fact]
+    public void Sweep_failure_of_one_kind_does_not_stop_the_others()
+    {
+        var changes = new SystemChanges(NewJournal(), _cfg);
+        changes.AddDnsRoute("dns", FeatureDomains.Routed(new DomainSelection()), IPAddress.Loopback);
+        changes.AddHostsEntries("pubg", FeatureDomains.PubgHosts);
+        File.Delete(_tmp.Combine("journal.json"));
+        _ns.FailList = true;
+
+        var result = _cfg.SweepOrphans(JournalCoverage.From([]));
+
+        Assert.Equal(ChangeOps.AutoProxy, Assert.Single(result.Failed).Op);
+        Assert.Empty(_cfg.Dns.ListOurs());
+        Assert.Equal(OriginalHosts, File.ReadAllText(_tmp.Combine("hosts")));
+    }
 }

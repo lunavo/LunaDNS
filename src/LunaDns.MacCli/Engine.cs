@@ -12,7 +12,7 @@ namespace LunaDns.MacCli;
 
 /// <summary>
 /// Phần chạy bằng root, dùng chung cho <c>run</c> (tiền cảnh) và <c>daemon</c> (launchd): thư mục dữ liệu, khoá độc quyền,
-/// hoàn tác journal còn sót, FeatureSet, FeatureResumer (F1). Dispose = tắt mọi tính năng và hoàn tác, giữ wanted.
+/// hoàn tác journal còn sót rồi quét dấu vết mồ côi (B5 + F7), FeatureSet, FeatureResumer (F1). Dispose = tắt mọi tính năng và hoàn tác, giữ wanted.
 /// </summary>
 internal sealed class Engine : IAsyncDisposable
 {
@@ -24,8 +24,11 @@ internal sealed class Engine : IAsyncDisposable
         _lock = held;
         Loggers = loggers;
         Configurator = configurator;
-        Journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile), SystemChanges.Reverters(configurator));
+        Journal = new ChangeJournal(new JsonFileJournalStore(paths.JournalFile, loggers.CreateLogger<JsonFileJournalStore>()),
+            SystemChanges.Reverters(configurator));
         StartupRollback = Journal.RollbackAll();
+        // B5 + F7: đang giữ khoá, chưa tính năng nào chạy; phải trước Resumer.RunAsync (F1) để không gỡ thứ sắp tự bật lại.
+        StartupSweep = OrphanSweeper.Sweep(Journal, configurator, loggers.CreateLogger<Engine>());
         Settings = new SettingsHolder(new JsonFileSettingsStore(paths.SettingsFile));
         var services = new CoreFeatureServices(() => Settings.Current.DohServers(), loggers,
             dnsEndPoint: new IPEndPoint(IPAddress.Loopback, configurator.Dns.Port));
@@ -56,6 +59,9 @@ internal sealed class Engine : IAsyncDisposable
     public SettingsHolder Settings { get; }
 
     public RollbackResult StartupRollback { get; }
+
+    /// <summary>Quét dấu vết LunaDNS mồ côi ngay sau StartupRollback (journal hỏng hay bị xoá).</summary>
+    public OrphanSweepResult StartupSweep { get; }
 
     /// <summary>F1: nhớ wanted và tự bật lại lúc daemon khởi động. Chế độ <c>run</c> không dùng.</summary>
     public FeatureResumer Resumer { get; }

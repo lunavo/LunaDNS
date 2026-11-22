@@ -59,7 +59,7 @@ Cách dọn, chọn một:
 Get-Content C:\ProgramData\LunaDNS\logs\lunadns.log -Tail 20 -Encoding UTF8
 ```
 
-Cả hai đều dựa vào `journal.json`, nên chỉ hoạt động khi file này còn.
+Cả ba cách đều hoàn tác theo `journal.json`, rồi **quét dọn**: luật NRPT có Comment `LunaDNS …` và dòng hosts `… # LunaDNS` mà journal không còn giữ cũng bị gỡ (journal bị xoá, hoặc hỏng và bị đổi tên `journal.json.corrupt-<thời gian>`). Luật không Comment của Tailscale/VPN và dòng hosts khác không bao giờ bị đụng. Riêng PAC (`AutoConfigURL`) không được quét: nó nằm trong registry của từng người dùng, xem phần dọn tay ở dưới. Log ghi *"Quét dọn: đã gỡ thay đổi LunaDNS không còn trong journal: …"* khi có gỡ.
 
 ## Kiểm tra đã sạch chưa (PowerShell Admin)
 
@@ -76,16 +76,16 @@ Cả ba không ra gì (và `AutoConfigURL` không phải `http://127.0.0.1:.../p
 
 ## Khi `--cleanup` không đủ (thủ công, chỉ khi cần)
 
-- **Luật NRPT mồ côi** (không còn trong journal, ví dụ mất `journal.json`): `--cleanup` **không** xoá loại này. Xoá tay chỉ luật có Comment `LunaDNS …`, **tuyệt đối không** đụng luật không Comment của Tailscale/VPN:
+- **Luật NRPT mồ côi** (không còn trong journal): `--cleanup` và lúc mở app đã tự gỡ (xem trên). Nếu vẫn còn (log có *"Quét dọn: không gỡ được …"*), xoá tay chỉ luật có Comment `LunaDNS …`, **tuyệt đối không** đụng luật không Comment của Tailscale/VPN:
 
 ```powershell
 Get-DnsClientNrptRule | Where-Object Comment -like 'LunaDNS *' | Remove-DnsClientNrptRule -Force
 ipconfig /flushdns
 ```
 
-- **hosts:** xoá dòng có `# LunaDNS` trong `C:\Windows\System32\drivers\etc\hosts` (mở Notepad bằng Admin).
-- **PAC:** nếu `AutoConfigURL` đúng là PAC của LunaDNS thì đặt lại ở Settings → Network & Internet → Proxy, hoặc xoá giá trị đó.
-- `journal.json` hỏng được đổi tên `journal.json.corrupt-<thời gian>`; khi đó phải dọn tay như trên.
+- **hosts:** nếu vẫn còn, xoá dòng có `# LunaDNS` trong `C:\Windows\System32\drivers\etc\hosts` (mở Notepad bằng Admin).
+- **PAC:** không được quét tự động. Nếu `AutoConfigURL` đúng là PAC của LunaDNS (`http://127.0.0.1:1808x/proxy.pac`) mà LunaDNS đang tắt thì đặt lại ở Settings → Network & Internet → Proxy, hoặc xoá giá trị đó.
+- `journal.json` hỏng hoặc không đọc được thì được đổi tên `journal.json.corrupt-<thời gian>` và coi như rỗng; app vẫn mở được. NRPT và hosts được quét dọn tự động, chỉ còn PAC có thể phải đặt lại tay như trên.
 
 ## Thư mục dữ liệu chỉ Admin sửa được
 

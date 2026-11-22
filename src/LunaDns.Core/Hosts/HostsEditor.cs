@@ -70,6 +70,47 @@ public static class HostsEditor
         return result;
     }
 
+    /// <summary>
+    /// Quét dọn (spec F7): gỡ mọi dòng đúng dạng LunaDNS ghi (<c>&lt;IP loopback&gt; &lt;host&gt; # LunaDNS</c>) mà
+    /// <paramref name="covered"/> không giữ. Dòng khác, kể cả dòng có "# LunaDNS" nhưng khác định dạng, giữ nguyên từng byte.
+    /// File UTF-16 thì trả nguyên (LunaDNS không bao giờ ghi vào loại file đó).
+    /// </summary>
+    public static byte[] RemoveOrphans(ReadOnlySpan<byte> current, IReadOnlySet<string> covered, out int removed)
+    {
+        ArgumentNullException.ThrowIfNull(covered);
+        removed = 0;
+        ReadOnlySpan<byte> utf16Le = [0xFF, 0xFE];
+        ReadOnlySpan<byte> utf16Be = [0xFE, 0xFF];
+        if (current.StartsWith(utf16Le) || current.StartsWith(utf16Be)) return current.ToArray();
+
+        using var output = new MemoryStream(current.Length);
+        var from = 0;
+        while (from < current.Length)
+        {
+            var newline = current[from..].IndexOf((byte)'\n');
+            var end = newline < 0 ? current.Length : from + newline + 1;
+            var line = current[from..end];
+            var text = line.TrimEnd("\r\n"u8);
+            if (IsOrphan(text, covered)) removed++;
+            else output.Write(line);
+            from = end;
+        }
+        return removed == 0 ? current.ToArray() : output.ToArray();
+    }
+
+    private static bool IsOrphan(ReadOnlySpan<byte> line, IReadOnlySet<string> covered)
+    {
+        ReadOnlySpan<byte> suffix = " # LunaDNS"u8;
+        if (!line.EndsWith(suffix) || line.Length > 512) return false;
+        foreach (var b in line) if (b is < 0x20 or > 0x7E) return false;
+        var text = Encoding.ASCII.GetString(line);
+        var parts = text[..^suffix.Length].Split(' ');
+        if (parts.Length != 2 || parts[1].Length == 0 || !parts[1].All(IsHostChar)) return false;
+        if (!IPAddress.TryParse(parts[0], out var address) || !IPAddress.IsLoopback(address)
+            || !string.Equals(address.ToString(), parts[0], StringComparison.Ordinal)) return false;
+        return !covered.Contains(text);
+    }
+
     private static string FormatLine(HostsEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);

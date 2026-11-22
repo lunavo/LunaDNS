@@ -69,6 +69,16 @@ public sealed partial class MacNetworkConfigurator : INetworkConfigurator
 
     public void RevertHostsEntries(HostsSnapshot snapshot) => RewriteHosts(content => HostsEditor.Revert(content, snapshot));
 
+    public OrphanSweepResult SweepOrphans(JournalCoverage coverage) =>
+        OrphanSweeper.RunParts(coverage, Dns.SweepOrphans, Proxy.SweepOrphans, SweepHostsOrphans);
+
+    private int SweepHostsOrphans(IReadOnlySet<string> coveredLines)
+    {
+        var removed = 0;
+        RewriteHosts(content => HostsEditor.RemoveOrphans(content, coveredLines, out removed));
+        return removed;
+    }
+
     /// <summary>dscacheutil xoá cache thư viện, HUP cho mDNSResponder xoá cache của chính nó (cả /etc/resolver mới đọc lại).</summary>
     public void FlushDnsCache()
     {

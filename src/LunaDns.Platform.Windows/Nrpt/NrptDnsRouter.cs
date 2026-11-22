@@ -59,6 +59,23 @@ public sealed class NrptDnsRouter(INrptStore store)
         foreach (var rule in store.List().Where(r => IsOurs(r, snapshot))) store.Remove(rule.Name);
     }
 
+    /// <summary>
+    /// Quét dọn (spec F7): gỡ luật có Comment <c>LunaDNS &lt;id&gt;</c> mà <paramref name="coveredMarkers"/> không giữ.
+    /// Luật không Comment (Tailscale) hay Comment khác thì không đụng. Trả số luật đã gỡ.
+    /// </summary>
+    public int SweepOrphans(IReadOnlySet<string> coveredMarkers)
+    {
+        ArgumentNullException.ThrowIfNull(coveredMarkers);
+        var removed = 0;
+        foreach (var rule in store.List())
+        {
+            if (!IsLunaDns(rule) || rule.Comment!.Length == MarkerPrefix.Length || coveredMarkers.Contains(rule.Comment)) continue;
+            store.Remove(rule.Name);
+            removed++;
+        }
+        return removed;
+    }
+
     private static bool IsLunaDns(NrptRule rule) =>
         rule.Comment?.StartsWith(MarkerPrefix, StringComparison.Ordinal) == true;
 

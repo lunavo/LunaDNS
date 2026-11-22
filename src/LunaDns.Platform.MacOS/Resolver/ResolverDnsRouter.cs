@@ -104,6 +104,28 @@ public sealed class ResolverDnsRouter
             .Order(StringComparer.Ordinal)];
     }
 
+    /// <summary>
+    /// Quét dọn (spec F7): xoá file thường mang dấu LunaDNS mà <paramref name="coveredMarkers"/> không giữ. File không dấu,
+    /// dấu của phần mềm khác và symlink thì không đụng. Trả số file đã xoá.
+    /// </summary>
+    public int SweepOrphans(IReadOnlySet<string> coveredMarkers)
+    {
+        ArgumentNullException.ThrowIfNull(coveredMarkers);
+        var removed = 0;
+        Guard(() =>
+        {
+            if (!System.IO.Directory.Exists(Directory)) return;
+            foreach (var path in System.IO.Directory.EnumerateFiles(Directory))
+            {
+                if (new FileInfo(path).LinkTarget is not null) continue;
+                if (ReadMarker(path) is not { } marker || !IsLunaDnsMarker(marker) || coveredMarkers.Contains(marker)) continue;
+                File.Delete(path);
+                removed++;
+            }
+        });
+        return removed;
+    }
+
     internal string Content(DnsRouteSnapshot snapshot) =>
         string.Create(CultureInfo.InvariantCulture, $"# {snapshot.Marker}\nnameserver {snapshot.NameServer}\nport {Port}\n");
 

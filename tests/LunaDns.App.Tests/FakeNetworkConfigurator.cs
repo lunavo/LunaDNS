@@ -33,6 +33,21 @@ internal sealed class FakeNetworkConfigurator : INetworkConfigurator
 
     public void FlushDnsCache() { }
 
+    /// <summary>Số lần quét dọn, và số Reverts lúc quét (để test kiểm quét chạy sau hoàn tác).</summary>
+    public int Sweeps { get; private set; }
+
+    public int RevertsAtSweep { get; private set; }
+
+    public bool FailSweep { get; set; }
+
+    public OrphanSweepResult SweepOrphans(JournalCoverage coverage)
+    {
+        Sweeps++;
+        RevertsAtSweep = Reverts;
+        return FailSweep ? new OrphanSweepResult(0, 0, 0, [new OrphanSweepFailure(ChangeOps.DnsRoute, new IOException("giả lập"))])
+            : OrphanSweepResult.Empty;
+    }
+
     private void Revert()
     {
         if (FailRevert) throw new ConfiguratorException(ConfiguratorError.AccessDenied, "giả lập lỗi hoàn tác");
