@@ -60,6 +60,30 @@ public sealed class DaemonServerTests : IAsyncLifetime
 
         Assert.False(response.Ok);
         Assert.Null(_last);
+        Assert.Equal(DaemonProtocol.NotConsoleUser, response.Code);
+        Assert.Equal(DaemonProtocol.NotConsoleUserMessage, response.Message);
+        Assert.True(DaemonProtocol.IsNotConsoleUser(response));
+    }
+
+    [Fact]
+    public void Not_console_user_is_recognised_by_code_or_by_the_old_daemon_sentence()
+    {
+        Assert.True(DaemonProtocol.IsNotConsoleUser(new DaemonResponse(false, "khác", Code: DaemonProtocol.NotConsoleUser)));
+        Assert.True(DaemonProtocol.IsNotConsoleUser(new DaemonResponse(false, DaemonProtocol.NotConsoleUserMessage)));
+        Assert.False(DaemonProtocol.IsNotConsoleUser(new DaemonResponse(false, "Yêu cầu rỗng hoặc quá dài.")));
+        Assert.False(DaemonProtocol.IsNotConsoleUser(new DaemonResponse(true, Code: DaemonProtocol.NotConsoleUser)));
+        Assert.False(DaemonProtocol.IsNotConsoleUser(new DaemonResponse(false, DaemonProtocol.NotConsoleUserMessage,
+            Status: new DaemonStatus(false, false, null, 0, 0))));
+    }
+
+    [Fact]
+    public void Response_without_code_still_parses_and_null_code_is_not_sent()
+    {
+        var old = JsonSerializer.Deserialize("{\"ok\":false,\"message\":\"x\"}", DaemonProtocol.ResponseInfo)!;
+        Assert.Null(old.Code);
+        Assert.DoesNotContain("code", JsonSerializer.Serialize(new DaemonResponse(true), DaemonProtocol.ResponseInfo), StringComparison.Ordinal);
+        Assert.Contains("\"code\":\"not-console-user\"",
+            JsonSerializer.Serialize(new DaemonResponse(false, Code: DaemonProtocol.NotConsoleUser), DaemonProtocol.ResponseInfo), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -636,29 +660,47 @@ public class ConsoleUserTests
     [Fact]
     public void Root_and_console_owner_are_allowed_others_not()
     {
-        var user = new ConsoleUser(new StatRunner("501\n"));
+        var user = new ConsoleUser(() => new ConsoleOwner(501, "lunav"));
         Assert.True(user.IsAllowed(0));
         Assert.True(user.IsAllowed(501));
         Assert.False(user.IsAllowed(502));
     }
 
     [Fact]
-    public void Console_owner_name_comes_from_stat()
+    public void Console_owner_name_comes_from_the_reader_and_login_window_has_no_name()
     {
-        Assert.Equal("lunav", new ConsoleUser(new StatRunner("lunav\n")).CurrentName());
-        Assert.Null(new ConsoleUser(new StatRunner("  \n")).CurrentName());
+        Assert.Equal("lunav", new ConsoleUser(() => new ConsoleOwner(501, "lunav")).CurrentName());
+        Assert.Null(new ConsoleUser(() => new ConsoleOwner(0, "loginwindow")).CurrentName());
+        Assert.Null(new ConsoleUser(() => new ConsoleOwner(501, "  ")).CurrentName());
     }
 
     [Fact]
     public void Unknown_console_owner_allows_only_root()
     {
-        var user = new ConsoleUser(new StatRunner("garbage"));
+        var user = new ConsoleUser(() => null);
+        Assert.Null(user.CurrentUid());
+        Assert.Null(user.CurrentName());
         Assert.True(user.IsAllowed(0));
         Assert.False(user.IsAllowed(501));
     }
 
-    private sealed class StatRunner(string output) : IProcessRunner
+    /// <summary>B11: hỏi thẳng hệ điều hành, khớp với chủ /dev/console mà bản cũ đọc bằng stat.</summary>
+    [Fact]
+    public void Native_reader_matches_the_owner_of_dev_console()
     {
-        public ProcessResult Run(string fileName, IReadOnlyList<string> arguments) => new(0, output);
+        if (!OperatingSystem.IsMacOS()) return;
+        var stat = new ProcessRunner().Run("/usr/bin/stat", ["-f", "%u", "/dev/console"]);
+        Assert.Equal(0, stat.ExitCode);
+        var owner = uint.Parse(stat.Output.Trim(), System.Globalization.CultureInfo.InvariantCulture);
+
+        var user = new ConsoleUser();
+
+        if (owner == 0)
+        {
+            Assert.True(user.CurrentUid() is null or 0);
+            return;
+        }
+        Assert.Equal(owner, user.CurrentUid());
+        Assert.Equal(new ProcessRunner().Run("/usr/bin/stat", ["-f", "%Su", "/dev/console"]).Output.Trim(), user.CurrentName());
     }
 }

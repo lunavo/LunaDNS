@@ -74,11 +74,12 @@
         </Border>
       </Grid>
 
-      <!-- macOS: dịch vụ nền chưa cài / không trả lời -->
+      <!-- macOS: dịch vụ nền chưa cài / không trả lời / bản cũ / tài khoản khác đang dùng (không có nút, B4) -->
       <Border Classes="banner warning" IsVisible="{Binding ShowServiceSetup}">
         <StackPanel Spacing="10">
           <TextBlock Text="{Binding ServiceSetupText}" TextWrapping="Wrap" />
-          <Button Classes="accent" Command="{Binding InstallServiceCommand}" HorizontalAlignment="Left">
+          <Button Classes="accent" Command="{Binding InstallServiceCommand}" HorizontalAlignment="Left"
+                  IsVisible="{Binding ShowInstallServiceButton}">
             <TextBlock Text="{Binding InstallServiceText}" />
           </Button>
         </StackPanel>

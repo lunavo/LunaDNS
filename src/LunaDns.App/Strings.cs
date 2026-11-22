@@ -147,6 +147,7 @@ internal static class Strings
 
     public static string ServiceNotInstalled => Get(nameof(ServiceNotInstalled));
     public static string ServiceNotResponding => Get(nameof(ServiceNotResponding));
+    public static string ServiceOtherUser => Get(nameof(ServiceOtherUser));
     public static string InstallServiceButton => Get(nameof(InstallServiceButton));
     public static string ReinstallServiceButton => Get(nameof(ReinstallServiceButton));
     public static string ServiceInstalled => Get(nameof(ServiceInstalled));

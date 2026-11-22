@@ -269,9 +269,12 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         }
         else if (!response.Ok)
         {
-            // Không kèm trạng thái: daemon từ chối (UID khác chủ /dev/console) hoặc yêu cầu lỗi.
-            LogRejected(_logger, request.Command, response.Message);
-            _snapshot = new Snapshot(ControllerAvailability.DaemonNotResponding, AllOff, null, null, null);
+            // Không kèm trạng thái: daemon từ chối (tài khoản khác đang ngồi trước máy, B4) hoặc yêu cầu lỗi.
+            var availability = DaemonProtocol.IsNotConsoleUser(response)
+                ? ControllerAvailability.DaemonOtherUser
+                : ControllerAvailability.DaemonNotResponding;
+            if (_snapshot.Availability != availability) LogRejected(_logger, request.Command, response.Message);
+            _snapshot = new Snapshot(availability, AllOff, null, null, null);
         }
         if (!response.Ok && response.Status is not null) LogDaemonFailed(_logger, request.Command, response.Message);
         return response;

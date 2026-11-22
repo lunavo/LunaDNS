@@ -49,6 +49,7 @@ internal sealed partial class App : Application, IDisposable
             var prompts = new DialogPrompts(() => ShowWindow());
             _viewModel = new MainViewModel(Services, prompts, new SystemShell(), QuitAsync, ServiceInstaller());
             _window = new MainWindow { DataContext = _viewModel };
+            _window.PropertyChanged += OnWindowPropertyChanged;
             desktop.MainWindow = _window;
             desktop.ShutdownRequested += OnShutdownRequested;
             CreateTray();
@@ -140,6 +141,13 @@ internal sealed partial class App : Application, IDisposable
             _ => _trayOff,
         };
         _tray.ToolTipText = overall.Tooltip;
+    }
+
+    /// <summary>B11: cửa sổ ẩn (nút X thu xuống khay/thanh menu) hoặc thu nhỏ thì hỏi trạng thái thưa hơn.</summary>
+    private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (sender is not Window window || (e.Property != Visual.IsVisibleProperty && e.Property != Window.WindowStateProperty)) return;
+        _viewModel?.SetWindowShown(window.IsVisible && window.WindowState != WindowState.Minimized);
     }
 
     private MainWindow ShowWindow()

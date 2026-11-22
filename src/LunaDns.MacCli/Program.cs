@@ -205,7 +205,7 @@ static async Task<int> RunAsync(bool proxy, bool allowProxyOverride)
     if (!engine.StartupRollback.Success) return Pending;
 
     var commands = new DaemonCommands(engine.Features, engine.Journal, "run", engine.Settings, engine.DomainList, engine.Loggers.CreateLogger<DaemonCommands>(),
-        log: LogReader(engine, new ConsoleUser(new ProcessRunner())));
+        log: LogReader(engine, new ConsoleUser()));
     var wanted = proxy ? new[] { FeatureKeys.DnsRouting, FeatureKeys.SniProxy } : [FeatureKeys.DnsRouting];
     foreach (var key in wanted)
     {
@@ -246,7 +246,7 @@ static async Task<int> DaemonAsync(string version)
     }
     PrintRollback(engine.StartupRollback);
 
-    var consoleUser = new ConsoleUser(new ProcessRunner());
+    var consoleUser = new ConsoleUser();
     var commands = new DaemonCommands(engine.Features, engine.Journal, version, engine.Settings, engine.DomainList, engine.Loggers.CreateLogger<DaemonCommands>(),
         engine.Resumer, LogReader(engine, consoleUser));
     var stopped = WaitForStopSignalAsync(out var registrations);

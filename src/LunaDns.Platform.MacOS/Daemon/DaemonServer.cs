@@ -94,7 +94,7 @@ public sealed partial class DaemonServer : IAsyncDisposable
             if (uid is null || !_authorize(uid.Value))
             {
                 LogRejected(_logger, uid);
-                await WriteAsync(client, new DaemonResponse(false, "Chỉ người đang dùng máy này (hoặc root) mới điều khiển được LunaDNS."))
+                await WriteAsync(client, new DaemonResponse(false, DaemonProtocol.NotConsoleUserMessage, Code: DaemonProtocol.NotConsoleUser))
                     .ConfigureAwait(false);
                 return;
             }

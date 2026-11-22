@@ -16,8 +16,13 @@ internal enum ControllerAvailability
     DaemonRunning,
     /// <summary>Chưa có plist của launchd: giao diện đề nghị cài.</summary>
     DaemonNotInstalled,
-    /// <summary>Đã cài nhưng socket không trả lời (daemon chết, đang khởi động lại, hoặc bị từ chối).</summary>
+    /// <summary>Đã cài nhưng socket không trả lời (daemon chết, đang khởi động lại) hoặc trả lời lỗi không kèm trạng thái.</summary>
     DaemonNotResponding,
+    /// <summary>
+    /// Daemon chạy nhưng từ chối vì tài khoản khác đang ngồi trước máy (Fast User Switching, B4). Không đề nghị cài lại:
+    /// cài lại sẽ tắt định tuyến của người kia.
+    /// </summary>
+    DaemonOtherUser,
 }
 
 /// <summary>Vì sao app thoát (F1): người dùng thoát thì xoá wanted, hết phiên (đăng xuất/tắt máy) thì giữ.</summary>

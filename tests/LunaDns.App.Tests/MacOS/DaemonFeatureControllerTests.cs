@@ -260,14 +260,51 @@ public sealed class DaemonFeatureControllerTests
     }
 
     [Fact]
-    public async Task Rejected_connection_is_not_responding()
+    public async Task Refusal_for_another_console_user_is_other_user_not_a_dead_daemon()
     {
         _daemon.Reject = true;
         await using var controller = Create();
 
         await controller.RefreshAsync();
 
+        Assert.Equal(ControllerAvailability.DaemonOtherUser, controller.Availability);
+        Assert.False(controller.Status.DnsRouting);
+        Assert.False(controller.ServiceOutdated);
+    }
+
+    [Fact]
+    public async Task Old_daemon_refusal_without_code_is_recognised_by_its_sentence()
+    {
+        _daemon.Reply = _ => new DaemonResponse(false, DaemonProtocol.NotConsoleUserMessage);
+        await using var controller = Create();
+
+        await controller.RefreshAsync();
+
+        Assert.Equal(ControllerAvailability.DaemonOtherUser, controller.Availability);
+    }
+
+    [Fact]
+    public async Task Other_failure_without_status_is_still_not_responding()
+    {
+        _daemon.Reply = _ => new DaemonResponse(false, "Yêu cầu rỗng hoặc quá dài.");
+        await using var controller = Create();
+
+        await controller.RefreshAsync();
+
         Assert.Equal(ControllerAvailability.DaemonNotResponding, controller.Availability);
+    }
+
+    [Fact]
+    public async Task Other_user_state_clears_when_this_user_is_back_at_the_console()
+    {
+        _daemon.Reject = true;
+        await using var controller = Create();
+        await controller.RefreshAsync();
+
+        _daemon.Reject = false;
+        await controller.RefreshAsync();
+
+        Assert.Equal(ControllerAvailability.DaemonRunning, controller.Availability);
     }
 
     [Fact]
@@ -559,7 +596,7 @@ public sealed class DaemonFeatureControllerTests
         public Task<DaemonResponse> SendAsync(DaemonRequest request, CancellationToken cancellationToken)
         {
             if (Down) throw new DaemonUnavailableException("down");
-            if (Reject) return Task.FromResult(new DaemonResponse(false, "Chỉ người đang dùng máy này"));
+            if (Reject) return Task.FromResult(new DaemonResponse(false, DaemonProtocol.NotConsoleUserMessage, Code: DaemonProtocol.NotConsoleUser));
             Requests.Add(request);
             if (Reply?.Invoke(request) is { } custom) return Task.FromResult(custom);
             DaemonResponse response;

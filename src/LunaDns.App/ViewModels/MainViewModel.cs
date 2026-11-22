@@ -26,6 +26,9 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private static readonly HttpClient DomainListHttp = new() { Timeout = TimeSpan.FromSeconds(15) };
     private static readonly TimeSpan StatusInterval = TimeSpan.FromSeconds(2);
 
+    /// <summary>B11: cửa sổ ẩn thì chỉ icon thanh menu/khay cần trạng thái, hỏi thưa hơn.</summary>
+    private static readonly TimeSpan HiddenStatusInterval = TimeSpan.FromSeconds(15);
+
     /// <summary>Tự kiểm cập nhật sau khi khởi động xong, để không tranh mạng với lần kiểm kết nối đầu.</summary>
     private static readonly TimeSpan UpdateStartupDelay = TimeSpan.FromSeconds(10);
 
@@ -204,21 +207,31 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>macOS ẩn mục Nâng cao: dịch vụ nền chưa nhận settings từ giao diện.</summary>
     public bool HasAdvancedSettings { get; } = PlatformInfo.HasAdvancedSettings();
 
-    /// <summary>macOS: banner "dịch vụ nền chưa cài / không trả lời / bản cũ không biết set-domains" (mockup 1.4) kèm nút cài.</summary>
-    public bool ShowServiceSetup => _daemonNeedsUpdate || _services.Features.ServiceOutdated
-        || _services.Features.Availability is ControllerAvailability.DaemonNotInstalled or ControllerAvailability.DaemonNotResponding;
+    /// <summary>
+    /// macOS: banner "dịch vụ nền chưa cài / không trả lời / bản cũ không biết set-domains / tài khoản khác đang dùng"
+    /// (mockup 1.4), kèm nút cài trừ khi tài khoản khác đang ngồi trước máy (B4).
+    /// </summary>
+    public bool ShowServiceSetup => ServiceSetup is not null;
 
-    public string ServiceSetupText => _services.Features.Availability switch
+    public string ServiceSetupText => ServiceSetup?.Text ?? string.Empty;
+
+    public bool ShowInstallServiceButton => ServiceSetup?.ButtonText is not null;
+
+    public string InstallServiceText => ServiceSetup?.ButtonText ?? Strings.InstallServiceButton;
+
+    private ServiceBanner? ServiceSetup =>
+        ServiceBanner.From(_services.Features.Availability, _daemonNeedsUpdate || _services.Features.ServiceOutdated);
+
+    internal static TimeSpan PollInterval(bool windowShown) => windowShown ? StatusInterval : HiddenStatusInterval;
+
+    /// <summary>Cửa sổ hiện/ẩn (kể cả thu nhỏ): đổi nhịp hỏi trạng thái; hiện lại thì hỏi ngay (B11).</summary>
+    public void SetWindowShown(bool shown)
     {
-        ControllerAvailability.DaemonNotResponding => Strings.ServiceNotResponding,
-        ControllerAvailability.DaemonNotInstalled => Strings.ServiceNotInstalled,
-        _ => Strings.DaemonNeedsUpdate,
-    };
-
-    public string InstallServiceText => _services.Features.Availability == ControllerAvailability.DaemonNotResponding
-        || _daemonNeedsUpdate || _services.Features.ServiceOutdated
-        ? Strings.ReinstallServiceButton
-        : Strings.InstallServiceButton;
+        var interval = PollInterval(shown);
+        if (_timer.Interval == interval) return;
+        _timer.Interval = interval;
+        if (shown && _timer.IsEnabled) _ = PollAsync();
+    }
 
     public string ProbeStatus
     {
@@ -817,6 +830,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         _daemonNeedsUpdate = value;
         OnPropertyChanged(nameof(ShowServiceSetup));
         OnPropertyChanged(nameof(ServiceSetupText));
+        OnPropertyChanged(nameof(ShowInstallServiceButton));
         OnPropertyChanged(nameof(InstallServiceText));
     }
 
@@ -914,7 +928,8 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>macOS: hộp thoại mật khẩu của hệ thống, rồi hỏi lại dịch vụ nền. Bấm Huỷ thì im lặng.</summary>
     private Task InstallServiceAsync() => RunBusyAsync(Features, async () =>
     {
-        if (_installService is null) return;
+        // Tài khoản khác đang ngồi trước máy: cài lại sẽ tắt định tuyến của người kia (B4). Banner không có nút này.
+        if (_installService is null || _services.Features.Availability == ControllerAvailability.DaemonOtherUser) return;
         // Daemon cũ (≤ 0.10.0) chưa nhớ wanted: chụp trước những gì đang bật, vì cài lại sẽ tắt hết (U1).
         var before = WantedFeatures.From(_services.Features.Status).Union(_services.Features.Resume?.Wanted ?? WantedFeatures.None);
         var result = await _installService();
@@ -1138,6 +1153,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             OnPropertyChanged(nameof(ShowServiceSetup));
             OnPropertyChanged(nameof(ServiceSetupText));
+            OnPropertyChanged(nameof(ShowInstallServiceButton));
             OnPropertyChanged(nameof(InstallServiceText));
         }
         _shown = (status.DnsRouting, status.SniProxy, availability, outdated);

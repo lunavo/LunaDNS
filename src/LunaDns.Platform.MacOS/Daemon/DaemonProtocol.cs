@@ -41,6 +41,20 @@ public static class DaemonProtocol
     /// <summary>Đầu câu trả lời cho lệnh daemon không biết. Bản cũ cũng dùng đúng câu này, nên giao diện nhận ra daemon cần cài lại.</summary>
     public const string UnknownCommandPrefix = "Lệnh lạ:";
 
+    /// <summary>B4: <see cref="DaemonResponse.Code"/> khi UID không phải root hay người đang ngồi trước máy (Fast User Switching).</summary>
+    public const string NotConsoleUser = "not-console-user";
+
+    /// <summary>Câu từ chối. Dịch vụ nền 0.10.0 trở về trước chỉ gửi câu này, không có mã, nên giao diện nhận ra qua đúng câu này.</summary>
+    public const string NotConsoleUserMessage = "Chỉ người đang dùng máy này (hoặc root) mới điều khiển được LunaDNS.";
+
+    /// <summary>Dịch vụ nền từ chối vì tài khoản khác đang ngồi trước máy: mã mới, hoặc câu cũ của dịch vụ nền cũ.</summary>
+    public static bool IsNotConsoleUser(DaemonResponse response)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        return !response.Ok && response.Status is null
+            && (response.Code == NotConsoleUser || (response.Code is null && response.Message == NotConsoleUserMessage));
+    }
+
     /// <summary>
     /// Tuỳ chọn dây: camelCase, bỏ trường null, enum dạng chuỗi camelCase. Metadata lấy từ <see cref="DaemonJsonContext"/>
     /// (sinh sẵn, để bản publish trimmed chạy được); kiểu ngoài context thì ném NotSupportedException thay vì dùng reflection.
@@ -90,6 +104,8 @@ public sealed record DaemonRequest(string Command, string? Feature = null, bool 
 /// <summary>
 /// Outcome/Error là tên enum FeatureOutcome/FeatureError dạng chuỗi (để client cũ không vỡ khi thêm giá trị).
 /// Message là câu tiếng Việt cho người dùng khi Ok = false. Log: đuôi log đã che của get-log (F3).
+/// Code: mã máy đọc cho câu trả lời không thuộc một tính năng (hiện chỉ <see cref="DaemonProtocol.NotConsoleUser"/>, B4);
+/// daemon cũ không gửi, giao diện cũ bỏ qua.
 /// </summary>
 public sealed record DaemonResponse(
     bool Ok,
@@ -103,7 +119,8 @@ public sealed record DaemonResponse(
     DaemonDomainList? DomainList = null,
     DaemonDomainListResult? DomainListResult = null,
     DaemonResume? Resume = null,
-    string[]? Log = null);
+    string[]? Log = null,
+    string? Code = null);
 
 /// <summary>Máy DoH và tổ hợp cắt gói của daemon (D3). Enum dạng chuỗi camelCase ("quad9", "midSni").</summary>
 public sealed record DaemonTuning(DohProvider Doh, SplitMode SplitMode, bool SplitRecords, int SplitDelayMs)

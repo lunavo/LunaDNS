@@ -146,6 +146,7 @@
   <data name="Error_ServiceUnavailable" xml:space="preserve"><value>Dịch vụ nền LunaDNS chưa chạy.</value></data>
   <data name="ServiceNotInstalled" xml:space="preserve"><value>Trên macOS, LunaDNS cần một dịch vụ nền chạy bằng quyền quản trị để đổi DNS và proxy. Dịch vụ nền chưa được cài.</value></data>
   <data name="ServiceNotResponding" xml:space="preserve"><value>Dịch vụ nền LunaDNS đã cài nhưng không trả lời. Đợi vài giây; vẫn vậy thì cài lại.</value></data>
+  <data name="ServiceOtherUser" xml:space="preserve"><value>Tài khoản khác đang dùng LunaDNS trên máy này. Khi bạn quay lại dùng máy (tài khoản kia chuyển đi hoặc đăng xuất), LunaDNS tự điều khiển được.</value></data>
   <data name="InstallServiceButton" xml:space="preserve"><value>Cài dịch vụ nền</value></data>
   <data name="ReinstallServiceButton" xml:space="preserve"><value>Cài lại dịch vụ nền</value></data>
   <data name="ServiceInstalled" xml:space="preserve"><value>Đã cài dịch vụ nền LunaDNS.</value></data>
