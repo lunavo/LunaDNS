@@ -22,7 +22,7 @@ public sealed class InstallCommandTests : IDisposable
         Assert.Empty(_tasks.Calls);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Applies_acl_before_registering_task()
     {
         Assert.Equal(0, Run(InstalledExe));
@@ -30,7 +30,7 @@ public sealed class InstallCommandTests : IDisposable
         Assert.Equal(InstalledExe, _tasks.RegisteredExe);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Acl_failure_returns_1_without_task()
     {
         _acl.ApplyError = new UnauthorizedAccessException();
@@ -39,7 +39,7 @@ public sealed class InstallCommandTests : IDisposable
         Assert.Empty(_tasks.Calls);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Task_failure_returns_1()
     {
         _tasks.Error = new InvalidOperationException("schtasks");

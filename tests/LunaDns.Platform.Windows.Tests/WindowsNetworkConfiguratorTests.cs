@@ -55,7 +55,7 @@ public sealed class WindowsNetworkConfiguratorTests : IDisposable
     private ChangeJournal NewJournal(INetworkConfigurator cfg) =>
         new(new JsonFileJournalStore(JournalPath), SystemChanges.Reverters(cfg));
 
-    [Fact]
+    [WindowsFact]
     public void Three_changes_survive_restart_and_roll_back_to_original_state()
     {
         var cfg = NewConfigurator();
@@ -82,7 +82,7 @@ public sealed class WindowsNetworkConfiguratorTests : IDisposable
         Assert.Equal(4, _flushes); // apply dns, apply hosts, revert hosts, revert dns
     }
 
-    [Fact]
+    [WindowsFact]
     public void Failed_nrpt_add_leaves_entry_that_feature_rollback_clears()
     {
         _nrpt.FailAdd = true;

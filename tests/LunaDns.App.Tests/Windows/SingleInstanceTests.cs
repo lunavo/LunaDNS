@@ -5,7 +5,7 @@ public sealed class SingleInstanceTests
 {
     private readonly string _name = $@"Global\LunaDNS.Test.{Guid.NewGuid():N}";
 
-    [Fact]
+    [WindowsFact]
     public void Second_acquire_fails_while_held()
     {
         using var first = SingleInstance.TryAcquire(_name);
@@ -14,7 +14,7 @@ public sealed class SingleInstanceTests
         Assert.Null(SingleInstance.TryAcquire(_name));
     }
 
-    [Fact]
+    [WindowsFact]
     public void Can_acquire_again_after_dispose()
     {
         SingleInstance.TryAcquire(_name)!.Dispose();
@@ -24,7 +24,7 @@ public sealed class SingleInstanceTests
         Assert.NotNull(again);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Signal_show_reaches_listener()
     {
         using var owner = SingleInstance.TryAcquire(_name)!;
@@ -35,7 +35,7 @@ public sealed class SingleInstanceTests
         Assert.True(shown.Wait(TimeSpan.FromSeconds(5)));
     }
 
-    [Fact]
+    [WindowsFact]
     public void Signal_show_without_owner_returns_false() =>
         Assert.False(SingleInstance.SignalShow(_name));
 }

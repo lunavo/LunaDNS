@@ -10,7 +10,7 @@ public sealed class CleanupCommandTests : IDisposable
 
     private int Run() => CleanupCommand.Run(_app.Paths, () => _app.Configurator, NullLogger.Instance, _app.MutexName);
 
-    [Fact]
+    [WindowsFact]
     public void Does_nothing_while_app_is_running()
     {
         _app.SeedJournal();
@@ -21,14 +21,14 @@ public sealed class CleanupCommandTests : IDisposable
         Assert.Equal(1, _app.JournalCount());
     }
 
-    [Fact]
+    [WindowsFact]
     public void Missing_journal_is_success_and_creates_nothing()
     {
         Assert.Equal(0, Run());
         Assert.False(File.Exists(_app.Paths.JournalFile));
     }
 
-    [Fact]
+    [WindowsFact]
     public void Rolls_back_leftovers()
     {
         _app.SeedJournal();
@@ -38,7 +38,7 @@ public sealed class CleanupCommandTests : IDisposable
         Assert.Equal(0, _app.JournalCount());
     }
 
-    [Fact]
+    [WindowsFact]
     public void Failed_revert_returns_one_and_keeps_entry()
     {
         _app.SeedJournal();

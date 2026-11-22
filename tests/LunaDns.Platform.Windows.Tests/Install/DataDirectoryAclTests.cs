@@ -10,7 +10,7 @@ public sealed class DataDirectoryAclTests
     private const string AdministratorsSid = "S-1-5-32-544";
     private const string UsersSid = "S-1-5-32-545";
 
-    [Fact]
+    [WindowsFact]
     public void Build_is_protected_and_has_exactly_three_rules()
     {
         var security = DataDirectoryAcl.Build();
@@ -22,7 +22,7 @@ public sealed class DataDirectoryAclTests
         Assert.All(rules, r => Assert.Equal(InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, r.InheritanceFlags));
     }
 
-    [Fact]
+    [WindowsFact]
     public void Build_grants_full_control_only_to_system_and_administrators()
     {
         var rules = Rules(DataDirectoryAcl.Build());
@@ -32,13 +32,13 @@ public sealed class DataDirectoryAclTests
         Assert.Equal(FileSystemRights.ReadAndExecute, Single(rules, UsersSid).FileSystemRights & ~FileSystemRights.Synchronize);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Build_sets_owner_to_administrators()
     {
         Assert.Equal(AdministratorsSid, DataDirectoryAcl.Build().GetOwner(typeof(SecurityIdentifier))!.Value);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Temp_directory_with_default_acl_is_not_compliant()
     {
         using var temp = new TempDirectory();

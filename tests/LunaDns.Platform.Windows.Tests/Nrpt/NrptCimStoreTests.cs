@@ -20,7 +20,7 @@ public class NrptCimStoreTests
 
     private string[] AllRules() => [.. _store.List().Select(Describe).Order(StringComparer.Ordinal)];
 
-    [Fact]
+    [WindowsFact]
     public void List_works_without_admin()
     {
         foreach (var rule in _store.List()) Assert.False(string.IsNullOrEmpty(rule.Name));

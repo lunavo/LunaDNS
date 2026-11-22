@@ -2,7 +2,7 @@ namespace LunaDns.App.Tests;
 
 public sealed class InstallLocationTests
 {
-    [Theory]
+    [WindowsTheory]
     [InlineData(@"C:\Program Files\LunaDNS\LunaDNS.exe", @"C:\Program Files", true)]
     [InlineData(@"c:\program files\lunadns\LunaDNS.exe", @"C:\Program Files\", true)]
     [InlineData(@"C:\Program Files Evil\LunaDNS.exe", @"C:\Program Files", false)]
@@ -13,7 +13,7 @@ public sealed class InstallLocationTests
         Assert.Equal(expected, InstallLocation.IsUnder(path, directory));
     }
 
-    [Fact]
+    [WindowsFact]
     public void IsInstalled_needs_uninstaller_next_to_exe()
     {
         using var temp = new TempDirectory();

@@ -35,7 +35,7 @@ public sealed class WindowsDiagnosticsTests : IDisposable
         key.SetValue(AutoProxyRegistry.ValueName, value, RegistryValueKind.String);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Lists_only_rules_marked_by_lunadns()
     {
         _nrpt.Rules.Add(FakeNrptStore.Tailscale());
@@ -48,7 +48,7 @@ public sealed class WindowsDiagnosticsTests : IDisposable
         Assert.Equal("LunaDNS abc | .steampowered.com, .steamcommunity.com → 127.0.0.1", line);
     }
 
-    [Fact]
+    [WindowsFact]
     public void No_marked_rules_gives_empty_list()
     {
         _nrpt.Rules.Add(FakeNrptStore.Tailscale());
@@ -56,7 +56,7 @@ public sealed class WindowsDiagnosticsTests : IDisposable
         Assert.Empty(_diagnostics.LunaDnsNrptRules());
     }
 
-    [Fact]
+    [WindowsFact]
     public void Nrpt_read_error_becomes_one_line()
     {
         _nrpt.FailList = true;
@@ -65,11 +65,11 @@ public sealed class WindowsDiagnosticsTests : IDisposable
         Assert.Equal("(không đọc được: giả lập lỗi đọc NRPT)", line);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Missing_auto_config_is_empty() =>
         Assert.Equal("(trống)", _diagnostics.AutoConfigLine(_sid));
 
-    [Fact]
+    [WindowsFact]
     public void Loopback_auto_config_is_shown()
     {
         SetAutoConfig("http://127.0.0.1:18080/proxy.pac");
@@ -77,7 +77,7 @@ public sealed class WindowsDiagnosticsTests : IDisposable
         Assert.Equal("http://127.0.0.1:18080/proxy.pac", _diagnostics.AutoConfigLine(_sid));
     }
 
-    [Fact]
+    [WindowsFact]
     public void Foreign_auto_config_is_hidden()
     {
         SetAutoConfig("http://wpad.corp.local/proxy.pac");
@@ -87,7 +87,7 @@ public sealed class WindowsDiagnosticsTests : IDisposable
         Assert.DoesNotContain("corp.local", line, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Returns_only_marked_hosts_lines()
     {
         File.WriteAllText(_dir.PathOf("hosts"),
@@ -97,7 +97,7 @@ public sealed class WindowsDiagnosticsTests : IDisposable
         Assert.Equal("127.0.0.1 prod-live-front.playbattlegrounds.com # LunaDNS", line);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Missing_hosts_file_becomes_one_line()
     {
         var line = Assert.Single(_diagnostics.MarkedHostsLines());

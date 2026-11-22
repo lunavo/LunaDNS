@@ -33,7 +33,7 @@ public sealed class AutoProxyRegistryTests : IDisposable
         return key.GetValue(AutoProxyRegistry.ValueName, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Apply_then_revert_without_previous_value_removes_value()
     {
         var snapshot = _registry.Plan(PacUrl, allowOverride: false);
@@ -47,7 +47,7 @@ public sealed class AutoProxyRegistryTests : IDisposable
         Assert.Equal(2, _notifications);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Override_restores_previous_expand_string_exactly()
     {
         using (var key = Key()) key.SetValue(AutoProxyRegistry.ValueName, @"%USERPROFILE%\corp.pac", RegistryValueKind.ExpandString);
@@ -61,7 +61,7 @@ public sealed class AutoProxyRegistryTests : IDisposable
         Assert.Equal(@"%USERPROFILE%\corp.pac", CurrentValue());
     }
 
-    [Fact]
+    [WindowsFact]
     public void Plan_refuses_existing_pac_without_override()
     {
         using (var key = Key()) key.SetValue(AutoProxyRegistry.ValueName, "http://corp.example/proxy.pac");
@@ -71,7 +71,7 @@ public sealed class AutoProxyRegistryTests : IDisposable
         Assert.Equal(ConfiguratorError.ExistingProxyConfig, error.Error);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Plan_refuses_manual_proxy_without_override()
     {
         using (var key = Key()) key.SetValue("ProxyEnable", 1, RegistryValueKind.DWord);
@@ -81,7 +81,7 @@ public sealed class AutoProxyRegistryTests : IDisposable
         Assert.Equal(ConfiguratorError.ExistingProxyConfig, error.Error);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Revert_keeps_value_changed_after_apply()
     {
         var snapshot = _registry.Plan(PacUrl, allowOverride: false);
@@ -94,7 +94,7 @@ public sealed class AutoProxyRegistryTests : IDisposable
         Assert.Equal(1, _notifications);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Revert_twice_is_noop()
     {
         var snapshot = _registry.Plan(PacUrl, allowOverride: false);
@@ -107,7 +107,7 @@ public sealed class AutoProxyRegistryTests : IDisposable
         Assert.Equal(2, _notifications);
     }
 
-    [Theory]
+    [WindowsTheory]
     [InlineData("http://example.com/proxy.pac")]
     [InlineData("https://127.0.0.1:18080/proxy.pac")]
     public void Plan_rejects_non_loopback_or_non_http_url(string url)
@@ -115,7 +115,7 @@ public sealed class AutoProxyRegistryTests : IDisposable
         Assert.Throws<ArgumentException>(() => _registry.Plan(new Uri(url), allowOverride: true));
     }
 
-    [Fact]
+    [WindowsFact]
     public void Revert_for_user_without_loaded_hive_throws_hive_not_loaded()
     {
         var snapshot = new AutoProxySnapshot("S-1-5-21-1-2-3-999999", false, null, false, PacUrl.AbsoluteUri);
@@ -125,7 +125,7 @@ public sealed class AutoProxyRegistryTests : IDisposable
         Assert.Equal(ConfiguratorError.UserHiveNotLoaded, error.Error);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Revert_rejects_malformed_sid()
     {
         var snapshot = new AutoProxySnapshot(@"..\Other", false, null, false, PacUrl.AbsoluteUri);

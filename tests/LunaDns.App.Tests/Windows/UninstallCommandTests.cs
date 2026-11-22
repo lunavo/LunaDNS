@@ -11,7 +11,7 @@ public sealed class UninstallCommandTests : IDisposable
 
     private int Run() => UninstallCommand.Run(_app.Paths, () => _app.Configurator, _tasks, NullLogger.Instance, _app.MutexName);
 
-    [Fact]
+    [WindowsFact]
     public void Refuses_while_app_is_running()
     {
         _app.SeedJournal();
@@ -22,7 +22,7 @@ public sealed class UninstallCommandTests : IDisposable
         Assert.Empty(_tasks.Calls);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Reverts_journal_then_deletes_task()
     {
         _app.SeedJournal();
@@ -34,7 +34,7 @@ public sealed class UninstallCommandTests : IDisposable
         Assert.False(_tasks.Exists());
     }
 
-    [Fact]
+    [WindowsFact]
     public void Failed_revert_keeps_journal_and_task()
     {
         _app.SeedJournal();
@@ -46,7 +46,7 @@ public sealed class UninstallCommandTests : IDisposable
         Assert.True(_tasks.Exists());
     }
 
-    [Fact]
+    [WindowsFact]
     public void Task_delete_failure_returns_1()
     {
         _tasks.Error = new InvalidOperationException("schtasks");
@@ -54,7 +54,7 @@ public sealed class UninstallCommandTests : IDisposable
         Assert.Equal(1, Run());
     }
 
-    [Fact]
+    [WindowsFact]
     public void Without_journal_or_task_succeeds()
     {
         Assert.Equal(0, Run());

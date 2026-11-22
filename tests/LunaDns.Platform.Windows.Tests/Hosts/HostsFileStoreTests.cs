@@ -17,7 +17,7 @@ public sealed class HostsFileStoreTests : IDisposable
     private static string Dacl(string path) =>
         new FileInfo(path).GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorSddlForm(AccessControlSections.Access);
 
-    [Fact]
+    [WindowsFact]
     public void Write_keeps_attributes_and_explicit_acl_and_leaves_no_temp_file()
     {
         var path = _dir.PathOf("hosts");
@@ -63,7 +63,7 @@ public sealed class HostsFileStoreTests : IDisposable
         Assert.Throws<ConfiguratorException>(() => store.Read());
     }
 
-    [Fact]
+    [WindowsFact]
     public void Default_path_points_to_existing_hosts_file()
     {
         var path = HostsFileStore.DefaultPath();

@@ -76,6 +76,14 @@ dotnet test tests/LunaDns.Platform.MacOS.Tests             # chạy được m�
 
 `LunaDns.App.Tests` có hai đích: `net8.0-windows` là app Windows, `net8.0` là app macOS.
 
+Trên Mac cũng chạy được `dotnet test` cho cả solution, kết quả phải là 0 test hỏng:
+
+```bash
+dotnet test LunaDns.sln
+```
+
+Lệnh này chạy cả bản build `net8.0-windows` (`LunaDns.Platform.Windows.Tests` và đích Windows của `LunaDns.App.Tests`). Test trong đó cần Windows thật (registry, ACL, CIM, mutex có tên, đường dẫn `C:\`, `wininet.dll`) được gắn `[WindowsFact]` / `[WindowsTheory]` (`tests/Shared/WindowsFactAttribute.cs`) và hiện là skipped với lý do "Chỉ chạy trên Windows."; phần còn lại của hai project vẫn chạy. Trên Windows và trong CI, hai attribute này không skip gì. Khi thêm test vào `tests/LunaDns.Platform.Windows.Tests` hoặc `tests/LunaDns.App.Tests/Windows/` mà gọi API chỉ có trên Windows, dùng `[WindowsFact]` / `[WindowsTheory]` thay cho `[Fact]` / `[Theory]`.
+
 Test đụng hệ thống thật hoặc Internet mặc định bị bỏ qua:
 
 | Biến | Bật | Ghi chú |

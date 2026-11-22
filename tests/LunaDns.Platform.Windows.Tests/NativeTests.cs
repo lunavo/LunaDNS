@@ -3,7 +3,7 @@ namespace LunaDns.Platform.Windows.Tests;
 [Collection(RealSystemCollection.Name)]
 public class NativeTests
 {
-    [Fact]
+    [WindowsFact]
     public void WinInet_accepts_settings_changed_notification() =>
         Assert.True(WinInet.NotifySettingsChanged());
 

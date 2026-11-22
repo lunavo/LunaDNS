@@ -10,13 +10,13 @@ public sealed class CleanupTaskDefinitionTests
 
     private static XElement Root() => XDocument.Parse(CleanupTaskDefinition.BuildXml(Exe)).Root!;
 
-    [Fact]
+    [WindowsFact]
     public void Declares_utf16_for_schtasks()
     {
         Assert.StartsWith("<?xml version=\"1.0\" encoding=\"UTF-16\"?>", CleanupTaskDefinition.BuildXml(Exe));
     }
 
-    [Fact]
+    [WindowsFact]
     public void Runs_as_system()
     {
         var principal = Root().Element(Ns + "Principals")!.Element(Ns + "Principal")!;
@@ -24,14 +24,14 @@ public sealed class CleanupTaskDefinitionTests
         Assert.Equal("HighestAvailable", principal.Element(Ns + "RunLevel")!.Value);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Triggers_at_boot_and_logon()
     {
         var triggers = Root().Element(Ns + "Triggers")!.Elements().Select(e => e.Name.LocalName);
         Assert.Equal(["BootTrigger", "LogonTrigger"], triggers);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Executes_quoted_exe_with_cleanup()
     {
         var exec = Root().Element(Ns + "Actions")!.Element(Ns + "Exec")!;
@@ -39,7 +39,7 @@ public sealed class CleanupTaskDefinitionTests
         Assert.Equal("--cleanup", exec.Element(Ns + "Arguments")!.Value);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Runs_on_battery_and_is_time_limited()
     {
         var settings = Root().Element(Ns + "Settings")!;

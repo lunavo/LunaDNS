@@ -15,6 +15,12 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="LunaDns.Tests" />
+  </ItemGroup>
+
+  <!-- WindowsFact/WindowsTheory: test cần Windows tự skip khi chạy trên macOS. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\WindowsFactAttribute.cs" Link="WindowsFactAttribute.cs" />
   </ItemGroup>
 
   <ItemGroup>
