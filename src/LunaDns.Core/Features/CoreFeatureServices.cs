@@ -84,6 +84,8 @@ public sealed class CoreFeatureServices(
     {
         public Task Completion => completion;
 
+        public DohActivity? Doh => doh.Activity;
+
         public async ValueTask DisposeAsync()
         {
             await stop().ConfigureAwait(false);

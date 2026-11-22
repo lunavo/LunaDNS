@@ -130,6 +130,30 @@ public sealed class DaemonFeatureControllerTests
     }
 
     [Fact]
+    public async Task Refresh_reads_answering_doh_server()
+    {
+        _daemon.Dns = true;
+        _daemon.DohServer = "Google";
+        _daemon.DohFallback = true;
+        await using var controller = Create();
+
+        await controller.RefreshAsync();
+
+        Assert.Equal(new DohActivity("Google", Fallback: true), controller.Status.Doh);
+    }
+
+    [Fact]
+    public async Task Old_daemon_without_doh_fields_leaves_doh_unknown()
+    {
+        _daemon.Dns = true;
+        await using var controller = Create();
+
+        await controller.RefreshAsync();
+
+        Assert.Null(controller.Status.Doh);
+    }
+
+    [Fact]
     public async Task Enable_sends_feature_key_and_updates_status()
     {
         await using var controller = Create();
@@ -520,6 +544,10 @@ public sealed class DaemonFeatureControllerTests
         public bool Reject { get; set; }
         public bool Dns { get; set; }
         public bool Proxy { get; set; }
+
+        public string? DohServer { get; set; }
+
+        public bool DohFallback { get; set; }
         public bool DisableAllFails { get; set; }
         public DaemonResume? Resume { get; set; }
         public (string Outcome, string Error)? FailWith { get; set; }
@@ -569,6 +597,7 @@ public sealed class DaemonFeatureControllerTests
         }
 
         private DaemonResponse Ok() =>
-            new(true, Version: "test", Status: new DaemonStatus(Dns, Proxy, Proxy ? 18080 : null, 0, Dns || Proxy ? 1 : 0), Resume: Resume);
+            new(true, Version: "test", Status: new DaemonStatus(Dns, Proxy, Proxy ? 18080 : null, 0, Dns || Proxy ? 1 : 0,
+                DohServer, DohServer is null ? null : DohFallback), Resume: Resume);
     }
 }

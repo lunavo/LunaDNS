@@ -124,7 +124,12 @@ public sealed record DaemonTuning(DohProvider Doh, SplitMode SplitMode, bool Spl
     public TuneCandidate ToCandidate() => new(new HelloSplit(SplitMode, SplitRecords), SplitDelayMs);
 }
 
-public sealed record DaemonStatus(bool DnsRouting, bool SniProxy, int? ProxyPort, int ProxyConnections, int JournalEntries);
+/// <remarks>
+/// DohServer/DohFallback (F4): máy DoH trả lời gần nhất của stub DNS; null (không gửi) khi chưa biết. Daemon cũ không gửi,
+/// giao diện cũ bỏ qua.
+/// </remarks>
+public sealed record DaemonStatus(bool DnsRouting, bool SniProxy, int? ProxyPort, int ProxyConnections, int JournalEntries,
+    string? DohServer = null, bool? DohFallback = null);
 
 /// <summary>Trạng thái lớp 2 của daemon (D4). Added theo khoá nhóm của file ("steam"), để không phụ thuộc cách ghi enum.</summary>
 public sealed record DaemonDomainList(bool Enabled, long Serial, DateTimeOffset? Issued, DateTimeOffset? CheckedAt, Dictionary<string, string[]> Added)

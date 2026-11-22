@@ -96,6 +96,8 @@ internal sealed class FeatureViewModel : ObservableObject
         var text = !_isOn ? Strings.StatusOff
             : Feature == Feature.SniProxy && status.ProxyPort is int port
                 ? Strings.Format(nameof(Strings.StatusProxyFormat), port.ToString(CultureInfo.InvariantCulture), status.ProxyConnections)
+            : IsDns && status.Doh is { } doh
+                ? Strings.Format(doh.Fallback ? nameof(Strings.StatusDnsDohFallbackFormat) : nameof(Strings.StatusDnsDohFormat), doh.Server)
                 : Strings.StatusOn;
         if (_statusText == text) return;
         _statusText = text;

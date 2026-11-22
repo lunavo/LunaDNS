@@ -68,6 +68,8 @@ internal static class Strings
     public static string StatusOff => Get(nameof(StatusOff));
     public static string StatusOn => Get(nameof(StatusOn));
     public static string StatusProxyFormat => Get(nameof(StatusProxyFormat));
+    public static string StatusDnsDohFormat => Get(nameof(StatusDnsDohFormat));
+    public static string StatusDnsDohFallbackFormat => Get(nameof(StatusDnsDohFallbackFormat));
     public static string OverallOff => Get(nameof(OverallOff));
     public static string OverallOnFormat => Get(nameof(OverallOnFormat));
     public static string OverallBusy => Get(nameof(OverallBusy));

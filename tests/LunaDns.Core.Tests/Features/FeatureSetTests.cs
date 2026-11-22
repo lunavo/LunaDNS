@@ -265,4 +265,15 @@ public sealed class FeatureSetTests : IAsyncLifetime
 
         Assert.Equal(new FeatureStatus(false, true, false, FakeFeatureServices.DefaultProxyPort, 3), _features.GetStatus());
     }
+
+    [Fact]
+    public async Task Status_reports_doh_server_of_the_dns_stub()
+    {
+        await _features.EnableAsync(Feature.DnsRouting);
+        Assert.Null(_features.GetStatus().Doh);
+
+        _services.Latest(Feature.DnsRouting).Doh = new DohActivity("Google", Fallback: true);
+
+        Assert.Equal(new DohActivity("Google", Fallback: true), _features.GetStatus().Doh);
+    }
 }

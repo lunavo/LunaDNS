@@ -1,3 +1,4 @@
+using LunaDns.Core.Dns;
 using LunaDns.Core.Features;
 
 namespace LunaDns.Core.Tests.Features;
@@ -9,6 +10,8 @@ internal class FakeRunningService : IRunningService
     public Task Completion => _completion.Task;
 
     public bool Disposed { get; private set; }
+
+    public DohActivity? Doh { get; set; }
 
     /// <summary>Chạy trong DisposeAsync, để test ghi thứ tự "hoàn tác trước, dừng sau".</summary>
     public Action? OnDispose { get; set; }

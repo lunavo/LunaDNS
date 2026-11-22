@@ -257,7 +257,8 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         if (response.Status is { } s)
         {
             _snapshot = new Snapshot(ControllerAvailability.DaemonRunning,
-                new FeatureStatus(s.DnsRouting, s.SniProxy, PubgMode: false, s.ProxyPort, s.ProxyConnections),
+                new FeatureStatus(s.DnsRouting, s.SniProxy, PubgMode: false, s.ProxyPort, s.ProxyConnections,
+                    s.DohServer is { } doh ? new DohActivity(doh, s.DohFallback == true) : null),
                 s.JournalEntries, response.Version ?? _snapshot.Version, response.Resume?.ToState());
         }
         else if (IsUnknownCommand(response))

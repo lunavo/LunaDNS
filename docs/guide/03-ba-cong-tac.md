@@ -2,7 +2,7 @@
 
 <sub>[English](en/03-switches.md)</sub>
 
-Có hai công tắc: Định tuyến DNS và Proxy SNI. Mỗi công tắc bật/tắt độc lập. Công tắc hiện *"Đang tắt"* hoặc *"Đang bật"* (Proxy SNI hiện thêm cổng và số kết nối: *"Đang bật · cổng 18080 · 33 kết nối"*).
+Có hai công tắc: Định tuyến DNS và Proxy SNI. Mỗi công tắc bật/tắt độc lập. Công tắc hiện *"Đang tắt"* hoặc *"Đang bật"* (Định tuyến DNS hiện thêm máy DoH đang trả lời: *"Đang bật · DoH: Cloudflare"*; Proxy SNI hiện thêm cổng và số kết nối: *"Đang bật · cổng 18080 · 33 kết nối"*).
 
 Mọi thay đổi hệ thống được **ghi vào journal trước khi làm**, và hoàn tác theo thứ tự ngược (LIFO). App chỉ động tới thứ do chính nó tạo.
 
@@ -22,6 +22,8 @@ Các dải báo (thông báo, có bản mới, dịch vụ nền macOS) luôn hi
 ## Định tuyến DNS
 
 - Dựng DoH stub tại `127.0.0.1:53`, hỏi Cloudflare (`1.1.1.1`) rồi Google (`8.8.8.8`) làm dự phòng; đổi thứ tự ở [Nâng cao](05-nang-cao.md). Kết nối DoH đi thẳng tới IP, không hỏi DNS hệ thống.
+- **Máy DoH bị chặn hoặc chậm:** máy đang hỏi quá 0,5 giây chưa trả lời thì app hỏi thêm máy kế cùng lúc, lấy câu trả lời đến trước. Máy lỗi, hoặc thua máy hỏi sau nó, được cho nghỉ 5 phút: trong lúc đó các tên miền mới đi thẳng máy khoẻ. Hết 5 phút app thử lại máy chính. Nhờ vậy nhà mạng chặn ngầm `1.1.1.1` thì tên miền mới chỉ chậm khoảng 0,5 giây ở vài lần đầu, không phải 3 giây mỗi tên.
+- Thẻ hiện máy DoH vừa trả lời: *"Đang bật · DoH: Google (dự phòng)"* nghĩa là máy chính (thường là Cloudflare) đang không trả lời. Chưa có truy vấn nào thì chỉ hiện *"Đang bật"*.
 - Thêm **một luật NRPT** tên hiển thị "LunaDNS", Comment bắt đầu bằng `LunaDNS `, gồm các tên miền nhóm **Steam** (`steampowered.com`, `steamcommunity.com`, `steamstatic.com`, `steam-chat.com`, `steamusercontent.com`, `steamgames.com`, `steamcontent.com`, `steamserver.net`, `counter-strike.net`, `dota2.com`, `valvesoftware.com`; mỗi tên có cả dạng domain con), trỏ về `127.0.0.1`.
 - Luật của phần mềm khác (VPN, Tailscale…) không bị sửa hay xoá. Nếu một phần mềm khác đã định tuyến DNS cho chính các tên miền này, app không bật và báo *"Một phần mềm khác (VPN, Tailscale…) đang định tuyến DNS cho chính các tên miền này."*
 - Lỗi cổng 53 bận: *"Cổng DNS 53 trên 127.0.0.1 đang bị chương trình khác dùng."*
@@ -32,6 +34,7 @@ Các dải báo (thông báo, có bản mới, dịch vụ nền macOS) luôn hi
 - Đặt `AutoConfigURL` (Internet Settings của người dùng đăng nhập) thành `http://127.0.0.1:<cổng>/proxy.pac`. Chỉ tên miền Steam đi qua proxy.
 - Cắt gói TLS ClientHello theo điểm cắt chọn ở Nâng cao (mặc định **sau byte đầu tiên**).
 - Máy đã có PAC hoặc proxy thủ công: app hỏi *"Thay cấu hình proxy hiện có?"*. Đồng ý thì cấu hình cũ được trả lại khi tắt Proxy SNI hoặc thoát. Huỷ thì công tắc không đổi. `AutoConfigURL` ở dạng lạ thì app không ghi đè.
+- Tên miền có nhiều IP: IP đang nối quá 1 giây chưa xong thì app nối thêm IP kế cùng lúc (tối đa 3 IP), nên một IP bị chặn ngầm không làm hỏng kết nối.
 - Watchdog: proxy chết sẽ được mở lại đúng cổng cũ; lỗi quá 3 lần trong 1 phút thì tính năng tự tắt và báo.
 - Hết cổng: *"Không còn cổng trống cho Proxy SNI."*
 

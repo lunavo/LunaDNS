@@ -384,6 +384,15 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Old_daemon_status_without_doh_fields_reads_as_unknown()
+    {
+        var back = JsonSerializer.Deserialize<DaemonResponse>(ResponseWire, DaemonProtocol.Json)!;
+
+        Assert.Null(back.Status!.DohServer);
+        Assert.Null(back.Status.DohFallback);
+    }
+
+    [Fact]
     public void Protocol_reads_pascal_case_enums_and_ignores_unknown_fields()
     {
         // Bản cũ đọc enum không phân biệt hoa thường và bỏ qua trường lạ; giữ như vậy để client khác bản không vỡ.
@@ -495,6 +504,28 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Status_reports_answering_doh_server_only_when_known()
+    {
+        using var dir = new TempDirectory();
+        var services = new IdleServices { Doh = new DohActivity("Google", Fallback: true) };
+        await using var features = new FeatureSet(_journal, new SystemChanges(_journal, _cfg), services);
+        var domainList = DaemonHarness.Idle(features, dir.Path);
+        var commands = new DaemonCommands(features, _journal, "test", new JsonFileSettingsStore(Path.Combine(dir.Path, "settings.json")), domainList);
+
+        var off = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Status), CancellationToken.None);
+        Assert.Null(off.Status!.DohServer);
+        Assert.Null(off.Status.DohFallback);
+        Assert.DoesNotContain("doh", JsonSerializer.Serialize(off, DaemonProtocol.Json), StringComparison.OrdinalIgnoreCase);
+
+        await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Enable, FeatureKeys.DnsRouting), CancellationToken.None);
+        var on = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.Status), CancellationToken.None);
+
+        Assert.Equal("Google", on.Status!.DohServer);
+        Assert.True(on.Status.DohFallback);
+        Assert.Contains("\"dohServer\":\"Google\",\"dohFallback\":true", JsonSerializer.Serialize(on, DaemonProtocol.Json), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Set_tuning_failure_turns_every_running_feature_back_on()
     {
         using var dir = new TempDirectory();
@@ -568,7 +599,10 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
 
     internal sealed class IdleServices : IFeatureServices
     {
-        public IRunningService StartDnsStub(IReadOnlyList<string> domains) => new Idle();
+        /// <summary>Máy DoH mà stub DNS giả báo (F4).</summary>
+        public DohActivity? Doh { get; init; }
+
+        public IRunningService StartDnsStub(IReadOnlyList<string> domains) => new Idle { Doh = Doh };
 
         public IRunningProxy StartSniProxy(IReadOnlyList<string> domains, int? port, FeatureTuning tuning) => new Idle();
 
@@ -586,6 +620,8 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
         public int Port => 18080;
 
         public int ActiveConnections => 0;
+
+        public DohActivity? Doh { get; init; }
 
         public ValueTask DisposeAsync()
         {

@@ -263,7 +263,8 @@ public sealed partial class DaemonCommands
     {
         var s = features.GetStatus();
         return new DaemonResponse(true, Version: version,
-            Status: new DaemonStatus(s.DnsRouting, s.SniProxy, s.ProxyPort, s.ProxyConnections, journal.Entries.Count),
+            Status: new DaemonStatus(s.DnsRouting, s.SniProxy, s.ProxyPort, s.ProxyConnections, journal.Entries.Count,
+                s.Doh?.Server, s.Doh?.Fallback),
             Resume: _resumer is null ? null : DaemonResume.From(_resumer.State));
     }
 

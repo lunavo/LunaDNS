@@ -77,6 +77,7 @@ static void PrintStatus(DaemonStatus s, DaemonResume? resume)
 {
     Console.WriteLine($"Định tuyến DNS: {(s.DnsRouting ? $"bật (127.0.0.1:{MacNetworkConfigurator.DefaultDnsPort})" : "tắt")}");
     Console.WriteLine($"Proxy SNI: {(s.SniProxy ? $"bật (127.0.0.1:{s.ProxyPort}, {s.ProxyConnections} kết nối)" : "tắt")}");
+    if (s.DohServer is { } doh) Console.WriteLine($"DoH đang trả lời: {doh}{(s.DohFallback == true ? " (dự phòng)" : "")}");
     Console.WriteLine($"Journal: {s.JournalEntries} mục");
     if (resume is null) return;
     var wanted = string.Join(", ", new[] { resume.DnsRouting ? "Định tuyến DNS" : null, resume.SniProxy ? "Proxy SNI" : null }.OfType<string>());

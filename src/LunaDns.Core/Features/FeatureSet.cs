@@ -62,7 +62,8 @@ public sealed partial class FeatureSet : IAsyncDisposable
     public FeatureStatus GetStatus()
     {
         var proxy = _running.TryGetValue(Feature.SniProxy, out var running) ? running.Service as IRunningProxy : null;
-        return new FeatureStatus(IsEnabled(Feature.DnsRouting), proxy is not null, IsEnabled(Feature.PubgMode), proxy?.Port, proxy?.ActiveConnections ?? 0);
+        var doh = _running.TryGetValue(Feature.DnsRouting, out var dns) ? dns.Service.Doh : null;
+        return new FeatureStatus(IsEnabled(Feature.DnsRouting), proxy is not null, IsEnabled(Feature.PubgMode), proxy?.Port, proxy?.ActiveConnections ?? 0, doh);
     }
 
     public async Task<FeatureResult> EnableAsync(Feature feature, bool allowProxyOverride = false, CancellationToken cancellationToken = default)

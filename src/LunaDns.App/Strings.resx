@@ -40,6 +40,8 @@
   <data name="StatusOff" xml:space="preserve"><value>Đang tắt</value></data>
   <data name="StatusOn" xml:space="preserve"><value>Đang bật</value></data>
   <data name="StatusProxyFormat" xml:space="preserve"><value>Đang bật · cổng {0} · {1} kết nối</value></data>
+  <data name="StatusDnsDohFormat" xml:space="preserve"><value>Đang bật · DoH: {0}</value></data>
+  <data name="StatusDnsDohFallbackFormat" xml:space="preserve"><value>Đang bật · DoH: {0} (dự phòng)</value></data>
   <data name="OverallOff" xml:space="preserve"><value>Đang tắt</value></data>
   <data name="OverallOnFormat" xml:space="preserve"><value>Đang bật {0}/{1}</value></data>
   <data name="OverallBusy" xml:space="preserve"><value>Đang xử lý…</value></data>
