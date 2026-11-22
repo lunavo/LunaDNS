@@ -37,7 +37,7 @@ Mở app là app tự chạy **Kiểm tra**. Bấm **Áp dụng đề xuất**, 
 
 Cửa sổ chia bốn vùng: **Kiểm tra**, **Trạng thái**, **Cập nhật**, **Gỡ & dọn**. Xem [Các công tắc](docs/guide/03-ba-cong-tac.md).
 
-Nút X chỉ thu cửa sổ xuống khay. Muốn tắt và hoàn tác hết: biểu tượng khay → **Thoát & khôi phục**. Có bản mới thì app hiện dải báo kèm nút **Tải**.
+Nút X chỉ thu cửa sổ xuống khay; mở lại bằng biểu tượng khay hoặc (macOS) icon trên Dock. Muốn tắt và hoàn tác hết: biểu tượng khay → **Thoát & khôi phục**. App nhớ tính năng đang bật và tự bật lại lần sau (ô **Tự bật lại**); thoát bằng **Thoát & khôi phục** thì app quên. Có bản mới thì app hiện dải báo kèm nút **Tải**.
 
 Từng bước và câu hỏi hay gặp: **[Bắt đầu nhanh](docs/guide/00-bat-dau-nhanh.md)**. Gặp lỗi: **[Xử lý sự cố](docs/guide/08-su-co.md)**.
 
@@ -45,7 +45,7 @@ Từng bước và câu hỏi hay gặp: **[Bắt đầu nhanh](docs/guide/00-ba
 
 | Công tắc | Việc làm | Khi nào cần |
 |---|---|---|
-| **Định tuyến DNS** | Chỉ các tên miền được định tuyến được hỏi qua DoH nội bộ thay cho DNS nhà mạng. Máy chủ: Cloudflare (mặc định), Google, Quad9, AdGuard hoặc URL DoH tự nhập, có hai máy dự phòng và nút **Đo** để chọn máy nhanh nhất. Windows: một luật NRPT → `127.0.0.1:53`. macOS: mỗi tên miền một file `/etc/resolver/<domain>` → `127.0.0.1:15353`. | Đăng nhập Steam lỗi, tên miền Steam phân giải sai. |
+| **Định tuyến DNS** | Chỉ các tên miền được định tuyến được hỏi qua DoH nội bộ thay cho DNS nhà mạng. Máy chủ: Cloudflare (mặc định), Google, Quad9, AdGuard hoặc URL DoH tự nhập, có hai máy dự phòng (hỏi song song, máy chết được bỏ qua 5 phút) và nút **Đo** để chọn máy nhanh nhất. Windows: một luật NRPT → `127.0.0.1:53`. macOS: mỗi tên miền một file `/etc/resolver/<domain>` → `127.0.0.1:15353`. | Đăng nhập Steam lỗi, tên miền Steam phân giải sai. |
 | **Proxy SNI** | Bật proxy nội bộ ở `127.0.0.1:18080` (bận thì thử đến `18090`) và trỏ PAC hệ thống tới `http://127.0.0.1:18080/proxy.pac`. Proxy cắt gói mở kết nối TLS để qua bộ lọc SNI; gặp bộ lọc biết ghép lại TCP thì bật thêm **Tách TLS record** để gửi ClientHello thành hai TLS record. Không giải mã TLS, không cài chứng chỉ. | Store, Community của Steam không tải được dù DNS đã đúng. |
 
 DNS của card mạng, mạng LAN, các trang khác và UDP của game giữ nguyên. Proxy từ chối host ngoài danh sách định tuyến nên không bao giờ là proxy mở.

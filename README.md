@@ -37,7 +37,7 @@ The app runs **Kiểm tra** (Check) when it opens. Click **Áp dụng đề xu�
 
 The window has four zones: **Kiểm tra** (Check), **Trạng thái** (Status), **Cập nhật** (Update), **Gỡ & dọn** (Remove & clean up). See [The four zones of the window](docs/guide/en/03-switches.md#the-four-zones-of-the-window).
 
-The X button only hides the window to the tray. To stop and undo everything: tray icon → **Thoát & khôi phục** (Quit & restore). When a new version is out, the app shows a banner with a **Tải** (Download) button.
+The X button only hides the window to the tray; bring it back from the tray icon or, on macOS, the Dock icon. To stop and undo everything: tray icon → **Thoát & khôi phục** (Quit & restore). The app remembers which features were on and turns them back on next time (the **Tự bật lại**, Turn back on, box); Quit & restore forgets them. When a new version is out, the app shows a banner with a **Tải** (Download) button.
 
 Step-by-step guide and FAQ: **[Quick start](docs/guide/en/00-quick-start.md)**. Problems: **[Troubleshooting](docs/guide/en/08-troubleshooting.md)**.
 
@@ -45,7 +45,7 @@ Step-by-step guide and FAQ: **[Quick start](docs/guide/en/00-quick-start.md)**. 
 
 | Switch | What it does | When you need it |
 |---|---|---|
-| **Định tuyến DNS** (DNS routing) | Sends only the routed domains to a local DNS-over-HTTPS stub instead of the ISP resolver. Servers: Cloudflare (default), Google, Quad9, AdGuard or your own DoH URL, with two fallbacks and a **Đo** (Measure) button to pick the fastest. Windows: an NRPT rule → `127.0.0.1:53`. macOS: one `/etc/resolver/<domain>` file per domain → `127.0.0.1:15353`. | Steam login fails, Steam domains resolve to wrong IPs. |
+| **Định tuyến DNS** (DNS routing) | Sends only the routed domains to a local DNS-over-HTTPS stub instead of the ISP resolver. Servers: Cloudflare (default), Google, Quad9, AdGuard or your own DoH URL, with two fallbacks (queried in parallel, a dead server is skipped for 5 minutes) and a **Đo** (Measure) button to pick the fastest. Windows: an NRPT rule → `127.0.0.1:53`. macOS: one `/etc/resolver/<domain>` file per domain → `127.0.0.1:15353`. | Steam login fails, Steam domains resolve to wrong IPs. |
 | **Proxy SNI** (SNI proxy) | Starts a local proxy on `127.0.0.1:18080` (up to `18090` if busy) and points the system PAC at `http://127.0.0.1:18080/proxy.pac`. The proxy splits the TLS ClientHello so SNI filters miss it; for filters that reassemble TCP it can also send the ClientHello as two TLS records (**Tách TLS record**, Split TLS records). Never decrypts TLS, installs no certificates. | Steam Store / Community still won't load even though DNS is correct. |
 
 Adapter DNS settings, LAN, other sites and game UDP traffic stay as they are. The proxy refuses hosts outside the routed domains, so it is never an open proxy.
