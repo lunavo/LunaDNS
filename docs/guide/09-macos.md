@@ -63,7 +63,7 @@ Biểu tượng trên thanh menu là icon **template** đen trong suốt (macOS 
 Cửa sổ có bốn khu như bản Windows (Kiểm tra, Trạng thái, Cập nhật, Gỡ & dọn; xem [Bốn khu của cửa sổ](03-ba-cong-tac.md#bốn-khu-của-cửa-sổ)). Khác bản Windows:
 
 - **Giao diện chạy quyền user, không tự đổi cấu hình hệ thống.** Mọi bật/tắt và trạng thái đều đi qua dịch vụ nền (socket `/var/run/lunadns.sock`). Kiểm tra (probe) vẫn chạy trong giao diện.
-- **Dịch vụ nền chưa cài:** giao diện hiện banner kèm nút **Cài dịch vụ nền**. Nút này mở hộp thoại mật khẩu của macOS (`osascript … with administrator privileges`) rồi chạy `lunadns install` đi kèm `.app`. Đã cài mà không trả lời thì nút thành **Cài lại dịch vụ nền**. Hai công tắc xám tới khi dịch vụ nền trả lời.
+- **Dịch vụ nền chưa cài:** giao diện hiện banner kèm nút **Cài dịch vụ nền**. Nút này mở hộp thoại mật khẩu của macOS (`osascript … with administrator privileges`) rồi chạy `lunadns install` đi kèm `.app`. Đã cài mà không trả lời, hoặc dịch vụ nền là bản cũ hơn ứng dụng (thường gặp sau khi nâng cấp app), thì banner hiện nút **Cài lại dịch vụ nền**. Hai công tắc xám tới khi dịch vụ nền trả lời.
 - Giao diện hỏi lại dịch vụ nền mỗi 2 giây, nên bật/tắt bằng `lunadns on|off` trong Terminal cũng hiện lên giao diện.
 - **Thoát & khôi phục** (menu bar, hoặc Cmd+Q, hoặc đăng xuất) gửi lệnh tắt hết cho dịch vụ nền, giống nghĩa nút trên Windows. Kể cả khi tính năng được bật bằng `lunadns on`. Muốn để LunaDNS tiếp tục chạy thì chỉ đóng cửa sổ (nút đỏ): app vẫn ở biểu tượng trên thanh menu.
 - Nút **Tìm cấu hình hợp mạng** có trên macOS: dịch vụ nền tự kiểm, áp và lưu kết quả. Dịch vụ nền bản cũ cần **Cài lại dịch vụ nền** mới áp được. Chưa có ô Tự nhập DoH.

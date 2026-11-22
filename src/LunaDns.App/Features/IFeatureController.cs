@@ -40,6 +40,9 @@ internal interface IFeatureController : IDomainListSink, IAsyncDisposable
     /// <summary>Số mục journal còn lại (cho báo cáo). null nếu không biết.</summary>
     int? JournalEntries { get; }
 
+    /// <summary>macOS: dịch vụ nền đang chạy là bản cũ hơn giao diện, cần cài lại. Bản Windows luôn false.</summary>
+    bool ServiceOutdated { get; }
+
     Task RefreshAsync(CancellationToken cancellationToken = default);
 
     Task<FeatureResult> EnableAsync(Feature feature, bool allowProxyOverride = false);

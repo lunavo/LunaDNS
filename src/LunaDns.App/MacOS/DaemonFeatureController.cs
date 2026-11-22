@@ -26,9 +26,13 @@ internal sealed partial class DaemonFeatureController : IFeatureController
     private readonly Func<bool> _isInstalled;
     private readonly ILogger _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly Version? _appVersion;
     private volatile Snapshot _snapshot;
 
-    public DaemonFeatureController(IDaemonTransport transport, Func<bool> isInstalled, ILoggerFactory loggerFactory)
+    /// <summary>Phiên bản daemon lúc nó trả "Lệnh lạ:"; khác bản hiện tại (đã cài lại) thì cờ tự hết.</summary>
+    private volatile string? _unknownCommandVersion;
+
+    public DaemonFeatureController(IDaemonTransport transport, Func<bool> isInstalled, ILoggerFactory loggerFactory, Version? appVersion = null)
     {
         ArgumentNullException.ThrowIfNull(transport);
         ArgumentNullException.ThrowIfNull(isInstalled);
@@ -36,6 +40,7 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         _transport = transport;
         _isInstalled = isInstalled;
         _logger = loggerFactory.CreateLogger<DaemonFeatureController>();
+        _appVersion = appVersion ?? typeof(DaemonFeatureController).Assembly.GetName().Version;
         _snapshot = new Snapshot(ControllerAvailability.DaemonConnecting, AllOff, null, null);
     }
 
@@ -59,6 +64,30 @@ internal sealed partial class DaemonFeatureController : IFeatureController
 
     /// <summary>Phiên bản daemon đang chạy (từ ping/status), để ghi vào báo cáo.</summary>
     public string? DaemonVersion => _snapshot.Version;
+
+    /// <summary>
+    /// Daemon đang chạy nhưng cũ hơn giao diện (so x.y.z, bỏ phần "+commit"), hoặc đã trả "Lệnh lạ:" cho một lệnh mới:
+    /// giao diện hiện nút cài lại. Không đọc được phiên bản thì chỉ dựa vào "Lệnh lạ:".
+    /// </summary>
+    public bool ServiceOutdated
+    {
+        get
+        {
+            var snapshot = _snapshot;
+            if (snapshot.Availability != ControllerAvailability.DaemonRunning) return false;
+            if (_unknownCommandVersion is { } seen && seen == (snapshot.Version ?? string.Empty)) return true;
+            return IsOlderThanApp(snapshot.Version);
+        }
+    }
+
+    private bool IsOlderThanApp(string? daemonVersion)
+    {
+        if (_appVersion is null || daemonVersion is null) return false;
+        var plus = daemonVersion.IndexOf('+', StringComparison.Ordinal);
+        if (!Version.TryParse(plus < 0 ? daemonVersion : daemonVersion[..plus], out var daemon)) return false;
+        static Version Core(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
+        return Core(daemon) < Core(_appVersion);
+    }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
@@ -200,7 +229,8 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         }
         else if (IsUnknownCommand(response))
         {
-            // Daemon cũ chưa biết lệnh mới (vd. get-domains): nó vẫn chạy, giữ nguyên ảnh chụp trạng thái.
+            // Daemon cũ chưa biết lệnh mới (vd. get-domains): nó vẫn chạy, giữ nguyên ảnh chụp trạng thái, ghi nhớ để đề nghị cài lại.
+            _unknownCommandVersion = _snapshot.Version ?? string.Empty;
             LogDaemonFailed(_logger, request.Command, response.Message);
         }
         else if (!response.Ok)

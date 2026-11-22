@@ -174,6 +174,8 @@ public sealed class AppServicesTests : IDisposable
 
         public int? JournalEntries => 0;
 
+        public bool ServiceOutdated => false;
+
         public Task<DomainSelection?> GetDomainsAsync() => Task.FromResult(Selection);
 
         public Task<DomainApplyResult> ApplyDomainsAsync(DomainSelection selection) => throw new NotSupportedException();

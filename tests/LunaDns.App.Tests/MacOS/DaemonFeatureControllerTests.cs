@@ -14,8 +14,74 @@ public sealed class DaemonFeatureControllerTests
 {
     private readonly FakeDaemon _daemon = new();
 
-    private DaemonFeatureController Create(bool installed = true) =>
-        new(_daemon, () => installed, NullLoggerFactory.Instance);
+    private DaemonFeatureController Create(bool installed = true, Version? appVersion = null) =>
+        new(_daemon, () => installed, NullLoggerFactory.Instance, appVersion);
+
+    private void DaemonVersion(string version) =>
+        _daemon.Reply = r => r.Command == DaemonProtocol.Status
+            ? new DaemonResponse(true, Version: version, Status: new DaemonStatus(false, false, null, 0, 0))
+            : null;
+
+    [Theory]
+    [InlineData("0.5.0+5624b47", true)]
+    [InlineData("0.9.0", true)]
+    [InlineData("0.10.0+42f087e", false)]
+    [InlineData("0.11.0", false)]
+    [InlineData("test", false)]
+    public async Task Service_is_outdated_when_daemon_is_older_than_the_app(string daemonVersion, bool outdated)
+    {
+        DaemonVersion(daemonVersion);
+        await using var controller = Create(appVersion: new Version(0, 10, 0, 0));
+
+        await controller.RefreshAsync();
+
+        Assert.Equal(outdated, controller.ServiceOutdated);
+    }
+
+    [Fact]
+    public async Task Service_is_outdated_after_an_unknown_command()
+    {
+        _daemon.Reply = r => r.Command == DaemonProtocol.GetDomainList
+            ? new DaemonResponse(false, DaemonProtocol.UnknownCommandPrefix + " get-domain-list")
+            : null;
+        await using var controller = Create(appVersion: new Version(0, 10, 0, 0));
+        await controller.RefreshAsync();
+        Assert.False(controller.ServiceOutdated);
+
+        Assert.Null(await controller.GetDomainListAsync());
+
+        Assert.True(controller.ServiceOutdated);
+    }
+
+    [Fact]
+    public async Task Unknown_command_flag_clears_when_daemon_version_changes()
+    {
+        _daemon.Reply = r => r.Command == DaemonProtocol.GetDomainList
+            ? new DaemonResponse(false, DaemonProtocol.UnknownCommandPrefix + " get-domain-list")
+            : null;
+        await using var controller = Create(appVersion: new Version(0, 10, 0, 0));
+        await controller.RefreshAsync();
+        await controller.GetDomainListAsync();
+
+        DaemonVersion("0.10.0+new");
+        await controller.RefreshAsync();
+
+        Assert.False(controller.ServiceOutdated);
+    }
+
+    [Fact]
+    public async Task Service_is_not_outdated_while_daemon_is_down()
+    {
+        DaemonVersion("0.5.0");
+        await using var controller = Create(appVersion: new Version(0, 10, 0, 0));
+        await controller.RefreshAsync();
+        _daemon.Reply = null;
+        _daemon.Down = true;
+
+        await controller.RefreshAsync();
+
+        Assert.False(controller.ServiceOutdated);
+    }
 
     [Fact]
     public async Task Starts_connecting_without_calling_daemon()

@@ -36,7 +36,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly ILogger _logger;
     private readonly DispatcherTimer _timer;
     private readonly Func<Task<ServiceInstallResult>>? _installService;
-    private (bool Dns, bool Proxy, ControllerAvailability Availability) _shown;
+    private (bool Dns, bool Proxy, ControllerAvailability Availability, bool Outdated) _shown;
     private bool _polling;
     private ProbeSummary? _summary;
     private string _probeStatus = Strings.NotCheckedYet;
@@ -166,7 +166,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool HasAdvancedSettings { get; } = PlatformInfo.HasAdvancedSettings();
 
     /// <summary>macOS: banner "dịch vụ nền chưa cài / không trả lời / bản cũ không biết set-domains" (mockup 1.4) kèm nút cài.</summary>
-    public bool ShowServiceSetup => _daemonNeedsUpdate
+    public bool ShowServiceSetup => _daemonNeedsUpdate || _services.Features.ServiceOutdated
         || _services.Features.Availability is ControllerAvailability.DaemonNotInstalled or ControllerAvailability.DaemonNotResponding;
 
     public string ServiceSetupText => _services.Features.Availability switch
@@ -177,6 +177,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     };
 
     public string InstallServiceText => _services.Features.Availability == ControllerAvailability.DaemonNotResponding
+        || _daemonNeedsUpdate || _services.Features.ServiceOutdated
         ? Strings.ReinstallServiceButton
         : Strings.InstallServiceButton;
 
@@ -956,13 +957,14 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
             feature.Update(status);
         }
         _anyOn = status.DnsRouting || status.SniProxy || status.PubgMode;
-        if (_shown.Availability != availability || _shown == default)
+        var outdated = _services.Features.ServiceOutdated;
+        if (_shown.Availability != availability || _shown.Outdated != outdated || _shown == default)
         {
             OnPropertyChanged(nameof(ShowServiceSetup));
             OnPropertyChanged(nameof(ServiceSetupText));
             OnPropertyChanged(nameof(InstallServiceText));
         }
-        _shown = (status.DnsRouting, status.SniProxy, availability);
+        _shown = (status.DnsRouting, status.SniProxy, availability, outdated);
         UpdateOverall(status);
     }
 
@@ -988,13 +990,14 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
             _polling = false;
         }
         var status = _services.Features.Status;
-        if (!Features.Any(f => f.IsBusy) && (status.DnsRouting, status.SniProxy, _services.Features.Availability) != _shown)
+        if (!Features.Any(f => f.IsBusy) && (status.DnsRouting, status.SniProxy, _services.Features.Availability) != (_shown.Dns, _shown.Proxy, _shown.Availability))
         {
             Refresh();
             ShowSummary();
         }
         else
         {
+            if (_services.Features.ServiceOutdated != _shown.Outdated) Refresh();
             RefreshStatusText();
         }
     }

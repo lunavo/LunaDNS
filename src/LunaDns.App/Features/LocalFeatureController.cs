@@ -68,6 +68,8 @@ internal sealed partial class LocalFeatureController : IFeatureController
 
     public int? JournalEntries => Journal.Entries.Count;
 
+    public bool ServiceOutdated => false;
+
     public Task RefreshAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public Task<FeatureResult> EnableAsync(Feature feature, bool allowProxyOverride = false) =>
