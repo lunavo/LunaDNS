@@ -169,5 +169,9 @@ public sealed class MaintenanceTests
         public void OpenUrl(string url) => Urls.Add(url);
 
         public void StartProcess(string path) => Processes.Add(path);
+
+        public void OpenFolder(string path) => Processes.Add("folder:" + path);
+
+        public void Reveal(string file) => Processes.Add("reveal:" + file);
     }
 }

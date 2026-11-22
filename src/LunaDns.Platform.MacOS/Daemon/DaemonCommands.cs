@@ -21,21 +21,25 @@ public sealed partial class DaemonCommands
     private readonly SettingsHolder _settings;
     private readonly DomainListService _domainList;
     private readonly FeatureResumer? _resumer;
+    private readonly DaemonLogReader? _log;
 
     public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, JsonFileSettingsStore settingsStore, DomainListService domainList,
-        ILogger? logger = null)
-        : this(features, journal, version, new SettingsHolder(settingsStore ?? throw new ArgumentNullException(nameof(settingsStore))), domainList, logger)
+        ILogger? logger = null, DaemonLogReader? log = null)
+        : this(features, journal, version, new SettingsHolder(settingsStore ?? throw new ArgumentNullException(nameof(settingsStore))), domainList, logger,
+            log: log)
     {
     }
 
     /// <summary>
     /// Daemon thật: dùng chung SettingsHolder với Engine, để set-tuning đổi được DoH/tuning lúc dịch vụ khởi động lại.
     /// <paramref name="resumer"/> null (<c>lunadns run</c>): không nhớ wanted, câu trả lời không có Resume.
+    /// <paramref name="log"/> null: get-log bị từ chối.
     /// </summary>
     public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, SettingsHolder settings, DomainListService domainList, ILogger? logger = null,
-        FeatureResumer? resumer = null)
+        FeatureResumer? resumer = null, DaemonLogReader? log = null)
     {
         _resumer = resumer;
+        _log = log;
         this.features = features;
         this.journal = journal;
         this.version = version;
@@ -96,6 +100,8 @@ public sealed partial class DaemonCommands
                 return await SetDomainListEnabledAsync(request.Enabled, cancellationToken).ConfigureAwait(false);
             case DaemonProtocol.SetAutoResume:
                 return SetAutoResume(request.Enabled);
+            case DaemonProtocol.GetLog:
+                return _log is null ? Refused("Dịch vụ này không ghi log ra file.") : Ok() with { Log = [.. _log.Tail(request.Lines)] };
             default:
                 return new DaemonResponse(false, $"{DaemonProtocol.UnknownCommandPrefix} {request.Command}");
         }
@@ -280,7 +286,9 @@ public sealed partial class DaemonCommands
             "Các tên miền đã chọn đã có file /etc/resolver của phần mềm khác (VPN hoặc script tự tạo). Gỡ file đó rồi thử lại.",
         { Error: FeatureError.AccessDenied } => "Dịch vụ nền không đủ quyền đổi cấu hình hệ thống.",
         { Error: FeatureError.RollbackFailed } => "Bật lỗi và hoàn tác cũng lỗi; chạy: sudo lunadns cleanup",
-        { Outcome: FeatureOutcome.Failed } => $"Không bật được ({result.Error}); xem log.",
+        // Detail: câu của ConfiguratorException (vd. lỗi networksetup), viết sẵn cho người dùng (B2).
+        { Outcome: FeatureOutcome.Failed, Detail: { Length: > 0 } detail } => detail,
+        { Outcome: FeatureOutcome.Failed } => $"Không bật/tắt được ({result.Error}). Bấm Chẩn đoán để lấy log của dịch vụ nền.",
         _ => null,
     };
 

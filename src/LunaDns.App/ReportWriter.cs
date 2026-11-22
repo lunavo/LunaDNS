@@ -9,12 +9,13 @@ namespace LunaDns.App;
 
 /// <summary>
 /// Ghi LunaDNS-report-&lt;ts&gt;.txt (spec 4.9) dạng UTF-8 có BOM để Notepad cũ đọc đúng tiếng Việt.
+/// <paramref name="serviceLog"/>: đuôi log của dịch vụ nền macOS (F3); null trên Windows.
 /// Bản Windows đọc journal bằng JsonFileJournalStore: file hỏng sẽ bị đổi tên .corrupt-&lt;ts&gt; (KH5 quyết định 15).
 /// </summary>
 internal static partial class ReportWriter
 {
     public static string Write(AppPaths paths, IReadOnlyList<ProbeResult>? probe, IPlatformDiagnostics diagnostics, DateTimeOffset? time = null,
-        DomainListState? domainList = null)
+        DomainListState? domainList = null, IReadOnlyList<string>? serviceLog = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(diagnostics);
@@ -30,7 +31,8 @@ internal static partial class ReportWriter
             diagnostics.MarkedHostsLines(),
             RollingFileLoggerProvider.ReadTail(paths.LogDirectory, DiagnosticReport.LogLines),
             diagnostics.Labels,
-            domainList);
+            domainList,
+            serviceLog);
         var text = DiagnosticReport.Build(input, new Redactor(Environment.UserName, Environment.MachineName));
 
         Directory.CreateDirectory(paths.ReportDirectory);

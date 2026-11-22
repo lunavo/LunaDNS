@@ -113,7 +113,11 @@
                     Classes.good="{Binding MessageTone, Converter={x:Static v:ToneConverters.IsGood}}"
                     Classes.warning="{Binding MessageTone, Converter={x:Static v:ToneConverters.IsWarning}}"
                     Classes.error="{Binding MessageTone, Converter={x:Static v:ToneConverters.IsError}}" />
-          <SelectableTextBlock Grid.Column="1" Text="{Binding Message}" TextWrapping="Wrap" />
+          <StackPanel Grid.Column="1" Spacing="6">
+            <SelectableTextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+            <Button Content="{x:Static app:Strings.RevealReport}" Command="{Binding RevealReportCommand}"
+                    IsVisible="{Binding CanRevealReport}" HorizontalAlignment="Left" />
+          </StackPanel>
           <Button Grid.Column="2" Margin="8,0,0,0" Padding="4" VerticalAlignment="Top" Background="Transparent"
                   Command="{Binding DismissMessageCommand}"
                   ToolTip.Tip="{x:Static app:Strings.DismissMessage}"
@@ -186,12 +190,15 @@
                     IsVisible="{Binding IsTuning}" />
           </StackPanel>
           <TextBlock Classes="secondary" Text="{Binding TuneStatus}" TextWrapping="Wrap" IsVisible="{Binding HasTuneStatus}" />
-          <Button Background="Transparent" Command="{Binding DiagnosticsCommand}" HorizontalAlignment="Left" Margin="-8,0,0,0">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Classes="button" Data="{DynamicResource Icon.Diagnostics}" />
-              <TextBlock Text="{x:Static app:Strings.DiagnosticsButton}" />
-            </StackPanel>
-          </Button>
+          <StackPanel Orientation="Horizontal" Spacing="4" Margin="-8,0,0,0">
+            <Button Background="Transparent" Command="{Binding DiagnosticsCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Classes="button" Data="{DynamicResource Icon.Diagnostics}" />
+                <TextBlock Text="{x:Static app:Strings.DiagnosticsButton}" />
+              </StackPanel>
+            </Button>
+            <Button Background="Transparent" Command="{Binding OpenLogFolderCommand}" Content="{x:Static app:Strings.OpenLogFolderButton}" />
+          </StackPanel>
         </StackPanel>
       </Border>
 

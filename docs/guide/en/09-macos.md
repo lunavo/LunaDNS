@@ -73,7 +73,9 @@ The window has the same four zones as on Windows (Kiểm tra, Trạng thái, C�
 - The **Kiểm tra** (Check) zone has no **Nâng cao** (Advanced) section yet (split type, delay, DoH): the background service uses the default settings.
 - There is no **Gỡ khỏi máy** (Remove from this PC) button: the **Gỡ & dọn** (Remove & clean up) zone shows a line telling you to uninstall with `sudo lunadns uninstall`.
 - The interface's settings and log are in `~/Library/Application Support/LunaDNS` (with `gui.lock` and `gui.sock` so that only one interface runs; if you open it a second time, the running window comes up).
-- **Chẩn đoán** (Diagnose) writes a report to the Desktop: LunaDNS's `/etc/resolver` files, the services using LunaDNS's PAC, the hosts lines, the background service version and the number of journal entries (the background service's journal belongs to root, so the interface cannot read its contents).
+- **Chẩn đoán** (Diagnose) writes a report to the Desktop: LunaDNS's `/etc/resolver` files, the services using LunaDNS's PAC, the hosts lines, the background service version, the number of journal entries (the background service's journal belongs to root, so the interface cannot read its contents), the last 200 lines of the interface's log and **the last 200 lines of the background service's log** (the service has already masked the user name, machine name and LAN IPs). The message bar has a **Hiện trong Finder** (Show in Finder) button that opens the report file. An older background service cannot send its log yet: the report has one line asking you to **Cài lại dịch vụ nền** (Reinstall background service).
+- The **Mở thư mục log** (Open log folder) button, next to Diagnose, opens `~/Library/Application Support/LunaDNS/logs`, the interface's log.
+- When turning a feature on or off fails, the card and the message bar show the **specific reason** the background service sends back (for example the error text from `networksetup`), not only "Lỗi không xác định" (unknown error). If there is no specific reason, press **Chẩn đoán**: the background service's log is in the report.
 
 ## Background service (recommended)
 
@@ -88,7 +90,7 @@ This command copies the runnable build to `/Library/PrivilegedHelperTools/vn.lun
 - Each time the daemon starts (including after a restart, a reinstall, or when the daemon dies) it **undoes any leftover journal**, opens the socket, then **turns back on** what the user last left on (unless the Turn back on box is off, or the undo was not clean). If that fails it tries again after 5 and then 15 seconds. It never replaces an existing PAC/proxy by itself: if the machine uses a PAC, the SNI proxy waits until the user clicks **Bật lại** (Turn back on) in the app. `lunadns status` shows a *"Tự bật lại: …"* line.
 - On shutdown or when the daemon is removed: launchd sends SIGTERM, and the daemon turns everything off and undoes it, but keeps the remembered state to turn it back on at the next start.
 - Only **root** and **the person sitting at the machine** (the owner of `/dev/console`) can control the daemon; connections from another account (SSH, another user) are refused. The UID comes from the kernel (`getpeereid`) and cannot be faked.
-- Data, journal, log: `/Library/Application Support/LunaDNS` (root, permissions 700); the daemon's logs are in `logs/daemon.out` and `logs/lunadns.log`.
+- Data, journal, log: `/Library/Application Support/LunaDNS` (root, permissions 700); the daemon's logs are in `logs/daemon.out` and `logs/lunadns.log`. Normal users cannot open this folder; **Chẩn đoán** in the app fetches the tail of `lunadns.log` through the `get-log` socket command (personal data masked, at most 200 lines).
 
 ## Commands
 

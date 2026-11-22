@@ -84,5 +84,9 @@ public sealed class UpdateBannerViewModelTests
         public void OpenUrl(string url) => Urls.Add(url);
 
         public void StartProcess(string path) { }
+
+        public void OpenFolder(string path) { }
+
+        public void Reveal(string file) { }
     }
 }

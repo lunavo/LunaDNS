@@ -36,6 +36,9 @@ internal sealed class FakeNetworkSetup : IProcessRunner
 
     public List<string> Calls { get; } = [];
 
+    /// <summary>Lần -setautoproxyurl kế tiếp trả mã 4 với câu này (một lần), như networksetup thật khi service vừa đổi tên.</summary>
+    public string? FailNextSetUrl { get; set; }
+
     public ProcessResult Run(string fileName, IReadOnlyList<string> arguments)
     {
         Calls.Add(fileName + " " + string.Join(' ', arguments));
@@ -51,6 +54,9 @@ internal sealed class FakeNetworkSetup : IProcessRunner
             case "-getwebproxy":
             case "-getsecurewebproxy":
                 return new ProcessResult(0, $"Enabled: {(ManualProxy.Contains(arguments[1]) ? "Yes" : "No")}\nServer: 127.0.0.1\nPort: 9090\n");
+            case "-setautoproxyurl" when FailNextSetUrl is { } failure:
+                FailNextSetUrl = null;
+                return new ProcessResult(4, failure);
             case "-setautoproxyurl":
                 Auto[arguments[1]] = (arguments[2], true);
                 Changes.Add($"url {arguments[1]} {arguments[2]}");

@@ -31,6 +31,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private readonly AppServices _services;
     private readonly IUserPrompts _prompts;
+    private readonly ISystemShell _shell;
     private readonly Maintenance _maintenance;
     private readonly Func<Task> _quit;
     private readonly ILogger _logger;
@@ -42,6 +43,8 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private string _probeStatus = Strings.NotCheckedYet;
     private string _probeHint = string.Empty;
     private string _message = string.Empty;
+    /// <summary>File báo cáo vừa lưu: thanh thông báo có nút Hiện trong Finder/Explorer (U2). Thông báo khác thì mất.</summary>
+    private string? _revealPath;
     private Tone _messageTone;
     private bool _canApplyRecommended;
     private bool _anyOn;
@@ -71,6 +74,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         _installService = installService;
         _services = services;
         _prompts = prompts;
+        _shell = shell;
         _maintenance = new Maintenance(prompts, shell);
         UpdateBanner = new UpdateBannerViewModel(shell, AppInfo.Version, OnError);
         _quit = quit;
@@ -85,6 +89,8 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         ApplyRecommendedCommand = new AsyncCommand(ApplyRecommendedAsync, OnError, () => !_isTuning);
         DisableAllCommand = new AsyncCommand(DisableAllAsync, OnError, () => _anyOn || HasAttention);
         DiagnosticsCommand = new AsyncCommand(DiagnosticsAsync, OnError);
+        OpenLogFolderCommand = new AsyncCommand(OpenLogFolderAsync, OnError);
+        RevealReportCommand = new AsyncCommand(RevealReportAsync, OnError);
         CheckUpdateCommand = new AsyncCommand(CheckUpdateAsync, OnError);
         UninstallAppCommand = new AsyncCommand(UninstallAppAsync, OnError);
         DismissMessageCommand = new AsyncCommand(DismissMessageAsync, OnError);
@@ -155,6 +161,11 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     public AsyncCommand DisableAllCommand { get; }
 
     public AsyncCommand DiagnosticsCommand { get; }
+
+    /// <summary>U2: thư mục log của giao diện (~/Library/Application Support/LunaDNS/logs, %ProgramData%\LunaDNS\logs).</summary>
+    public AsyncCommand OpenLogFolderCommand { get; }
+
+    public AsyncCommand RevealReportCommand { get; }
 
     public AsyncCommand CheckUpdateCommand { get; }
 
@@ -238,6 +249,8 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     public Tone MessageTone => _messageTone;
 
     public bool HasMessage => _message.Length > 0;
+
+    public bool CanRevealReport => _revealPath is not null;
 
     public OverallState Overall
     {
@@ -856,14 +869,46 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var domainList = await Task.Run(_services.GetDomainListAsync);
-            var path = await Task.Run(() => ReportWriter.Write(_services.Paths, _services.LastProbe, PlatformInfo.CreateDiagnostics(_services), domainList: domainList));
-            ShowMessage(Strings.Format(nameof(Strings.ReportSavedFormat), path), Tone.Info);
+            var serviceLog = await Task.Run(() => PlatformInfo.ServiceLogAsync(_services));
+            var path = await Task.Run(() => ReportWriter.Write(_services.Paths, _services.LastProbe, PlatformInfo.CreateDiagnostics(_services),
+                domainList: domainList, serviceLog: serviceLog));
+            // Daemon cũ trả "Lệnh lạ:" cho get-log: ServiceOutdated bật, lần poll sau hiện nút Cài lại dịch vụ nền.
+            ShowMessage(Strings.Format(nameof(Strings.ReportSavedFormat), path), Tone.Info, reveal: path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             LogReportFailed(_logger, ex);
             ShowMessage(Strings.Format(nameof(Strings.ReportFailedFormat), ex.Message), Tone.Error);
         }
+    }
+
+    private Task OpenLogFolderAsync()
+    {
+        var folder = _services.Paths.LogDirectory;
+        try
+        {
+            Directory.CreateDirectory(folder);
+            _shell.OpenFolder(folder);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            ShowMessage(Strings.Format(nameof(Strings.OpenFolderFailedFormat), ex.Message), Tone.Error);
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task RevealReportAsync()
+    {
+        if (_revealPath is not { } path) return Task.CompletedTask;
+        try
+        {
+            _shell.Reveal(path);
+        }
+        catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception)
+        {
+            ShowMessage(Strings.Format(nameof(Strings.OpenFolderFailedFormat), ex.Message), Tone.Error);
+        }
+        return Task.CompletedTask;
     }
 
     /// <summary>macOS: hộp thoại mật khẩu của hệ thống, rồi hỏi lại dịch vụ nền. Bấm Huỷ thì im lặng.</summary>
@@ -1013,7 +1058,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private string? Failure(FeatureResult result)
     {
         var message = ErrorMessages.For(result);
-        if (message is not null) Card(result.Feature)?.SetError(Strings.Error(result.Error));
+        if (message is not null) Card(result.Feature)?.SetError(ErrorMessages.Reason(result));
         return message;
     }
 
@@ -1024,9 +1069,11 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private FeatureViewModel? Card(Feature feature) => Features.FirstOrDefault(f => f.Feature == feature);
 
     /// <summary>Chuỗi rỗng luôn hạ mức về Neutral (ẩn thanh thông báo, hết Cần xử lý).</summary>
-    private void ShowMessage(string text, Tone tone)
+    private void ShowMessage(string text, Tone tone, string? reveal = null)
     {
         _message = text;
+        _revealPath = text.Length == 0 ? null : reveal;
+        OnPropertyChanged(nameof(CanRevealReport));
         _messageTone = text.Length == 0 ? Tone.Neutral : tone;
         OnPropertyChanged(nameof(Message));
         OnPropertyChanged(nameof(MessageTone));

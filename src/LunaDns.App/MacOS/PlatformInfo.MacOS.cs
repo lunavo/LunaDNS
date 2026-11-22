@@ -13,4 +13,10 @@ internal static partial class PlatformInfo
         ArgumentNullException.ThrowIfNull(services);
         return Program.CreateMacDiagnostics(services.Features as DaemonFeatureController);
     }
+
+    public static partial async Task<IReadOnlyList<string>?> ServiceLogAsync(AppServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        return services.Features is DaemonFeatureController daemon ? await daemon.GetServiceLogAsync().ConfigureAwait(false) : null;
+    }
 }

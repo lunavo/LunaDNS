@@ -2,7 +2,9 @@
 
 <sub>[English](en/08-troubleshooting.md)</sub>
 
-Log ở `C:\ProgramData\LunaDNS\logs\lunadns.log` (UTF-8 không BOM). Cần gửi người khác thì tạo báo cáo ([Dòng lệnh](06-dong-lenh.md#báo-cáo)).
+Log ở `C:\ProgramData\LunaDNS\logs\lunadns.log` (UTF-8 không BOM); nút **Mở thư mục log** cạnh **Chẩn đoán** mở thẳng thư mục này. Cần gửi người khác thì bấm **Chẩn đoán** (thanh thông báo có nút **Hiện trong Explorer**) hoặc tạo báo cáo bằng dòng lệnh ([Dòng lệnh](06-dong-lenh.md#báo-cáo)).
+
+macOS: log của giao diện ở `~/Library/Application Support/LunaDNS/logs` (nút **Mở thư mục log**); log của dịch vụ nền thuộc root nên chỉ xem được qua báo cáo **Chẩn đoán** ([macOS](09-macos.md#giao-diện)).
 
 | Hiện tượng | Nguyên nhân thường gặp | Cách xử lý |
 |---|---|---|
@@ -18,6 +20,8 @@ Log ở `C:\ProgramData\LunaDNS\logs\lunadns.log` (UTF-8 không BOM). Cần gử
 | Kiểm tra vẫn "Bị lọc SNI" sau khi đã bật | Kiểm tra đo mạng gốc | Thử mở Steam thật |
 | Store Steam màn đen | Đang chọn MidSni | Chọn FirstByte ở Nâng cao, tắt/bật lại Proxy SNI |
 | Mạng/Steam hỏng sau khi app chết | Thay đổi còn sót | [Gỡ và dọn](07-go-va-don-dep.md) |
+| macOS: thẻ báo *"Lỗi không xác định"* hoặc câu có *"Bấm Chẩn đoán"* | Dịch vụ nền lỗi mà không có lý do viết sẵn | Bấm **Chẩn đoán**, gửi báo cáo: cuối báo cáo có log của dịch vụ nền |
+| macOS: báo cáo ghi *"Dịch vụ nền là bản cũ, chưa gửi được log"* | Dịch vụ nền cũ hơn app | Bấm **Cài lại dịch vụ nền** rồi chạy Chẩn đoán lại |
 | *"… gặp lỗi lặp lại nên đã được tắt"* | Dịch vụ chết 3 lần trong 1 phút | Xem log rồi bật lại; nếu có *"chưa hoàn tác hết"* thì chạy `--cleanup` |
 | Mở app lần hai không thấy cửa sổ mới | Bản cũ đang ở khay | Bấm biểu tượng khay |
 | Log hiện chữ vỡ trong PowerShell 5.1 | Log không có BOM | `Get-Content … -Encoding UTF8` |

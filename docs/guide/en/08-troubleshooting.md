@@ -2,7 +2,9 @@
 
 <sub>[Tiếng Việt](../08-su-co.md)</sub>
 
-The log is at `C:\ProgramData\LunaDNS\logs\lunadns.log` (UTF-8 without BOM). If you need to send it to someone, create a report ([Command line](06-command-line.md#report)).
+The log is at `C:\ProgramData\LunaDNS\logs\lunadns.log` (UTF-8 without BOM); the **Mở thư mục log** (Open log folder) button next to **Chẩn đoán** (Diagnose) opens this folder. If you need to send it to someone, press **Chẩn đoán** (the message bar then has a **Hiện trong Explorer** (Show in Explorer) button) or create a report from the command line ([Command line](06-command-line.md#report)).
+
+macOS: the interface's log is in `~/Library/Application Support/LunaDNS/logs` (the **Mở thư mục log** button); the background service's log belongs to root, so you can only see it through the **Chẩn đoán** report ([macOS](09-macos.md#interface)).
 
 | Symptom | Usual cause | What to do |
 |---|---|---|
@@ -18,6 +20,8 @@ The log is at `C:\ProgramData\LunaDNS\logs\lunadns.log` (UTF-8 without BOM). If 
 | Kiểm tra (Check) still says "Bị lọc SNI" (SNI filtered) after turning it on | Kiểm tra measures the original network | Try opening Steam for real |
 | Steam Store goes black | MidSni is selected | Choose FirstByte in Nâng cao (Advanced), turn Proxy SNI off and on |
 | Network/Steam broken after the app was killed | Changes left behind | [Uninstall and cleanup](07-uninstall-and-cleanup.md) |
+| macOS: the card says *"Lỗi không xác định"* (unknown error) or a sentence with *"Bấm Chẩn đoán"* (press Diagnose) | The background service failed without a prepared reason | Press **Chẩn đoán** and send the report: the background service's log is at the end |
+| macOS: the report says *"Dịch vụ nền là bản cũ, chưa gửi được log"* (the background service is old and cannot send its log) | The background service is older than the app | Press **Cài lại dịch vụ nền** (Reinstall background service), then run Diagnose again |
 | *"… gặp lỗi lặp lại nên đã được tắt"* ("… kept failing, so it was turned off") | The service died 3 times in 1 minute | Read the log, then turn it on again; if you see *"chưa hoàn tác hết"* ("not everything was undone"), run `--cleanup` |
 | Opening the app a second time shows no new window | The old copy is in the tray | Click the tray icon |
 | Log shows garbled text in PowerShell 5.1 | The log has no BOM | `Get-Content … -Encoding UTF8` |

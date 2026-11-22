@@ -81,13 +81,24 @@ public sealed class FeatureSetTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Apply_failure_from_other_exception_has_no_detail()
+    {
+        _configurator.BeforeApply = () => throw new InvalidOperationException("chi tiết nội bộ");
+
+        var result = await _features.EnableAsync(Feature.DnsRouting);
+
+        Assert.Equal(new FeatureResult(Feature.DnsRouting, FeatureOutcome.Failed, FeatureError.Other), result);
+        Assert.Null(result.Detail);
+    }
+
+    [Fact]
     public async Task Apply_failure_rolls_back_own_entries_and_stops_service()
     {
         _configurator.FailApply = true;
 
         var result = await _features.EnableAsync(Feature.DnsRouting);
 
-        Assert.Equal(new FeatureResult(Feature.DnsRouting, FeatureOutcome.Failed, FeatureError.Other), result);
+        Assert.Equal(new FeatureResult(Feature.DnsRouting, FeatureOutcome.Failed, FeatureError.Other, Detail: "giả lập lỗi"), result);
         Assert.Empty(_journal.Entries);
         Assert.Contains("revert:dns:LunaDNS test", _configurator.Calls);
         Assert.True(_services.Latest(Feature.DnsRouting).Disposed);

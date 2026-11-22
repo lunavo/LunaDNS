@@ -218,7 +218,8 @@ public sealed partial class FeatureSet : IAsyncDisposable
             if (ex is ConfiguratorException { Error: ConfiguratorError.ExistingProxyConfig } && !leftBehind)
                 return new(feature, FeatureOutcome.NeedsProxyOverride);
             LogApplyFailed(_logger, feature, ex);
-            return new(feature, FeatureOutcome.Failed, SystemError(ex), leftBehind);
+            // Chỉ câu của ConfiguratorException (code nền tảng viết cho người dùng) ra giao diện; exception khác chỉ vào log.
+            return new(feature, FeatureOutcome.Failed, SystemError(ex), leftBehind, (ex as ConfiguratorException)?.Message);
         }
 
         var started = new Running(service, new RestartPolicy(_time));

@@ -41,4 +41,23 @@ public sealed class ErrorMessagesTests
         foreach (var error in Enum.GetValues<FeatureError>().Where(e => e != FeatureError.None))
             Assert.Equal(Strings.Error(error), ErrorMessages.For(error));
     }
+
+    [Fact]
+    public void Other_error_uses_the_detail_when_there_is_one()
+    {
+        var result = new FeatureResult(Feature.SniProxy, FeatureOutcome.Failed, FeatureError.Other, Detail: "networksetup -setautoproxyurl lỗi: ** Error");
+
+        Assert.Equal("networksetup -setautoproxyurl lỗi: ** Error", ErrorMessages.Reason(result));
+        Assert.Contains("networksetup -setautoproxyurl lỗi", ErrorMessages.For(result), StringComparison.Ordinal);
+        Assert.Equal(Strings.Error(FeatureError.Other), ErrorMessages.Reason(result with { Detail = null }));
+        Assert.Equal(Strings.Error(FeatureError.Other), ErrorMessages.Reason(result with { Detail = "  " }));
+    }
+
+    [Fact]
+    public void Specific_errors_keep_the_app_text_even_with_a_detail()
+    {
+        var result = new FeatureResult(Feature.DnsRouting, FeatureOutcome.Failed, FeatureError.DnsRouteConflict, Detail: "câu của dịch vụ nền");
+
+        Assert.Equal(Strings.Error(FeatureError.DnsRouteConflict), ErrorMessages.Reason(result));
+    }
 }

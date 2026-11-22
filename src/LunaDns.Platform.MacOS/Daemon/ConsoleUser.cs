@@ -17,5 +17,13 @@ public sealed class ConsoleUser(IProcessRunner runner)
             : null;
     }
 
+    /// <summary>Tên tài khoản đang ngồi trước máy (để che trong log trả cho giao diện); null khi không đọc được.</summary>
+    public string? CurrentName()
+    {
+        var result = runner.Run("/usr/bin/stat", ["-f", "%Su", "/dev/console"]);
+        var name = result.Output.Trim();
+        return result.ExitCode == 0 && name.Length > 0 ? name : null;
+    }
+
     public bool IsAllowed(uint uid) => uid == 0 || uid == CurrentUid();
 }

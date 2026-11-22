@@ -178,6 +178,53 @@ public sealed class DaemonFeatureControllerTests
     }
 
     [Fact]
+    public void Daemon_message_is_kept_as_detail()
+    {
+        var result = DaemonFeatureController.ToResult(Feature.SniProxy, new DaemonResponse(false, "networksetup -setautoproxyurl lỗi: ** Error",
+            Outcome: "Failed", Error: "Other", Status: new DaemonStatus(false, false, null, 0, 0)));
+
+        Assert.Equal("networksetup -setautoproxyurl lỗi: ** Error", result.Detail);
+        Assert.Equal("networksetup -setautoproxyurl lỗi: ** Error", ErrorMessages.Reason(result));
+    }
+
+    [Fact]
+    public async Task Service_log_comes_from_get_log()
+    {
+        _daemon.Reply = r => r.Command == DaemonProtocol.GetLog
+            ? new DaemonResponse(true, Status: new DaemonStatus(false, false, null, 0, 0), Log: ["một", "hai"])
+            : null;
+        await using var controller = Create();
+
+        Assert.Equal(["một", "hai"], await controller.GetServiceLogAsync());
+        Assert.Null(_daemon.LastRequest!.Lines);
+    }
+
+    [Fact]
+    public async Task Old_daemon_service_log_asks_for_reinstall()
+    {
+        DaemonVersion("0.10.0");
+        await using var controller = Create(appVersion: new Version(0, 10, 0, 0));
+        await controller.RefreshAsync();
+        _daemon.Reply = r => new DaemonResponse(false, $"Lệnh lạ: {r.Command}");
+
+        Assert.Equal([Strings.ServiceLogOutdated], await controller.GetServiceLogAsync());
+        Assert.True(controller.ServiceOutdated);
+    }
+
+    [Fact]
+    public async Task Unreachable_or_refusing_daemon_gives_one_explaining_line()
+    {
+        await using var controller = Create();
+        _daemon.Down = true;
+        Assert.Equal([Strings.ServiceLogUnavailable], await controller.GetServiceLogAsync());
+
+        _daemon.Down = false;
+        _daemon.Reply = _ => new DaemonResponse(false, "không có log", Status: new DaemonStatus(false, false, null, 0, 0));
+        var line = Assert.Single(await controller.GetServiceLogAsync());
+        Assert.Contains("không có log", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Unreachable_daemon_gives_service_unavailable()
     {
         _daemon.Down = true;

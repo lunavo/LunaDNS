@@ -177,6 +177,19 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         return response?.DomainListResult?.ToResult() ?? new DomainListOfferResult(DomainListOutcome.Unavailable);
     }
 
+    /// <summary>
+    /// Đuôi log của dịch vụ nền cho báo cáo Chẩn đoán (F3); daemon đã che tên. Không lấy được thì một dòng giải thích:
+    /// daemon cũ chưa biết get-log ("Lệnh lạ:", cũng làm ServiceOutdated bật), không trả lời, hoặc từ chối.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetServiceLogAsync()
+    {
+        var response = await SendAsync(new DaemonRequest(DaemonProtocol.GetLog)).ConfigureAwait(false);
+        if (response is null) return [Strings.ServiceLogUnavailable];
+        if (response.Ok) return response.Log ?? [];
+        if (IsUnknownCommand(response)) return [Strings.ServiceLogOutdated];
+        return [Strings.Format(nameof(Strings.ServiceLogRefusedFormat), response.Message ?? string.Empty)];
+    }
+
     /// <summary>Daemon tự bật lại lúc khởi động; giao diện không làm gì.</summary>
     public Task ResumeAsync() => Task.CompletedTask;
 
@@ -277,13 +290,15 @@ internal sealed partial class DaemonFeatureController : IFeatureController
     internal static FeatureResult ToResult(Feature feature, DaemonResponse? response)
     {
         if (response is null) return new FeatureResult(feature, FeatureOutcome.Failed, FeatureError.ServiceUnavailable);
+        // Message của daemon đi theo dạng Detail; ErrorMessages.Reason chỉ hiện nó cho mã Other (B2).
         if (response.Outcome is null)
-            return new FeatureResult(feature, FeatureOutcome.Failed, response.Status is null ? FeatureError.ServiceUnavailable : FeatureError.Other);
+            return new FeatureResult(feature, FeatureOutcome.Failed, response.Status is null ? FeatureError.ServiceUnavailable : FeatureError.Other,
+                Detail: response.Message);
         var outcome = Enum.TryParse<FeatureOutcome>(response.Outcome, out var o) ? o : FeatureOutcome.Failed;
         var error = response.Error is null ? FeatureError.None
             : Enum.TryParse<FeatureError>(response.Error, out var e) ? e : FeatureError.Other;
         if (outcome == FeatureOutcome.Failed && error == FeatureError.None) error = FeatureError.Other;
-        return new FeatureResult(feature, outcome, error, ChangesLeftBehind: error == FeatureError.RollbackFailed);
+        return new FeatureResult(feature, outcome, error, ChangesLeftBehind: error == FeatureError.RollbackFailed, Detail: response.Message);
     }
 
     private sealed record Snapshot(ControllerAvailability Availability, FeatureStatus Status, int? JournalEntries, string? Version, ResumeState? Resume);

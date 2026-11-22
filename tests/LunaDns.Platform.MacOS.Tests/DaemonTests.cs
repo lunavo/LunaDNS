@@ -5,6 +5,7 @@ using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
 using LunaDns.Core.Journal;
+using LunaDns.Core.Logging;
 using LunaDns.Core.Platform;
 using LunaDns.Core.Probing;
 using LunaDns.Core.Settings;
@@ -221,6 +222,44 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
 
     private Task<DaemonResponse> Send(string command, string? feature = null, bool allow = false) =>
         _commands.HandleAsync(new DaemonRequest(command, feature, allow), CancellationToken.None);
+
+    [Fact]
+    public async Task Enable_failure_message_carries_the_system_reason()
+    {
+        _ns.FailNextSetUrl = "** Error: The parameters were not valid.";
+
+        var reply = await Send(DaemonProtocol.Enable, FeatureKeys.SniProxy);
+
+        Assert.False(reply.Ok);
+        Assert.Equal("Failed", reply.Outcome);
+        Assert.Equal("Other", reply.Error);
+        Assert.Contains("networksetup -setautoproxyurl lỗi: ** Error: The parameters were not valid.", reply.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Get_log_without_reader_is_refused_with_status()
+    {
+        var reply = await Send(DaemonProtocol.GetLog);
+
+        Assert.False(reply.Ok);
+        Assert.NotNull(reply.Status);
+        Assert.Null(reply.Log);
+    }
+
+    [Fact]
+    public async Task Get_log_returns_redacted_tail()
+    {
+        var logs = Directory.CreateDirectory(_tmp.Combine("logs")).FullName;
+        File.WriteAllLines(Path.Combine(logs, RollingFileLoggerProvider.FileName), ["một", "hai của lunav", "ba"]);
+        var commands = new DaemonCommands(_features, _journal, "1.2.3", new JsonFileSettingsStore(_tmp.Combine("settings.json")), _domainList,
+            log: new DaemonLogReader(logs, () => "lunav", "máy"));
+
+        var reply = await commands.HandleAsync(new DaemonRequest(DaemonProtocol.GetLog, Lines: 2), CancellationToken.None);
+
+        Assert.True(reply.Ok);
+        Assert.NotNull(reply.Status);
+        Assert.Equal(["hai của <user>", "ba"], reply.Log);
+    }
 
     [Fact]
     public async Task Enable_dns_then_disable_all_leaves_system_clean()
@@ -565,6 +604,13 @@ public class ConsoleUserTests
         Assert.True(user.IsAllowed(0));
         Assert.True(user.IsAllowed(501));
         Assert.False(user.IsAllowed(502));
+    }
+
+    [Fact]
+    public void Console_owner_name_comes_from_stat()
+    {
+        Assert.Equal("lunav", new ConsoleUser(new StatRunner("lunav\n")).CurrentName());
+        Assert.Null(new ConsoleUser(new StatRunner("  \n")).CurrentName());
     }
 
     [Fact]

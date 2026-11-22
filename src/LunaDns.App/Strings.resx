@@ -150,6 +150,13 @@
   <data name="ServiceInstallFailedFormat" xml:space="preserve"><value>Cài dịch vụ nền lỗi: {0}</value></data>
   <data name="ServiceCliMissing" xml:space="preserve"><value>Không thấy file lunadns đi kèm app. Cài bằng Terminal: sudo lunadns install (xem docs/guide/09-macos.md).</value></data>
   <data name="DaemonNeedsUpdateTuning" xml:space="preserve"><value>Dịch vụ nền cần được cài lại để áp cấu hình mới. Bấm Cài dịch vụ nền.</value></data>
+  <data name="OpenLogFolderButton" xml:space="preserve"><value>Mở thư mục log</value></data>
+  <data name="RevealReport" xml:space="preserve"><value>Hiện trong Explorer</value></data>
+  <data name="RevealReport_Mac" xml:space="preserve"><value>Hiện trong Finder</value></data>
+  <data name="OpenFolderFailedFormat" xml:space="preserve"><value>Không mở được thư mục: {0}</value></data>
+  <data name="ServiceLogOutdated" xml:space="preserve"><value>(Dịch vụ nền là bản cũ, chưa gửi được log. Bấm Cài lại dịch vụ nền rồi chạy Chẩn đoán lại.)</value></data>
+  <data name="ServiceLogUnavailable" xml:space="preserve"><value>(Dịch vụ nền không trả lời nên không lấy được log.)</value></data>
+  <data name="ServiceLogRefusedFormat" xml:space="preserve"><value>(Dịch vụ nền không gửi log: {0})</value></data>
   <data name="DaemonNeedsUpdate" xml:space="preserve"><value>Dịch vụ nền là bản cũ hơn ứng dụng. Bấm Cài lại dịch vụ nền để dùng đủ tính năng.</value></data>
   <data name="AutoResumeSwitch" xml:space="preserve"><value>Tự bật lại khi mở LunaDNS</value></data>
   <data name="AutoResumeSwitch_Mac" xml:space="preserve"><value>Tự bật lại sau khi khởi động máy hoặc cài lại dịch vụ nền</value></data>

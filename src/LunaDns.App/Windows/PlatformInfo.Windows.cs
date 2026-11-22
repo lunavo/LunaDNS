@@ -14,4 +14,6 @@ internal static partial class PlatformInfo
         ArgumentNullException.ThrowIfNull(services);
         return new WindowsReportDiagnostics(WindowsDiagnostics.CreateDefault(), services.Paths.JournalFile);
     }
+
+    public static partial Task<IReadOnlyList<string>?> ServiceLogAsync(AppServices services) => Task.FromResult<IReadOnlyList<string>?>(null);
 }

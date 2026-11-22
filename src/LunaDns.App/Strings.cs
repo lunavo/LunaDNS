@@ -151,6 +151,12 @@ internal static class Strings
     public static string ServiceInstallFailedFormat => Get(nameof(ServiceInstallFailedFormat));
     public static string ServiceCliMissing => Get(nameof(ServiceCliMissing));
     public static string DaemonNeedsUpdate => Get(nameof(DaemonNeedsUpdate));
+    public static string OpenLogFolderButton => Get(nameof(OpenLogFolderButton));
+    public static string RevealReport => Get(nameof(RevealReport));
+    public static string OpenFolderFailedFormat => Get(nameof(OpenFolderFailedFormat));
+    public static string ServiceLogOutdated => Get(nameof(ServiceLogOutdated));
+    public static string ServiceLogUnavailable => Get(nameof(ServiceLogUnavailable));
+    public static string ServiceLogRefusedFormat => Get(nameof(ServiceLogRefusedFormat));
     public static string DaemonNeedsUpdateTuning => Get(nameof(DaemonNeedsUpdateTuning));
 
     // F1 + U1: Tự bật lại (spec 2026-11-22)

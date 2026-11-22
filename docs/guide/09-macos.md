@@ -73,7 +73,9 @@ Cửa sổ có bốn khu như bản Windows (Kiểm tra, Trạng thái, Cập nh
 - Khu **Kiểm tra** chưa có mục **Nâng cao** (kiểu cắt gói, độ trễ, DoH): dịch vụ nền đang dùng cài đặt mặc định.
 - Không có nút **Gỡ khỏi máy**: khu **Gỡ & dọn** hiện dòng nhắc gỡ bằng `sudo lunadns uninstall`.
 - Settings và log của giao diện ở `~/Library/Application Support/LunaDNS` (kèm `gui.lock`, `gui.sock` để chỉ một bản giao diện chạy; mở lần hai thì cửa sổ đang chạy hiện lên).
-- **Chẩn đoán** ghi báo cáo ra Desktop: file `/etc/resolver` của LunaDNS, service đang dùng PAC LunaDNS, dòng hosts, phiên bản dịch vụ nền và số mục journal (journal của dịch vụ nền thuộc root, giao diện không đọc được nội dung).
+- **Chẩn đoán** ghi báo cáo ra Desktop: file `/etc/resolver` của LunaDNS, service đang dùng PAC LunaDNS, dòng hosts, phiên bản dịch vụ nền, số mục journal (journal của dịch vụ nền thuộc root, giao diện không đọc được nội dung), 200 dòng log cuối của giao diện và **200 dòng log cuối của dịch vụ nền** (dịch vụ nền đã che tên người dùng, tên máy, IP LAN). Thanh thông báo có nút **Hiện trong Finder** để mở thẳng file báo cáo. Dịch vụ nền bản cũ chưa gửi được log: báo cáo ghi một dòng nhắc **Cài lại dịch vụ nền**.
+- Nút **Mở thư mục log** (cạnh Chẩn đoán) mở `~/Library/Application Support/LunaDNS/logs`, log của giao diện.
+- Bật/tắt lỗi thì thẻ và thanh thông báo hiện **lý do cụ thể** dịch vụ nền gửi về (ví dụ câu lỗi của `networksetup`), không chỉ "Lỗi không xác định". Lỗi không có lý do cụ thể thì bấm **Chẩn đoán**: log của dịch vụ nền nằm trong báo cáo.
 
 ## Dịch vụ nền (khuyên dùng)
 
@@ -88,7 +90,7 @@ Lệnh này chép bản chạy được vào `/Library/PrivilegedHelperTools/vn.
 - Mỗi lần daemon khởi động (kể cả sau khi khởi động lại máy, cài lại, hoặc daemon chết) nó **hoàn tác journal còn sót**, mở socket, rồi **tự bật lại** những gì người dùng để bật lần cuối (trừ khi ô Tự bật lại tắt, hoặc hoàn tác không sạch). Bật lỗi thì thử lại sau 5 rồi 15 giây. Không bao giờ tự thay PAC/proxy có sẵn: máy đang dùng PAC thì Proxy SNI chờ người dùng bấm **Bật lại** trong app. `lunadns status` có dòng *"Tự bật lại: …"*.
 - Tắt máy hoặc gỡ daemon: launchd gửi SIGTERM, daemon tắt hết và hoàn tác, nhưng vẫn nhớ trạng thái để lần khởi động sau bật lại.
 - Chỉ **root** và **người đang ngồi trước máy** (chủ của `/dev/console`) điều khiển được daemon; kết nối từ tài khoản khác (SSH, user khác) bị từ chối. UID lấy từ kernel (`getpeereid`), không giả được.
-- Dữ liệu, journal, log: `/Library/Application Support/LunaDNS` (root, quyền 700); log của daemon ở `logs/daemon.out` và `logs/lunadns.log`.
+- Dữ liệu, journal, log: `/Library/Application Support/LunaDNS` (root, quyền 700); log của daemon ở `logs/daemon.out` và `logs/lunadns.log`. Người dùng thường không mở được thư mục này; **Chẩn đoán** trong app lấy đuôi `lunadns.log` qua lệnh socket `get-log` (đã che dữ liệu cá nhân, tối đa 200 dòng).
 
 ## Các lệnh
 

@@ -60,6 +60,11 @@ public static class DiagnosticReport
         Lines(sb, input.HostsLines);
         Section(sb, string.Create(CultureInfo.InvariantCulture, $"{LogLines} dòng log cuối"));
         Lines(sb, [.. input.LogTail.TakeLast(LogLines)]);
+        if (input.ServiceLog is { } serviceLog)
+        {
+            Section(sb, string.Create(CultureInfo.InvariantCulture, $"{LogLines} dòng log cuối của dịch vụ nền"));
+            Lines(sb, [.. serviceLog.TakeLast(LogLines)]);
+        }
 
         return redactor.Redact(sb.ToString());
     }

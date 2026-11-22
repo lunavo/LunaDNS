@@ -52,6 +52,21 @@ public sealed class DiagnosticReportTests
     }
 
     [Fact]
+    public void Service_log_section_follows_app_log_and_is_redacted()
+    {
+        var report = DiagnosticReport.Build(Input() with { ServiceLog = ["2026-11-22 WARN networksetup lỗi trên DESKTOP-42 cho lunav"] }, Redactor);
+
+        var app = report.IndexOf("== 200 dòng log cuối ==", StringComparison.Ordinal);
+        var service = report.IndexOf("== 200 dòng log cuối của dịch vụ nền ==", StringComparison.Ordinal);
+        Assert.True(app >= 0 && service > app);
+        Assert.Contains("networksetup lỗi trên <host> cho <user>", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void No_service_log_means_no_section() =>
+        Assert.DoesNotContain("dịch vụ nền ==", DiagnosticReport.Build(Input(), Redactor), StringComparison.Ordinal);
+
+    [Fact]
     public void Missing_probe_says_not_run() =>
         Assert.Contains("(chưa chạy)", DiagnosticReport.Build(Input(), Redactor), StringComparison.Ordinal);
 

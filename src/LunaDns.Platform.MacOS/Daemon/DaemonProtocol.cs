@@ -15,7 +15,7 @@ namespace LunaDns.Platform.MacOS.Daemon;
 /// Lệnh: <c>ping</c>, <c>status</c>, <c>enable</c> (kèm Feature), <c>disable</c> (kèm Feature), <c>disable-all</c>,
 /// <c>get-domains</c>, <c>set-domains</c> (kèm Domains), <c>get-tuning</c>, <c>set-tuning</c> (kèm Tuning),
 /// <c>get-domain-list</c>, <c>set-domain-list</c> (kèm Envelope), <c>set-domain-list-enabled</c> (kèm Enabled),
-/// <c>set-auto-resume</c> (kèm Enabled, F1). <c>disable-all</c> kèm SessionEnd = true (đăng xuất/tắt máy) thì không xoá wanted.
+/// <c>set-auto-resume</c> (kèm Enabled, F1), <c>get-log</c> (kèm Lines tuỳ chọn, F3). <c>disable-all</c> kèm SessionEnd = true (đăng xuất/tắt máy) thì không xoá wanted.
 /// </summary>
 public static class DaemonProtocol
 {
@@ -36,6 +36,7 @@ public static class DaemonProtocol
     public const string SetDomainList = "set-domain-list";
     public const string SetDomainListEnabled = "set-domain-list-enabled";
     public const string SetAutoResume = "set-auto-resume";
+    public const string GetLog = "get-log";
 
     /// <summary>Đầu câu trả lời cho lệnh daemon không biết. Bản cũ cũng dùng đúng câu này, nên giao diện nhận ra daemon cần cài lại.</summary>
     public const string UnknownCommandPrefix = "Lệnh lạ:";
@@ -81,13 +82,14 @@ internal sealed partial class DaemonJsonContext : JsonSerializerContext;
 /// <summary>
 /// Feature là khoá trong FeatureKeys ("dns-routing", "sni-proxy"). SessionEnd chỉ dùng với disable-all: app thoát vì đăng
 /// xuất/tắt máy, không phải người dùng thoát, nên daemon giữ wanted (F1). Daemon cũ bỏ qua trường này.
+/// Lines: số dòng log muốn lấy với get-log (null: tối đa).
 /// </summary>
 public sealed record DaemonRequest(string Command, string? Feature = null, bool AllowProxyOverride = false, DomainSelection? Domains = null,
-    DaemonTuning? Tuning = null, string? Envelope = null, bool? Enabled = null, bool? SessionEnd = null);
+    DaemonTuning? Tuning = null, string? Envelope = null, bool? Enabled = null, bool? SessionEnd = null, int? Lines = null);
 
 /// <summary>
 /// Outcome/Error là tên enum FeatureOutcome/FeatureError dạng chuỗi (để client cũ không vỡ khi thêm giá trị).
-/// Message là câu tiếng Việt cho người dùng khi Ok = false.
+/// Message là câu tiếng Việt cho người dùng khi Ok = false. Log: đuôi log đã che của get-log (F3).
 /// </summary>
 public sealed record DaemonResponse(
     bool Ok,
@@ -100,7 +102,8 @@ public sealed record DaemonResponse(
     DaemonTuning? Tuning = null,
     DaemonDomainList? DomainList = null,
     DaemonDomainListResult? DomainListResult = null,
-    DaemonResume? Resume = null);
+    DaemonResume? Resume = null,
+    string[]? Log = null);
 
 /// <summary>Máy DoH và tổ hợp cắt gói của daemon (D3). Enum dạng chuỗi camelCase ("quad9", "midSni").</summary>
 public sealed record DaemonTuning(DohProvider Doh, SplitMode SplitMode, bool SplitRecords, int SplitDelayMs)

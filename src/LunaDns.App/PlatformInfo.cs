@@ -10,4 +10,7 @@ internal static partial class PlatformInfo
     public static partial bool HasAdvancedSettings();
 
     public static partial IPlatformDiagnostics CreateDiagnostics(AppServices services);
+
+    /// <summary>Đuôi log của dịch vụ nền cho báo cáo (F3). Windows: null, vì giao diện chính là bên ghi log.</summary>
+    public static partial Task<IReadOnlyList<string>?> ServiceLogAsync(AppServices services);
 }
