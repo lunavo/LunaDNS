@@ -48,7 +48,9 @@ Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Name: "{autoprograms}\LunaDNS"; Filename: "{app}\LunaDNS.exe"
 
 [Run]
-Filename: "{app}\LunaDNS.exe"; Description: "{cm:LaunchApp}"; Flags: postinstall nowait skipifsilent
+; postinstall mặc định chạy bằng token thường của người dùng gốc; exe requireAdministrator thì CreateProcess
+; báo lỗi 740. runascurrentuser kế thừa quyền admin của Setup (không hỏi UAC lần hai).
+Filename: "{app}\LunaDNS.exe"; Description: "{cm:LaunchApp}"; Flags: postinstall nowait skipifsilent runascurrentuser
 
 [Code]
 function RunLuna(const Exe, Args: String): Integer;
