@@ -164,7 +164,8 @@ internal sealed partial class App : Application, IDisposable
     {
         if (Interlocked.Exchange(ref _shuttingDown, 1) == 1) return;
         var result = await Task.Run(() => Services!.ShutdownAsync(Features.ShutdownReason.UserQuit));
-        if (result > 0) await new DialogPrompts(() => ShowWindow()).InformAsync(Strings.AppTitle, Strings.RestoreFailed);
+        if (result == Features.ShutdownOutcome.Unknown) await new DialogPrompts(() => ShowWindow()).InformAsync(Strings.AppTitle, Strings.RestoreUnknown);
+        else if (result > 0) await new DialogPrompts(() => ShowWindow()).InformAsync(Strings.AppTitle, Strings.RestoreFailed);
         CloseTray();
         _desktop!.Shutdown();
     }
@@ -185,6 +186,7 @@ internal sealed partial class App : Application, IDisposable
         {
             var shutdown = Task.Run(() => Services!.ShutdownAsync(reason));
             if (!shutdown.Wait(SessionEndBudget)) LogSessionEndTimedOut(_logger);
+            else if (shutdown.Result == Features.ShutdownOutcome.Unknown) LogSessionEndUnknown(_logger);
             else if (shutdown.Result > 0) LogSessionEndLeftovers(_logger, shutdown.Result);
             else LogSessionEndDone(_logger, watch.ElapsedMilliseconds);
         }
@@ -237,6 +239,9 @@ internal sealed partial class App : Application, IDisposable
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Đăng xuất: còn {Count} thay đổi chưa hoàn tác được.")]
     private static partial void LogSessionEndLeftovers(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Đăng xuất: dịch vụ nền không trả lời, không biết đã hoàn tác chưa.")]
+    private static partial void LogSessionEndUnknown(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Đăng xuất: hoàn tác lỗi.")]
     private static partial void LogSessionEndFailed(ILogger logger, Exception error);

@@ -29,6 +29,9 @@ internal sealed partial class DaemonFeatureController : IFeatureController
     private readonly Version? _appVersion;
     private volatile Snapshot _snapshot;
 
+    /// <summary>Chờ trước lần gửi lại duy nhất khi người dùng thoát mà dịch vụ nền không trả lời (B8). Test đặt 0.</summary>
+    internal TimeSpan QuitRetryDelay { get; init; } = TimeSpan.FromSeconds(1);
+
     /// <summary>Phiên bản daemon lúc nó trả "Lệnh lạ:"; khác bản hiện tại (đã cài lại) thì cờ tự hết.</summary>
     private volatile string? _unknownCommandVersion;
 
@@ -203,18 +206,33 @@ internal sealed partial class DaemonFeatureController : IFeatureController
     }
 
     /// <summary>
-    /// Không có gì bật (và, khi người dùng thoát, không còn wanted để xoá) thì không làm phiền daemon; daemon không chạy thì không
-    /// còn gì để giao diện hoàn tác. Hết phiên thì gửi kèm SessionEnd để daemon giữ wanted (F1).
+    /// Chưa cài, hoặc tài khoản khác đang ngồi trước máy (B4): không gửi. Daemon đang chạy mà không có gì bật (và, khi người
+    /// dùng thoát, không còn wanted để xoá): không làm phiền. Còn lại (kể cả lần poll gần nhất lỗi, B8) thì gửi disable-all;
+    /// người dùng thoát mà không có trả lời thì gửi lại một lần. Không có trả lời → <see cref="ShutdownOutcome.Unknown"/>.
+    /// Hết phiên thì gửi kèm SessionEnd để daemon giữ wanted (F1), một lần, không thử lại (giới hạn 4 giây của App).
     /// </summary>
     public async Task<int> ShutdownAsync(ShutdownReason reason)
     {
         var snapshot = _snapshot;
-        if (snapshot.Availability != ControllerAvailability.DaemonRunning) return 0;
-        var wantedLeft = reason == ShutdownReason.UserQuit && snapshot.Resume is { } resume && !resume.Wanted.IsEmpty();
-        if (!snapshot.Status.DnsRouting && !snapshot.Status.SniProxy && snapshot.JournalEntries is 0 or null && !wantedLeft) return 0;
+        if (snapshot.Availability is ControllerAvailability.DaemonNotInstalled or ControllerAvailability.DaemonOtherUser) return 0;
+        if (snapshot.Availability == ControllerAvailability.DaemonRunning)
+        {
+            var wantedLeft = reason == ShutdownReason.UserQuit && snapshot.Resume is { } resume && !resume.Wanted.IsEmpty();
+            if (!snapshot.Status.DnsRouting && !snapshot.Status.SniProxy && snapshot.JournalEntries is 0 or null && !wantedLeft) return 0;
+        }
+        else if (reason == ShutdownReason.SessionEnd)
+        {
+            return 0;
+        }
+
         var request = new DaemonRequest(DaemonProtocol.DisableAll, SessionEnd: reason == ShutdownReason.SessionEnd ? true : null);
         var response = await SendAsync(request).ConfigureAwait(false);
-        return response is null ? 0 : Remaining(response);
+        if (response is null && reason == ShutdownReason.UserQuit)
+        {
+            await Task.Delay(QuitRetryDelay).ConfigureAwait(false);
+            response = await SendAsync(request).ConfigureAwait(false);
+        }
+        return response is null ? ShutdownOutcome.Unknown : Remaining(response);
     }
 
     public ValueTask DisposeAsync()

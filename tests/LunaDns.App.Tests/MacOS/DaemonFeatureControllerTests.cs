@@ -15,7 +15,7 @@ public sealed class DaemonFeatureControllerTests
     private readonly FakeDaemon _daemon = new();
 
     private DaemonFeatureController Create(bool installed = true, Version? appVersion = null) =>
-        new(_daemon, () => installed, NullLoggerFactory.Instance, appVersion);
+        new(_daemon, () => installed, NullLoggerFactory.Instance, appVersion) { QuitRetryDelay = TimeSpan.Zero };
 
     private void DaemonVersion(string version) =>
         _daemon.Reply = r => r.Command == DaemonProtocol.Status
@@ -308,6 +308,89 @@ public sealed class DaemonFeatureControllerTests
     }
 
     [Fact]
+    public async Task User_quit_after_a_failed_poll_still_disables_all()
+    {
+        _daemon.Down = true;
+        await using var controller = Create();
+        await controller.RefreshAsync();
+        Assert.Equal(ControllerAvailability.DaemonNotResponding, controller.Availability);
+        _daemon.Down = false;
+        _daemon.Dns = true;
+
+        var remaining = await controller.ShutdownAsync(ShutdownReason.UserQuit);
+
+        Assert.Equal(0, remaining);
+        Assert.Equal(new DaemonRequest(DaemonProtocol.DisableAll), _daemon.LastRequest);
+        Assert.False(_daemon.Dns);
+    }
+
+    [Fact]
+    public async Task User_quit_retries_once_when_the_daemon_does_not_answer()
+    {
+        await using var controller = Create();
+        _daemon.Dns = true;
+        _daemon.DownFor = 1;
+
+        var remaining = await controller.ShutdownAsync(ShutdownReason.UserQuit);
+
+        Assert.Equal(0, remaining);
+        Assert.Equal(2, _daemon.Attempts);
+        Assert.Equal(new DaemonRequest(DaemonProtocol.DisableAll), _daemon.LastRequest);
+    }
+
+    [Fact]
+    public async Task User_quit_is_unknown_when_both_tries_get_no_answer()
+    {
+        await using var controller = Create();
+        _daemon.Down = true;
+
+        var remaining = await controller.ShutdownAsync(ShutdownReason.UserQuit);
+
+        Assert.Equal(ShutdownOutcome.Unknown, remaining);
+        Assert.Equal(2, _daemon.Attempts);
+    }
+
+    [Fact]
+    public async Task User_quit_does_not_call_a_daemon_that_is_not_installed()
+    {
+        _daemon.Down = true;
+        await using var controller = Create(installed: false);
+        await controller.RefreshAsync();
+        _daemon.Attempts = 0;
+
+        Assert.Equal(0, await controller.ShutdownAsync(ShutdownReason.UserQuit));
+        Assert.Equal(0, _daemon.Attempts);
+    }
+
+    [Fact]
+    public async Task User_quit_leaves_the_other_console_users_features_alone()
+    {
+        _daemon.Reject = true;
+        await using var controller = Create();
+        await controller.RefreshAsync();
+        Assert.Equal(ControllerAvailability.DaemonOtherUser, controller.Availability);
+        _daemon.Attempts = 0;
+
+        Assert.Equal(0, await controller.ShutdownAsync(ShutdownReason.UserQuit));
+        Assert.Equal(0, _daemon.Attempts);
+    }
+
+    [Fact]
+    public async Task Session_end_sends_once_and_is_unknown_without_an_answer()
+    {
+        _daemon.Dns = true;
+        await using var controller = Create();
+        await controller.RefreshAsync();
+        _daemon.Down = true;
+        _daemon.Attempts = 0;
+
+        var remaining = await controller.ShutdownAsync(ShutdownReason.SessionEnd);
+
+        Assert.Equal(ShutdownOutcome.Unknown, remaining);
+        Assert.Equal(1, _daemon.Attempts);
+    }
+
+    [Fact]
     public async Task Shutdown_disables_all_when_something_is_on()
     {
         _daemon.Dns = true;
@@ -578,6 +661,10 @@ public sealed class DaemonFeatureControllerTests
     private sealed class FakeDaemon : IDaemonTransport
     {
         public bool Down { get; set; }
+        /// <summary>Số lượt gửi tiếp theo ném DaemonUnavailableException (như Down, nhưng tự hết).</summary>
+        public int DownFor { get; set; }
+        /// <summary>Mọi lượt gửi, kể cả lượt lỗi hoặc bị từ chối (Requests chỉ ghi lượt được xử lý).</summary>
+        public int Attempts { get; set; }
         public bool Reject { get; set; }
         public bool Dns { get; set; }
         public bool Proxy { get; set; }
@@ -595,6 +682,12 @@ public sealed class DaemonFeatureControllerTests
 
         public Task<DaemonResponse> SendAsync(DaemonRequest request, CancellationToken cancellationToken)
         {
+            Attempts++;
+            if (DownFor > 0)
+            {
+                DownFor--;
+                throw new DaemonUnavailableException("down");
+            }
             if (Down) throw new DaemonUnavailableException("down");
             if (Reject) return Task.FromResult(new DaemonResponse(false, DaemonProtocol.NotConsoleUserMessage, Code: DaemonProtocol.NotConsoleUser));
             Requests.Add(request);

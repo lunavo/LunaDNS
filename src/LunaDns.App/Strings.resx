@@ -114,6 +114,8 @@
   <data name="FeatureStoppedFormat" xml:space="preserve"><value>{0} gặp lỗi lặp lại nên đã được tắt.</value></data>
   <data name="FeatureStoppedLeftBehindFormat" xml:space="preserve"><value>{0} gặp lỗi lặp lại nên đã dừng, nhưng chưa hoàn tác hết thay đổi. Hãy mở lại LunaDNS hoặc chạy LunaDNS.exe --cleanup.</value></data>
   <data name="RestoreFailed" xml:space="preserve"><value>Chưa hoàn tác hết thay đổi. Hãy mở lại LunaDNS hoặc chạy LunaDNS.exe --cleanup.</value></data>
+  <data name="RestoreUnknown" xml:space="preserve"><value>Không biết đã hoàn tác xong chưa. Hãy mở lại LunaDNS hoặc chạy LunaDNS.exe --cleanup.</value></data>
+  <data name="RestoreUnknown_Mac" xml:space="preserve"><value>Dịch vụ nền không trả lời nên LunaDNS có thể vẫn đang định tuyến. Mở Terminal và chạy: sudo lunadns off</value></data>
   <data name="StartupRestoredFormat" xml:space="preserve"><value>Đã hoàn tác {0} thay đổi còn sót từ lần chạy trước.</value></data>
   <data name="StartupRestoreFailed" xml:space="preserve"><value>Còn thay đổi từ lần chạy trước chưa hoàn tác được. Bấm "Chẩn đoán" để ghi báo cáo.</value></data>
   <data name="UnexpectedError" xml:space="preserve"><value>Có lỗi không mong muốn. Chi tiết nằm trong log.</value></data>

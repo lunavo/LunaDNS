@@ -34,6 +34,13 @@ internal enum ShutdownReason
     SessionEnd,
 }
 
+/// <summary>Giá trị đặc biệt của <see cref="IFeatureController.ShutdownAsync"/>.</summary>
+internal static class ShutdownOutcome
+{
+    /// <summary>Không biết đã hoàn tác chưa: dịch vụ nền không trả lời (B8). Chỉ bản daemon trả.</summary>
+    public const int Unknown = -1;
+}
+
 /// <summary>
 /// Lớp giữa MainViewModel và nơi thật sự bật/tắt tính năng. Windows: <see cref="LocalFeatureController"/> bọc FeatureSet.
 /// macOS: DaemonFeatureController gửi lệnh qua Unix socket tới daemon chạy bằng root.
@@ -100,6 +107,7 @@ internal interface IFeatureController : IDomainListSink, IAsyncDisposable
     /// <summary>
     /// "Thoát &amp; khôi phục", Cmd+Q, đăng xuất. Trả số thay đổi chưa hoàn tác được (0 = sạch).
     /// <see cref="ShutdownReason.UserQuit"/> còn xoá wanted, để lần khởi động sau không tự bật.
+    /// Trả số thay đổi còn sót; <see cref="ShutdownOutcome.Unknown"/> khi không biết (dịch vụ nền không trả lời).
     /// </summary>
     Task<int> ShutdownAsync(ShutdownReason reason);
 }

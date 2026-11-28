@@ -141,6 +141,7 @@ internal static class Strings
     public static string FeatureStoppedFormat => Get(nameof(FeatureStoppedFormat));
     public static string FeatureStoppedLeftBehindFormat => Get(nameof(FeatureStoppedLeftBehindFormat));
     public static string RestoreFailed => Get(nameof(RestoreFailed));
+    public static string RestoreUnknown => Get(nameof(RestoreUnknown));
     public static string StartupRestoredFormat => Get(nameof(StartupRestoredFormat));
     public static string StartupRestoreFailed => Get(nameof(StartupRestoreFailed));
     public static string UnexpectedError => Get(nameof(UnexpectedError));
