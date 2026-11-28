@@ -50,12 +50,13 @@ internal sealed partial class DaemonFeatureController : IFeatureController
     public static DaemonFeatureController CreateDefault(ILoggerFactory loggerFactory) =>
         new(new SocketDaemonTransport(), () => File.Exists(PlistPath), loggerFactory);
 
-    // Daemon không báo watchdog dừng tính năng; lần poll sau chỉ thấy tính năng đã tắt.
-    public event EventHandler<FeatureStoppedEventArgs>? FeatureStopped
-    {
-        add { }
-        remove { }
-    }
+    /// <summary>Watchdog của dịch vụ nền đã dừng một tính năng (F5): phát khi Stopped.Seq vượt mốc, ngoài khoá _gate.</summary>
+    public event EventHandler<FeatureStoppedEventArgs>? FeatureStopped;
+
+    // Mốc Stopped.Seq (F5): null = chưa thấy status nào. Không đặt lại khi mất kết nối, để nối lại không báo trùng.
+    private long? _stoppedSeq;
+    // Lần dừng mới thấy trong lúc giữ _gate; phát sau khi nhả khoá.
+    private FeatureStoppedEventArgs? _pendingStop;
 
     public ControllerAvailability Availability => _snapshot.Availability;
 
@@ -106,6 +107,7 @@ internal sealed partial class DaemonFeatureController : IFeatureController
         {
             _gate.Release();
         }
+        RaisePendingStop();
     }
 
     public async Task<FeatureResult> EnableAsync(Feature feature, bool allowProxyOverride = false)
@@ -244,14 +246,34 @@ internal sealed partial class DaemonFeatureController : IFeatureController
     private async Task<DaemonResponse?> SendAsync(DaemonRequest request)
     {
         await _gate.WaitAsync().ConfigureAwait(false);
+        DaemonResponse? response;
         try
         {
-            return await SendCoreAsync(request, CancellationToken.None).ConfigureAwait(false);
+            response = await SendCoreAsync(request, CancellationToken.None).ConfigureAwait(false);
         }
         finally
         {
             _gate.Release();
         }
+        RaisePendingStop();
+        return response;
+    }
+
+    private void NoteStopped(DaemonStopped? stopped)
+    {
+        var seq = stopped?.Seq ?? 0;
+        var baseline = _stoppedSeq;
+        _stoppedSeq = seq;
+        // Lần đầu thấy, hoặc daemon khởi động lại (Seq nhỏ hơn mốc): chỉ lấy mốc. Banner U1 lo lần dừng trước khi app mở.
+        if (baseline is not { } previous || seq <= previous) return;
+        if (!FeatureKeys.TryParse(stopped!.Feature, out var feature)) return;
+        _pendingStop = new FeatureStoppedEventArgs(feature, stopped.ChangesLeftBehind);
+    }
+
+    private void RaisePendingStop()
+    {
+        var stop = Interlocked.Exchange(ref _pendingStop, null);
+        if (stop is not null) FeatureStopped?.Invoke(this, stop);
     }
 
     /// <summary>null khi không nói chuyện được với daemon (Availability đã cập nhật).</summary>
@@ -278,6 +300,7 @@ internal sealed partial class DaemonFeatureController : IFeatureController
                 new FeatureStatus(s.DnsRouting, s.SniProxy, PubgMode: false, s.ProxyPort, s.ProxyConnections,
                     s.DohServer is { } doh ? new DohActivity(doh, s.DohFallback == true) : null),
                 s.JournalEntries, response.Version ?? _snapshot.Version, response.Resume?.ToState());
+            NoteStopped(s.Stopped);
         }
         else if (IsUnknownCommand(response))
         {

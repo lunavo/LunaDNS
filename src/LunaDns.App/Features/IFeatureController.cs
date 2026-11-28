@@ -48,7 +48,7 @@ internal static class ShutdownOutcome
 /// </summary>
 internal interface IFeatureController : IDomainListSink, IAsyncDisposable
 {
-    /// <summary>Watchdog đã tắt một tính năng. Bản daemon không phát (không phân biệt được với "lunadns off" từ Terminal).</summary>
+    /// <summary>Watchdog đã tắt một tính năng. Bản daemon phát khi status cho thấy watchdog của dịch vụ nền vừa dừng tính năng (F5).</summary>
     event EventHandler<FeatureStoppedEventArgs>? FeatureStopped;
 
     ControllerAvailability Availability { get; }

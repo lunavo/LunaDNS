@@ -658,6 +658,108 @@ public sealed class DaemonFeatureControllerTests
         Assert.Equal(ErrorMessages.For(FeatureError.ServiceUnavailable), await controller.SetAutoResumeAsync(true));
     }
 
+    private static DaemonStopped Stop(long seq, string feature = FeatureKeys.DnsRouting, bool leftBehind = false) =>
+        new(seq, feature, leftBehind);
+
+    [Fact]
+    public async Task First_stop_seen_is_a_baseline_and_later_stops_raise_once()
+    {
+        _daemon.Stopped = Stop(3);
+        await using var controller = Create();
+        var raised = new List<FeatureStoppedEventArgs>();
+        controller.FeatureStopped += (_, e) => raised.Add(e);
+
+        await controller.RefreshAsync();
+        Assert.Empty(raised);
+
+        _daemon.Stopped = Stop(4, FeatureKeys.SniProxy, leftBehind: true);
+        await controller.RefreshAsync();
+        await controller.RefreshAsync();
+
+        var only = Assert.Single(raised);
+        Assert.Equal(Feature.SniProxy, only.Feature);
+        Assert.True(only.ChangesLeftBehind);
+    }
+
+    [Fact]
+    public async Task Daemon_restart_resets_the_baseline_without_raising()
+    {
+        _daemon.Stopped = Stop(5);
+        await using var controller = Create();
+        var raised = new List<FeatureStoppedEventArgs>();
+        controller.FeatureStopped += (_, e) => raised.Add(e);
+        await controller.RefreshAsync();
+
+        _daemon.Stopped = Stop(1);
+        await controller.RefreshAsync();
+        Assert.Empty(raised);
+
+        _daemon.Stopped = Stop(2);
+        await controller.RefreshAsync();
+        Assert.Single(raised);
+    }
+
+    [Fact]
+    public async Task No_stop_yet_then_a_stop_raises()
+    {
+        await using var controller = Create();
+        var raised = new List<FeatureStoppedEventArgs>();
+        controller.FeatureStopped += (_, e) => raised.Add(e);
+        await controller.RefreshAsync();
+
+        _daemon.Stopped = Stop(1);
+        await controller.RefreshAsync();
+
+        Assert.Equal(Feature.DnsRouting, Assert.Single(raised).Feature);
+    }
+
+    [Fact]
+    public async Task Reconnecting_with_the_same_stop_does_not_raise_again()
+    {
+        _daemon.Stopped = Stop(2);
+        await using var controller = Create();
+        var raised = new List<FeatureStoppedEventArgs>();
+        controller.FeatureStopped += (_, e) => raised.Add(e);
+        await controller.RefreshAsync();
+
+        _daemon.Down = true;
+        await controller.RefreshAsync();
+        _daemon.Down = false;
+        await controller.RefreshAsync();
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
+    public async Task Unknown_feature_key_moves_the_baseline_without_raising()
+    {
+        await using var controller = Create();
+        var raised = new List<FeatureStoppedEventArgs>();
+        controller.FeatureStopped += (_, e) => raised.Add(e);
+        await controller.RefreshAsync();
+
+        _daemon.Stopped = Stop(1, "future-feature");
+        await controller.RefreshAsync();
+        _daemon.Stopped = Stop(1);
+        await controller.RefreshAsync();
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
+    public async Task Stop_seen_in_a_command_reply_raises_too()
+    {
+        await using var controller = Create();
+        var raised = new List<FeatureStoppedEventArgs>();
+        controller.FeatureStopped += (_, e) => raised.Add(e);
+        await controller.RefreshAsync();
+
+        _daemon.Stopped = Stop(1);
+        await controller.DisableAsync(Feature.DnsRouting);
+
+        Assert.Single(raised);
+    }
+
     private sealed class FakeDaemon : IDaemonTransport
     {
         public bool Down { get; set; }
@@ -674,6 +776,7 @@ public sealed class DaemonFeatureControllerTests
         public bool DohFallback { get; set; }
         public bool DisableAllFails { get; set; }
         public DaemonResume? Resume { get; set; }
+        public DaemonStopped? Stopped { get; set; }
         public (string Outcome, string Error)? FailWith { get; set; }
         public List<DaemonRequest> Requests { get; } = [];
         /// <summary>Trả lời riêng cho một yêu cầu; null thì xử lý như bình thường.</summary>
@@ -728,6 +831,6 @@ public sealed class DaemonFeatureControllerTests
 
         private DaemonResponse Ok() =>
             new(true, Version: "test", Status: new DaemonStatus(Dns, Proxy, Proxy ? 18080 : null, 0, Dns || Proxy ? 1 : 0,
-                DohServer, DohServer is null ? null : DohFallback), Resume: Resume);
+                DohServer, DohServer is null ? null : DohFallback, Stopped), Resume: Resume);
     }
 }
