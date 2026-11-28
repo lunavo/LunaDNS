@@ -32,7 +32,7 @@ mạng đã đổi.
 | `WindowsNetworkIdentity` | `Platform.Windows` | Gateway từ `NetworkInterface.GetIPProperties().GatewayAddresses` (interface Up, có gateway IPv4, metric thấp nhất); MAC qua `SendARP` (iphlpapi, P/Invoke). |
 | `MacNetworkIdentity` | `Platform.MacOS` | Gateway và interface từ `route -n get default`; MAC từ `arp -n <gateway>`. Chạy với quyền người dùng. Phần phân tích chữ tách thành hàm thuần để test. |
 | `NetworkProfile` | `Core/Settings` | `{ Id, Weak, Label, Doh, Candidate, SavedAt, LastSeen, Stale }`. |
-| `NetworkProfileStore` | `Core/Settings` | Đọc/ghi `profiles.json` cạnh `settings.json` (`AppPaths.DataDirectory`). Ghi file tạm rồi đổi tên. File hỏng: đổi tên thành `profiles.json.bad`, chạy tiếp với danh sách rỗng. Tối đa 32 hồ sơ, đầy thì bỏ hồ sơ có `LastSeen` cũ nhất. |
+| `NetworkProfileStore` | `Core/Settings` | Đọc/ghi `profiles.json` cạnh `settings.json` (`AppPaths.DataDirectory`). Ghi file tạm rồi đổi tên. File hỏng: đổi tên thành `profiles.json.corrupt-<giờ UTC>` như `JsonFileSettingsStore`, chạy tiếp với danh sách rỗng. Tối đa 32 hồ sơ, đầy thì bỏ hồ sơ có `LastSeen` cũ nhất. |
 | `NetworkWatcher` | `App` | Gộp `NetworkChange.NetworkAddressChanged` và poll dự phòng 60 giây thành sự kiện `Changed(NetworkSnapshot?)`: chờ yên 3 giây, chỉ phát khi `NetworkId` khác lần trước. Đồng hồ và timer qua interface để test. |
 | `NetworkProfileCoordinator` | `App` | Quyết định hành động (mục dưới). Phụ thuộc `INetworkIdentity`, `NetworkProfileStore`, `IFeatureController`, `ProbeRunner` (qua interface) và cờ "đang bận" của view model. Không chạm Dispatcher. |
 | `NetworkProfileNotice` | `App` | Dòng trạng thái và banner cho view model, theo mẫu `ResumeNotice`. |
@@ -83,7 +83,7 @@ Lưu hồ sơ ở các chỗ khác:
 | Trạng thái, chưa có hồ sơ | "Mạng: {nhãn} — chưa có cấu hình đã lưu" |
 | Trạng thái, vừa áp | "Đã dùng cấu hình đã lưu cho mạng này" |
 | Banner | "Mạng mới có vẻ chặn Steam." + nút **Tìm cấu hình hợp mạng** + nút đóng |
-| Cài đặt | Ô **Nhớ cấu hình theo mạng** |
+| Dưới ô Tự bật lại | Ô **Nhớ cấu hình theo mạng** |
 | Gỡ & dọn | Nút **Xoá mọi cấu hình theo mạng** (hỏi xác nhận) |
 
 Thoát & khôi phục **không** xoá hồ sơ: hồ sơ không phải thay đổi hệ thống. Gỡ cài đặt xoá cùng thư mục dữ liệu như
@@ -100,7 +100,7 @@ hiện nay. Chuỗi mới thêm vào `Strings.resx` và bản tiếng Anh của 
 ## Kiểm thử
 
 - `NetworkIdTests`: cùng MAC + loại cho cùng id; khác loại cho khác id; không MAC thì `Weak`; không gateway thì null.
-- `NetworkProfileStoreTests`: round-trip; file hỏng thành `.bad` và danh sách rỗng; đầy 32 thì bỏ `LastSeen` cũ nhất;
+- `NetworkProfileStoreTests`: round-trip; file hỏng thành `.corrupt-*` và danh sách rỗng; đầy 32 thì bỏ `LastSeen` cũ nhất;
   ghi đè cùng id.
 - `MacNetworkIdentityTests`: phân tích mẫu chữ `route -n get default` và `arp -n` (có MAC, `incomplete`, không gateway).
 - `NetworkWatcherTests` (đồng hồ giả): nhiều sự kiện trong 3 giây phát một lần; id không đổi không phát; poll bắt được
