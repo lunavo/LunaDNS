@@ -17,7 +17,7 @@ Use Setup if you can. The exe is not digitally signed, so Windows shows a warnin
 Each release has a `SHA256SUMS.txt`. In PowerShell, in the folder that holds the downloaded file:
 
 ```powershell
-Get-FileHash .\LunaDNS-Setup-0.10.2.exe -Algorithm SHA256
+Get-FileHash .\LunaDNS-Setup-0.11.0.exe -Algorithm SHA256
 ```
 
 The `Hash` string must match that file's line in `SHA256SUMS.txt` (upper and lower case do not matter). If it does not match, do not run the file; download it again.

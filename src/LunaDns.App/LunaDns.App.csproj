@@ -10,7 +10,7 @@
     <TargetFramework></TargetFramework>
     <AssemblyName>LunaDNS</AssemblyName>
     <RootNamespace>LunaDns.App</RootNamespace>
-    <Version>0.10.2</Version>
+    <Version>0.11.0</Version>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- Giữ chỗ cho tới khi T0 đặt giá trị thật (Directory.Build.props); giá trị có sẵn thì giữ nguyên. -->

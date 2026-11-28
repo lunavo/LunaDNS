@@ -17,7 +17,7 @@ Nên dùng Setup. Exe chưa ký số, nên lần đầu Windows sẽ cảnh báo
 Mỗi bản phát hành có `SHA256SUMS.txt`. Trong PowerShell, ở thư mục chứa file tải về:
 
 ```powershell
-Get-FileHash .\LunaDNS-Setup-0.10.2.exe -Algorithm SHA256
+Get-FileHash .\LunaDNS-Setup-0.11.0.exe -Algorithm SHA256
 ```
 
 Chuỗi `Hash` phải trùng dòng của file đó trong `SHA256SUMS.txt` (không phân biệt hoa thường). Không trùng thì đừng chạy, tải lại.
