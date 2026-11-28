@@ -28,6 +28,7 @@ public sealed class NetworkProfileCoordinatorTests : IDisposable
         Directory.CreateDirectory(_dir);
         _store = new NetworkProfileStore(Path.Combine(_dir, "profiles.json"));
         _coordinator = new NetworkProfileCoordinator(_store, _host, _time, NullLogger.Instance);
+        _host.Coordinator = _coordinator;
     }
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);
@@ -193,16 +194,14 @@ public sealed class NetworkProfileCoordinatorTests : IDisposable
         await _coordinator.OnNetworkChangedAsync(Home);
         await _coordinator.OnNetworkChangedAsync(Phone);
         hold.SetResult();
-        await first;
-        Assert.Null(_store.Find(Phone.Id.Value));
-        _host.Busy = false;
-        await _coordinator.OnBusyEndedAsync();
+        await first; // lượt đầu bị huỷ; hết bận thì chạy lại Phone (như MainViewModel gọi OnBusyEndedAsync)
+        Assert.True(_host.ProbeCalls[0].IsCancellationRequested);
         Assert.Equal(2, _host.ProbeCalls.Count);
         Assert.NotNull(_store.Find(Phone.Id.Value));
     }
 
     [Fact]
-    public async Task ProbeThrows_DoesNotThrow_NotHandled_NextChangeWorks()
+    public async Task ProbeThrows_DoesNotThrow_NextChangeWorks()
     {
         _host.ProbeException = new InvalidOperationException("boom");
         await _coordinator.OnNetworkChangedAsync(Phone);
@@ -215,12 +214,30 @@ public sealed class NetworkProfileCoordinatorTests : IDisposable
         _host.ProbeException = new InvalidOperationException("boom");
         await _coordinator.OnNetworkChangedAsync(Phone);
         _host.ProbeException = null;
-        await _coordinator.OnBusyEndedAsync(); // lượt lỗi không tính đã xử lý
-        Assert.Equal(4, _host.ProbeCalls.Count);
+        await _coordinator.OnBusyEndedAsync(); // lượt lỗi không thử lại liên tục; chờ lần đổi mạng sau
+        Assert.Equal(3, _host.ProbeCalls.Count);
+    }
+
+    [Fact]
+    public async Task BusyEndedDuringOwnRun_DoesNotRerun()
+    {
+        _host.NextProbe = All(ProbeVerdict.Ok);
+        await _coordinator.OnNetworkChangedAsync(Phone);
+        Assert.Single(_host.ProbeCalls);
+    }
+
+    [Fact]
+    public async Task FailedRun_NotRetriedUntilNextChange()
+    {
+        _host.ProbeException = new InvalidOperationException("boom");
+        await _coordinator.OnNetworkChangedAsync(Phone);
+        await _coordinator.OnBusyEndedAsync();
+        Assert.Single(_host.ProbeCalls);
     }
 
     private sealed class FakeHost : INetworkProfileHost
     {
+        public NetworkProfileCoordinator? Coordinator { get; set; }
         public bool Remember { get; set; } = true;
         public bool Busy { get; set; }
         public FeatureStatus Status { get; set; } = new(true, true, false, 18080, 0);
@@ -254,7 +271,10 @@ public sealed class NetworkProfileCoordinatorTests : IDisposable
 
         public async Task RunBusyAsync(Func<Task> work)
         {
-            await work();
+            Busy = true;
+            try { await work(); }
+            finally { Busy = false; }
+            if (Coordinator is { } c) await c.OnBusyEndedAsync(); // như MainViewModel: báo hết bận trước khi lượt chạy tiếp
         }
 
         public void ShowError(string message) => Errors.Add(message);

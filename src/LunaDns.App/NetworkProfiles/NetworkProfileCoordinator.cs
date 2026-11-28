@@ -60,6 +60,9 @@ internal sealed partial class NetworkProfileCoordinator(NetworkProfileStore stor
     {
         if (Network is not { } net || !host.RememberPerNetwork || !(host.Status.DnsRouting || host.Status.SniProxy)) return;
         if (host.IsBusy) return; // OnBusyEndedAsync chạy lại
+        // Đánh dấu trước khi chạy: MainViewModel gọi OnBusyEndedAsync ngay khi RunBusyAsync xong, trước khi lượt này chạy tiếp.
+        // Lượt bị huỷ thì OnNetworkChangedAsync đã xoá _handled; lượt lỗi thì chờ lần đổi mạng sau, không thử lại liên tục.
+        _handled = net.Id;
         using var run = new CancellationTokenSource();
         _run = run;
         try
@@ -70,7 +73,6 @@ internal sealed partial class NetworkProfileCoordinator(NetworkProfileStore stor
                 if (profile is { Stale: false }) await ApplyAsync(net, profile, run.Token);
                 else await ProbeAndSaveAsync(net, run.Token);
             });
-            if (!run.IsCancellationRequested) _handled = net.Id; // chỉ tính đã xử lý khi chạy xong, không bị huỷ/lỗi
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
