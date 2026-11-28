@@ -248,6 +248,18 @@ public sealed class DaemonCommandsTests : IAsyncLifetime
         _commands.HandleAsync(new DaemonRequest(command, feature, allow), CancellationToken.None);
 
     [Fact]
+    public async Task Status_has_no_stop_until_the_watchdog_stops_a_feature()
+    {
+        var before = await Send(DaemonProtocol.Status);
+        Assert.Null(before.Status!.Stopped);
+
+        _commands.Stops.Record(new FeatureStoppedEventArgs(Feature.SniProxy, changesLeftBehind: true));
+        var after = await Send(DaemonProtocol.Status);
+
+        Assert.Equal(new DaemonStopped(1, FeatureKeys.SniProxy, true), after.Status!.Stopped);
+    }
+
+    [Fact]
     public async Task Enable_failure_message_carries_the_system_reason()
     {
         _ns.FailNextSetUrl = "** Error: The parameters were not valid.";

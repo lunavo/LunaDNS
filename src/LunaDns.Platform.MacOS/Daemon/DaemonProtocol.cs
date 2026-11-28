@@ -91,6 +91,7 @@ public static class DaemonProtocol
 [JsonSerializable(typeof(DaemonDomainList))]
 [JsonSerializable(typeof(DaemonDomainListResult))]
 [JsonSerializable(typeof(DaemonResume))]
+[JsonSerializable(typeof(DaemonStopped))]
 internal sealed partial class DaemonJsonContext : JsonSerializerContext;
 
 /// <summary>
@@ -144,9 +145,14 @@ public sealed record DaemonTuning(DohProvider Doh, SplitMode SplitMode, bool Spl
 /// <remarks>
 /// DohServer/DohFallback (F4): máy DoH trả lời gần nhất của stub DNS; null (không gửi) khi chưa biết. Daemon cũ không gửi,
 /// giao diện cũ bỏ qua.
+/// Stopped (F5): lần watchdog dừng tính năng gần nhất kể từ khi daemon khởi động; null (không gửi) khi chưa dừng lần nào.
+/// Daemon cũ không gửi, giao diện cũ bỏ qua.
 /// </remarks>
 public sealed record DaemonStatus(bool DnsRouting, bool SniProxy, int? ProxyPort, int ProxyConnections, int JournalEntries,
-    string? DohServer = null, bool? DohFallback = null);
+    string? DohServer = null, bool? DohFallback = null, DaemonStopped? Stopped = null);
+
+/// <summary>Watchdog đã dừng <see cref="Feature"/> (khoá FeatureKeys). Seq tăng từ 1, chỉ trong bộ nhớ của daemon (F5).</summary>
+public sealed record DaemonStopped(long Seq, string Feature, bool ChangesLeftBehind);
 
 /// <summary>Trạng thái lớp 2 của daemon (D4). Added theo khoá nhóm của file ("steam"), để không phụ thuộc cách ghi enum.</summary>
 public sealed record DaemonDomainList(bool Enabled, long Serial, DateTimeOffset? Issued, DateTimeOffset? CheckedAt, Dictionary<string, string[]> Added)

@@ -23,6 +23,9 @@ public sealed partial class DaemonCommands
     private readonly FeatureResumer? _resumer;
     private readonly DaemonLogReader? _log;
 
+    /// <summary>Lần watchdog dừng gần nhất (F5); cùng vòng đời với FeatureSet nên không bỏ đăng ký.</summary>
+    internal WatchdogStops Stops { get; } = new();
+
     public DaemonCommands(FeatureSet features, ChangeJournal journal, string version, JsonFileSettingsStore settingsStore, DomainListService domainList,
         ILogger? logger = null, DaemonLogReader? log = null)
         : this(features, journal, version, new SettingsHolder(settingsStore ?? throw new ArgumentNullException(nameof(settingsStore))), domainList, logger,
@@ -41,6 +44,7 @@ public sealed partial class DaemonCommands
         _resumer = resumer;
         _log = log;
         this.features = features;
+        features.FeatureStopped += (_, e) => Stops.Record(e);
         this.journal = journal;
         this.version = version;
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -264,7 +268,7 @@ public sealed partial class DaemonCommands
         var s = features.GetStatus();
         return new DaemonResponse(true, Version: version,
             Status: new DaemonStatus(s.DnsRouting, s.SniProxy, s.ProxyPort, s.ProxyConnections, journal.Entries.Count,
-                s.Doh?.Server, s.Doh?.Fallback),
+                s.Doh?.Server, s.Doh?.Fallback, Stops.Latest),
             Resume: _resumer is null ? null : DaemonResume.From(_resumer.State));
     }
 
