@@ -24,7 +24,8 @@ trong `2026-11-22-lunadns-auto-resume-design.md` (mục Ngoài phạm vi).
 
 `DaemonFeatureController.ShutdownAsync(ShutdownReason.UserQuit)`:
 
-1. `Availability == DaemonNotInstalled` → trả 0, không gửi (như cũ).
+1. `Availability` là `DaemonNotInstalled` hoặc `DaemonOtherUser` → trả 0, không gửi (như cũ). Tài khoản khác đang ngồi
+   trước máy (B4) thì tính năng đang chạy là của người đó; thoát app này không được tắt chúng.
 2. `Availability == DaemonRunning` và không có gì để tắt (không tính năng nào bật, journal 0/null, không còn wanted) →
    trả 0, không gửi (như cũ).
 3. Mọi trường hợp còn lại (gồm `DaemonConnecting`, `DaemonNotResponding`, snapshot cũ) → gửi `disable-all`.
@@ -49,11 +50,13 @@ trong `2026-11-22-lunadns-auto-resume-design.md` (mục Ngoài phạm vi).
 
 ### Daemon
 
-- `DaemonCommands` đăng ký `FeatureSet.FeatureStopped` khi tạo, bỏ đăng ký khi dispose. Mỗi lần nhận: tăng `Seq`
+- `DaemonCommands` đăng ký `FeatureSet.FeatureStopped` khi tạo (cùng vòng đời với `FeatureSet` nên không cần bỏ đăng
+  ký). Phần ghi nhớ tách thành lớp nhỏ `WatchdogStops` để test riêng. Mỗi lần nhận: tăng `Seq`
   (`long`, bắt đầu 0, chỉ trong bộ nhớ; daemon khởi động lại thì về 0), ghi `Feature` và `ChangesLeftBehind`. Ghi bằng
   `Interlocked`/khoá nhỏ vì event đến từ luồng watchdog.
 - `DaemonStatus` thêm trường tuỳ chọn `DaemonStopped? Stopped = null`:
-  `record DaemonStopped(long Seq, string Feature, bool ChangesLeftBehind)`. `Feature` ghi theo tên enum. `Seq == 0`
+  `record DaemonStopped(long Seq, string Feature, bool ChangesLeftBehind)`. `Feature` ghi bằng `FeatureKeys.For`
+  (như các lệnh `enable`/`disable`), app đọc bằng `FeatureKeys.TryParse`. `Seq == 0`
   (chưa dừng lần nào) thì không gửi. Đăng ký kiểu trong context JSON của `DaemonProtocol`.
 - App cũ bỏ qua trường lạ; daemon cũ không gửi → app mới không bao giờ phát event (như hôm nay).
 
@@ -77,10 +80,11 @@ trong `2026-11-22-lunadns-auto-resume-design.md` (mục Ngoài phạm vi).
 
 | Khoá | Câu |
 |---|---|
+| `RestoreUnknown` | Không biết đã hoàn tác xong chưa. Hãy mở lại LunaDNS hoặc chạy LunaDNS.exe --cleanup. |
 | `RestoreUnknown_Mac` | Dịch vụ nền không trả lời nên LunaDNS có thể vẫn đang định tuyến. Mở Terminal và chạy: sudo lunadns off |
 
-Bản tiếng Anh theo cách các khoá `_Mac` khác (`UninstallHint_Mac`, `AutoResumeSwitch_Mac`) đang làm trong
-`Strings.resx`/`Strings.cs`. Chỉ macOS dùng khoá này (`LocalFeatureController` không trả -1).
+`Strings.Get` dùng `X_Mac` thay `X` khi chạy trên macOS, và `StringsTests` đòi mọi khoá `_Mac` có khoá chung, nên cần cả
+hai. Thực tế chỉ macOS hiện câu này (`LocalFeatureController` không trả -1). App chỉ có `Strings.resx` tiếng Việt.
 
 ## Ngoài phạm vi
 
@@ -101,6 +105,6 @@ Bản tiếng Anh theo cách các khoá `_Mac` khác (`UninstallHint_Mac`, `Auto
   - Mất kết nối rồi nối lại cùng `Seq` → không phát.
 - `DaemonTests` (Platform.MacOS): `FeatureSet` giả phát `FeatureStopped` → `status` có `Stopped.Seq` tăng và đúng
   feature; chưa dừng → không có `Stopped`.
-- `StringsTests`: có `RestoreUnknown_Mac` cả hai ngôn ngữ.
+- `StringsTests` hiện có (khoá `_Mac` phải có khoá chung) phủ hai khoá mới.
 - Verify: `dotnet test` cả solution (Windows: trượt sẵn 5 test MacOS/* của App.Tests `-f net8.0` là mốc cũ); CI
   `build-test-macos` xanh.
