@@ -178,6 +178,45 @@ public sealed class NetworkProfileCoordinatorTests : IDisposable
         coordinator.Forget();
         coordinator.ClearAll();
         await coordinator.OnCheckCompletedAsync(All(ProbeVerdict.Unreachable));
+        Assert.Single(_host.ProbeCalls); // luồng vẫn chạy tiếp dù ghi file lỗi
+        Assert.True(coordinator.ShowBlocked);
+    }
+
+    [Fact]
+    public async Task BusyChangeAwayAndBack_RerunsOriginalNetwork()
+    {
+        var hold = new TaskCompletionSource();
+        _host.HoldProbe = hold;
+        _host.NextProbe = All(ProbeVerdict.Ok);
+        var first = _coordinator.OnNetworkChangedAsync(Phone);
+        _host.Busy = true;
+        await _coordinator.OnNetworkChangedAsync(Home);
+        await _coordinator.OnNetworkChangedAsync(Phone);
+        hold.SetResult();
+        await first;
+        Assert.Null(_store.Find(Phone.Id.Value));
+        _host.Busy = false;
+        await _coordinator.OnBusyEndedAsync();
+        Assert.Equal(2, _host.ProbeCalls.Count);
+        Assert.NotNull(_store.Find(Phone.Id.Value));
+    }
+
+    [Fact]
+    public async Task ProbeThrows_DoesNotThrow_NotHandled_NextChangeWorks()
+    {
+        _host.ProbeException = new InvalidOperationException("boom");
+        await _coordinator.OnNetworkChangedAsync(Phone);
+        Assert.Null(_store.Find(Phone.Id.Value));
+        _host.ProbeException = null;
+        _host.NextProbe = All(ProbeVerdict.Ok);
+        await _coordinator.OnNetworkChangedAsync(Home);
+        Assert.Equal(2, _host.ProbeCalls.Count);
+        Assert.NotNull(_store.Find(Home.Id.Value));
+        _host.ProbeException = new InvalidOperationException("boom");
+        await _coordinator.OnNetworkChangedAsync(Phone);
+        _host.ProbeException = null;
+        await _coordinator.OnBusyEndedAsync(); // lượt lỗi không tính đã xử lý
+        Assert.Equal(4, _host.ProbeCalls.Count);
     }
 
     private sealed class FakeHost : INetworkProfileHost
@@ -189,6 +228,7 @@ public sealed class NetworkProfileCoordinatorTests : IDisposable
         public TuningApplyResult ApplyResult { get; set; } = new(true, null);
         public IReadOnlyList<ProbeResult> NextProbe { get; set; } = [];
         public TaskCompletionSource? HoldProbe { get; set; }
+        public Exception? ProbeException { get; set; }
         public List<(DohProvider, TuneCandidate)> Applied { get; } = [];
         public List<CancellationToken> ProbeCalls { get; } = [];
         public List<string> Errors { get; } = [];
@@ -208,6 +248,7 @@ public sealed class NetworkProfileCoordinatorTests : IDisposable
         {
             ProbeCalls.Add(cancellationToken);
             if (HoldProbe is { } hold) { HoldProbe = null; await hold.Task; }
+            if (ProbeException is { } ex) throw ex;
             return NextProbe;
         }
 

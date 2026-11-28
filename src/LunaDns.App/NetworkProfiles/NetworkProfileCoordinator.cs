@@ -46,6 +46,7 @@ internal sealed partial class NetworkProfileCoordinator(NetworkProfileStore stor
     public Task OnNetworkChangedAsync(NetworkSnapshot? snapshot)
     {
         _run?.Cancel();
+        _handled = null;
         Network = snapshot;
         _applied = false;
         ShowBlocked = false;
@@ -59,22 +60,33 @@ internal sealed partial class NetworkProfileCoordinator(NetworkProfileStore stor
     {
         if (Network is not { } net || !host.RememberPerNetwork || !(host.Status.DnsRouting || host.Status.SniProxy)) return;
         if (host.IsBusy) return; // OnBusyEndedAsync chạy lại
-        _handled = net.Id;
         using var run = new CancellationTokenSource();
         _run = run;
-        await host.RunBusyAsync(async () =>
+        try
         {
-            var profile = store.Find(net.Id.Value);
-            if (profile is { Stale: false }) await ApplyAsync(net, profile);
-            else await ProbeAndSaveAsync(net, run.Token);
-        });
-        if (ReferenceEquals(_run, run)) _run = null;
+            await host.RunBusyAsync(async () =>
+            {
+                var profile = store.Find(net.Id.Value);
+                if (profile is { Stale: false }) await ApplyAsync(net, profile, run.Token);
+                else await ProbeAndSaveAsync(net, run.Token);
+            });
+            if (!run.IsCancellationRequested) _handled = net.Id; // chỉ tính đã xử lý khi chạy xong, không bị huỷ/lỗi
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            LogRunFailed(logger, net.Id.Short, ex.GetType().Name);
+        }
+        finally
+        {
+            if (ReferenceEquals(_run, run)) _run = null;
+        }
         Changed?.Invoke();
     }
 
-    private async Task ApplyAsync(NetworkSnapshot net, NetworkProfile profile)
+    private async Task ApplyAsync(NetworkSnapshot net, NetworkProfile profile, CancellationToken token)
     {
         var current = await host.GetTuningAsync();
+        if (token.IsCancellationRequested || Network?.Id != net.Id) return;
         Guard(net, () => store.Touch(profile.Id, time.GetUtcNow()));
         if (current is { } c && c.Doh == profile.Doh && c.Candidate == profile.Candidate) return;
         var result = await host.ApplyTuningAsync(profile.Doh, profile.Candidate);
@@ -179,6 +191,9 @@ internal sealed partial class NetworkProfileCoordinator(NetworkProfileStore stor
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Hồ sơ mạng {Network}: áp tổ hợp đã lưu lỗi")]
     private static partial void LogApplyFailed(ILogger logger, string network);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Hồ sơ mạng {Network}: lượt chạy lỗi ({Error})")]
+    private static partial void LogRunFailed(ILogger logger, string network, string error);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Hồ sơ mạng {Network}: Kiểm tra đạt, đã lưu")]
     private static partial void LogSaved(ILogger logger, string network);
