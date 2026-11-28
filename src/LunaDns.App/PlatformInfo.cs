@@ -1,3 +1,5 @@
+using LunaDns.Core.Platform;
+
 namespace LunaDns.App;
 
 /// <summary>Khác biệt nền tảng mà giao diện cần biết. Phần cài đặt nằm trong Windows/ và MacOS/.</summary>
@@ -13,4 +15,7 @@ internal static partial class PlatformInfo
 
     /// <summary>Đuôi log của dịch vụ nền cho báo cáo (F3). Windows: null, vì giao diện chính là bên ghi log.</summary>
     public static partial Task<IReadOnlyList<string>?> ServiceLogAsync(AppServices services);
+
+    /// <summary>Nhận diện mạng đang dùng (MAC gateway) cho hồ sơ theo mạng.</summary>
+    public static partial INetworkIdentity CreateNetworkIdentity();
 }

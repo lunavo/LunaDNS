@@ -14,6 +14,9 @@ internal sealed record AppPaths(string DataDirectory, string LogDirectory, strin
 
     public string SettingsFile => Path.Combine(DataDirectory, "settings.json");
 
+    /// <summary>Hồ sơ theo mạng (spec 2026-11-28); không phải thay đổi hệ thống nên Thoát &amp; khôi phục giữ nguyên.</summary>
+    public string ProfilesFile => Path.Combine(DataDirectory, "profiles.json");
+
     public static AppPaths Default()
     {
 #if MACOS

@@ -1,4 +1,6 @@
+using LunaDns.Core.Platform;
 using LunaDns.Platform.Windows.Diagnostics;
+using LunaDns.Platform.Windows.Net;
 
 namespace LunaDns.App;
 
@@ -16,4 +18,6 @@ internal static partial class PlatformInfo
     }
 
     public static partial Task<IReadOnlyList<string>?> ServiceLogAsync(AppServices services) => Task.FromResult<IReadOnlyList<string>?>(null);
+
+    public static partial INetworkIdentity CreateNetworkIdentity() => new WindowsNetworkIdentity();
 }

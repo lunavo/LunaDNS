@@ -153,6 +153,21 @@ public sealed class NetworkProfileCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task ChangeWhileUserCheckRuns_CheckResultCounts_NoSecondProbe()
+    {
+        _host.Busy = true;
+        await _coordinator.OnNetworkChangedAsync(Phone); // lúc mở app: Kiểm tra đang chạy
+        await _coordinator.OnCheckCompletedAsync(All(ProbeVerdict.Unreachable));
+        _host.Busy = false;
+        await _coordinator.OnBusyEndedAsync();
+        Assert.Empty(_host.ProbeCalls);
+        Assert.True(_coordinator.ShowBlocked);
+        Assert.False(_coordinator.HasProfile);
+        _coordinator.OnTuneSucceeded(DohProvider.Quad9, Mid);
+        Assert.True(_coordinator.HasProfile);
+    }
+
+    [Fact]
     public async Task TuneSucceeded_SavesForCurrentNetwork_Forget_Clear()
     {
         await _coordinator.OnNetworkChangedAsync(null);

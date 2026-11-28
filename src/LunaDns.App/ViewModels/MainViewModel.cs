@@ -2,10 +2,12 @@ using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using LunaDns.App.DomainList;
 using LunaDns.App.Features;
+using LunaDns.App.NetworkProfiles;
 using LunaDns.App.Updates;
 using LunaDns.Core.Dns;
 using LunaDns.Core.Domains;
 using LunaDns.Core.Features;
+using LunaDns.Core.Platform;
 using LunaDns.Core.Probing;
 using LunaDns.Core.Settings;
 using LunaDns.Core.Tls;
@@ -19,7 +21,7 @@ namespace LunaDns.App.ViewModels;
 /// Timer 2 giây hỏi lại trạng thái (macOS: hỏi dịch vụ nền, nên bắt được cả "lunadns on/off" từ Terminal).
 /// Overall (huy hiệu header, icon khay) tính lại mỗi khi trạng thái, việc đang chạy hoặc thông báo đổi.
 /// </summary>
-internal sealed partial class MainViewModel : ObservableObject, IDisposable
+internal sealed partial class MainViewModel : ObservableObject, IDisposable, INetworkProfileHost
 {
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(30);
     private static readonly HttpClient UpdateHttp = new() { Timeout = TimeSpan.FromSeconds(15) };
@@ -69,10 +71,14 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
     private (bool Show, bool On) _autoResumeShown;
     /// <summary>Windows: chưa chạy xong tự bật lúc mở app, nên chưa hiện banner U1 (tránh hiện rồi tắt ngay).</summary>
     private bool _startupResumePending;
+    /// <summary>Hồ sơ theo mạng; null khi không có INetworkIdentity (test) hoặc không mở được profiles.json.</summary>
+    private readonly NetworkProfileCoordinator? _profiles;
+    private readonly NetworkWatcher? _watcher;
 
     /// <param name="installService">macOS: cài dịch vụ nền (osascript). null trên Windows.</param>
+    /// <param name="networkIdentity">Nhận diện mạng cho hồ sơ theo mạng; null thì tắt tính năng (test).</param>
     public MainViewModel(AppServices services, IUserPrompts prompts, ISystemShell shell, Func<Task> quit,
-        Func<Task<ServiceInstallResult>>? installService = null)
+        Func<Task<ServiceInstallResult>>? installService = null, INetworkIdentity? networkIdentity = null)
     {
         _installService = installService;
         _services = services;
@@ -107,6 +113,18 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         TuneCommand = new AsyncCommand(TuneAsync, OnError, () => !_isTuning && !_isMeasuringDoh && !_isSavingCustomDoh && _busyCount == 0);
         StopTuneCommand = new AsyncCommand(StopTuneAsync, OnError, () => _isTuning && !_applyingTune);
         SaveCustomDohCommand = new AsyncCommand(SaveCustomDohAsync, OnError, () => !_isMeasuringDoh);
+        ForgetNetworkCommand = new AsyncCommand(ForgetNetworkAsync, OnError);
+        DismissNetworkBlockedCommand = new AsyncCommand(DismissNetworkBlockedAsync, OnError);
+        ToggleRememberPerNetworkCommand = new AsyncCommand(ToggleRememberPerNetworkAsync, OnError);
+        ClearNetworkProfilesCommand = new AsyncCommand(ClearNetworkProfilesAsync, OnError);
+        if (networkIdentity is not null && OpenProfiles(_services.Paths.ProfilesFile) is { } store)
+        {
+            _profiles = new NetworkProfileCoordinator(store, this, TimeProvider.System,
+                _services.LoggerFactory.CreateLogger<NetworkProfileCoordinator>());
+            _profiles.Changed += RaiseNetworkProperties;
+            _watcher = new NetworkWatcher(networkIdentity, TimeProvider.System);
+            _watcher.Changed += s => Dispatcher.UIThread.Post(() => RunProfiles(p => p.OnNetworkChangedAsync(s)));
+        }
         _customDohUrl = _services.Settings.CustomDoh?.Endpoint ?? string.Empty;
         _customDohAddresses = string.Join(", ", _services.Settings.CustomDoh?.ManualAddresses ?? []);
         RefreshCustomDohStatus();
@@ -441,6 +459,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
             SaveCustomDohCommand.RaiseCanExecuteChanged();
             TuneCommand.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(DohMeasureLabel));
+            OnBusyEnded();
         }
     }
 
@@ -482,6 +501,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
             _isSavingCustomDoh = false;
             MeasureDohCommand.RaiseCanExecuteChanged();
             TuneCommand.RaiseCanExecuteChanged();
+            OnBusyEnded();
         }
     }
 
@@ -519,7 +539,139 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         _startupResumePending = false;
         UpdateResume();
         CheckCommand.Execute(null);
+        await StartNetworkWatchAsync();
     }
+
+    /// <summary>
+    /// Đọc mạng hiện tại ở luồng nền (SendARP/route có thể chậm) rồi báo coordinator. Chạy sau khi Kiểm tra lúc mở app đã bắt đầu,
+    /// nên kết quả Kiểm tra đó được tính cho mạng này thay vì Kiểm tra ngầm thêm lần nữa.
+    /// </summary>
+    private async Task StartNetworkWatchAsync()
+    {
+        if (_watcher is null) return;
+        try
+        {
+            await Task.Run(_watcher.Start);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            LogNetworkWatchFailed(_logger, ex.GetType().Name);
+            return;
+        }
+        if (!_disposed) RunProfiles(p => p.OnNetworkChangedAsync(_watcher.Current));
+    }
+
+    private NetworkProfileStore? OpenProfiles(string path)
+    {
+        try
+        {
+            return new NetworkProfileStore(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogProfilesOpenFailed(_logger, ex.GetType().Name);
+            return null;
+        }
+    }
+
+    /// <summary>Việc nền của hồ sơ theo mạng: lỗi chỉ ghi log, không làm hỏng thao tác của người dùng đang chạy.</summary>
+    private void RunProfiles(Func<NetworkProfileCoordinator, Task> step) => _ = ProfileStepAsync(step);
+
+    private async Task ProfileStepAsync(Func<NetworkProfileCoordinator, Task> step)
+    {
+        if (_profiles is null || _disposed) return;
+        try
+        {
+            await step(_profiles);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            LogNetworkProfileFailed(_logger, ex.GetType().Name);
+        }
+    }
+
+    /// <summary>Hết mọi việc bận: coordinator chạy lại mạng bị bỏ lượt (nếu có).</summary>
+    private void OnBusyEnded()
+    {
+        if (!((INetworkProfileHost)this).IsBusy) RunProfiles(p => p.OnBusyEndedAsync());
+    }
+
+    public AsyncCommand ForgetNetworkCommand { get; }
+
+    public AsyncCommand DismissNetworkBlockedCommand { get; }
+
+    public AsyncCommand ToggleRememberPerNetworkCommand { get; }
+
+    public AsyncCommand ClearNetworkProfilesCommand { get; }
+
+    /// <summary>Dòng "Mạng: … — có cấu hình đã lưu (dd/MM)" ở khu Trạng thái; rỗng khi chưa biết mạng.</summary>
+    public string NetworkLine => _profiles?.StatusLine ?? string.Empty;
+
+    public bool ShowNetworkLine => NetworkLine.Length > 0;
+
+    public bool ShowNetworkBlocked => _profiles?.ShowBlocked ?? false;
+
+    public bool CanForgetNetwork => _profiles?.HasProfile ?? false;
+
+    public bool RememberPerNetwork => _services.Settings.RememberPerNetwork;
+
+    private void RaiseNetworkProperties()
+    {
+        OnPropertyChanged(nameof(NetworkLine));
+        OnPropertyChanged(nameof(ShowNetworkLine));
+        OnPropertyChanged(nameof(ShowNetworkBlocked));
+        OnPropertyChanged(nameof(CanForgetNetwork));
+    }
+
+    private Task ForgetNetworkAsync()
+    {
+        _profiles?.Forget();
+        return Task.CompletedTask;
+    }
+
+    private Task DismissNetworkBlockedAsync()
+    {
+        _profiles?.DismissBlocked();
+        return Task.CompletedTask;
+    }
+
+    private Task ToggleRememberPerNetworkAsync()
+    {
+        SaveSettings(s => s with { RememberPerNetwork = !s.RememberPerNetwork });
+        OnPropertyChanged(nameof(RememberPerNetwork)); // lưu lỗi: CheckBox đã tự đảo, phải kéo về giá trị thật
+        if (RememberPerNetwork) OnBusyEnded(); // vừa bật: xử lý mạng hiện tại nếu chưa làm
+        else _profiles?.DismissBlocked();
+        return Task.CompletedTask;
+    }
+
+    private async Task ClearNetworkProfilesAsync()
+    {
+        if (await _prompts.ConfirmAsync(Strings.ClearNetworkProfilesTitle, Strings.ClearNetworkProfilesText))
+            _profiles?.ClearAll();
+    }
+
+    bool INetworkProfileHost.RememberPerNetwork => _services.Settings.RememberPerNetwork;
+
+    FeatureStatus INetworkProfileHost.Status => _services.Features.Status;
+
+    bool INetworkProfileHost.IsBusy => _busyCount > 0 || _isTuning || _isMeasuringDoh || _isSavingCustomDoh || _applyingDomains;
+
+    Task<TuningState?> INetworkProfileHost.GetTuningAsync() => Task.Run(_services.Features.GetTuningAsync);
+
+    async Task<TuningApplyResult> INetworkProfileHost.ApplyTuningAsync(DohProvider doh, TuneCandidate candidate)
+    {
+        var result = await Task.Run(() => _services.ApplyTuningAsync(doh, candidate));
+        NotifyTuningSettingsChanged();
+        if (result.Message == Strings.DaemonNeedsUpdate) SetDaemonNeedsUpdate(true);
+        return result;
+    }
+
+    Task<IReadOnlyList<ProbeResult>> INetworkProfileHost.ProbeSteamAsync(CancellationToken cancellationToken) =>
+        Task.Run(() => _services.ProbeSteamAsync(cancellationToken), cancellationToken);
+
+    Task INetworkProfileHost.RunBusyAsync(Func<Task> work) => RunBusyAsync(Features, work);
+
+    void INetworkProfileHost.ShowError(string message) => ShowMessage(message, Tone.Error);
 
     /// <summary>Dựng bốn dòng của khu Tên miền theo lựa chọn của nơi giữ thật (macOS: dịch vụ nền), hỏi không được thì theo settings.json.</summary>
     public async Task LoadDomainsAsync()
@@ -588,6 +740,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         _cancelDoh?.Invoke();
         _cancelTune?.Invoke();
         _services.Features.FeatureStopped -= OnFeatureStopped;
+        _watcher?.Dispose();
     }
 
     public void Dispose()
@@ -656,6 +809,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
             _cancelTune = null;
             _applyingTune = false;
             IsTuning = false;
+            OnBusyEnded();
         }
     }
 
@@ -690,6 +844,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
             }
         }
         foreach (var card in Features) card.SetError(string.Empty);
+        _profiles?.OnTuneSucceeded(doh, candidate);
         var pending = result.Remedies & ~_services.Features.Status.Remedies;
         var failures = new List<string?>();
         if (pending.HasFlag(ProbeRemedies.DnsRouting)) failures.Add(Failure(await EnableAsync(Feature.DnsRouting)));
@@ -732,6 +887,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             _summary = await Task.Run(() => _services.ProbeAsync(timeout.Token));
             ShowGroupProbes(_summary);
+            if (_services.LastProbe is { } probe) await ProfileStepAsync(p => p.OnCheckCompletedAsync(probe));
         }
         catch (OperationCanceledException)
         {
@@ -790,6 +946,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
         finally
         {
             _applyingDomains = false;
+            OnBusyEnded();
         }
         if (result.Success)
         {
@@ -1066,6 +1223,7 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
             TuneCommand.RaiseCanExecuteChanged();
             Refresh();
             ShowSummary();
+            OnBusyEnded();
         }
     }
 
@@ -1226,4 +1384,13 @@ internal sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Không lưu được settings.json.")]
     private static partial void LogSettingsSaveFailed(ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Không mở được profiles.json ({Error}); tắt hồ sơ theo mạng lần chạy này.")]
+    private static partial void LogProfilesOpenFailed(ILogger logger, string error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Không theo dõi được mạng ({Error}).")]
+    private static partial void LogNetworkWatchFailed(ILogger logger, string error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Hồ sơ theo mạng lỗi ({Error}).")]
+    private static partial void LogNetworkProfileFailed(ILogger logger, string error);
 }

@@ -80,6 +80,12 @@ Turning back on **never overrides an existing proxy/PAC** on the machine, even i
 
 When a feature you left on is now off (the box is off, turning back on failed, the machine uses a proxy/PAC, the feature stopped itself…), a band at the top of the window says *"Định tuyến DNS đang tắt dù lần trước bạn để bật."* ("DNS routing is off although you left it on last time.") with the reason and a **Bật lại** (Turn back on) button. The button works like flipping the switch by hand (including the proxy override question). Click **×** to hide the band until the set of missing features changes.
 
+## Remember per network (Nhớ cấu hình theo mạng)
+
+When a configuration gets Steam through (after **Tìm cấu hình hợp mạng** (Find settings that suit your network), or a **Kiểm tra** (Check) that passes), LunaDNS remembers it for the network you are on, recognised by your router. When you come back to that network, it switches to the saved configuration by itself. On a network it has not seen, it runs a quiet check and, if Steam looks blocked, shows a band *"Mạng mới có vẻ chặn Steam."* ("The new network seems to block Steam.") with **Tìm cấu hình hợp mạng**. This only happens while at least one of the two switches is on.
+
+The Status zone shows the current network and whether a configuration is saved for it. Nothing is sent anywhere; profiles live in `profiles.json` next to `settings.json`. **Quên mạng này** (Forget this network) in the Status zone and **Xoá mọi cấu hình theo mạng** (Delete all per-network configurations) in Remove & clean up delete them; Quit & restore keeps them, because they are not system changes. Untick **Nhớ cấu hình theo mạng** (Remember per network), under Turn back on automatically, to stop it.
+
 ## PUBG mode: not supported
 
 LunaDNS currently **does not support PUBG**; the interface has no switch or check box for PUBG. If the hosts file still has `# LunaDNS` lines from an old test build, "Tắt hết & khôi phục" (Turn all off & restore) or `--cleanup` will undo them.

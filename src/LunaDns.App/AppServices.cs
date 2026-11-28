@@ -261,6 +261,10 @@ internal sealed partial class AppServices : IAsyncDisposable
     public Task<IReadOnlyList<ProbeResult>> ProbeDomainsAsync(IReadOnlyList<string> hosts, CancellationToken cancellationToken) =>
         _probes.RunAsync(hosts, cancellationToken);
 
+    /// <summary>Kiểm tra ngầm 4 host Steam cho hồ sơ theo mạng; không ghi LastProbe để nút Chẩn đoán giữ lần Kiểm tra của người dùng.</summary>
+    public Task<IReadOnlyList<ProbeResult>> ProbeSteamAsync(CancellationToken cancellationToken) =>
+        _probes.RunAsync(ProbeTargets.Steam, cancellationToken);
+
     public Task<int> ShutdownAsync(ShutdownReason reason) => Features.ShutdownAsync(reason);
 
     public async ValueTask DisposeAsync()

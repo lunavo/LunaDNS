@@ -1,4 +1,7 @@
 using LunaDns.App.MacOS;
+using LunaDns.Core.Platform;
+using LunaDns.Platform.MacOS.Net;
+using LunaDns.Platform.MacOS.Processes;
 
 namespace LunaDns.App;
 
@@ -19,4 +22,6 @@ internal static partial class PlatformInfo
         ArgumentNullException.ThrowIfNull(services);
         return services.Features is DaemonFeatureController daemon ? await daemon.GetServiceLogAsync().ConfigureAwait(false) : null;
     }
+
+    public static partial INetworkIdentity CreateNetworkIdentity() => new MacNetworkIdentity(new ProcessRunner());
 }

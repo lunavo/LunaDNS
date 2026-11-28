@@ -80,6 +80,12 @@ Tự bật **không bao giờ ghi đè proxy/PAC có sẵn** của máy, kể c�
 
 Khi một tính năng lần trước để bật mà đang tắt (ô Tự bật lại đang tắt, tự bật lỗi, máy đang dùng proxy/PAC, tính năng tự dừng…), đầu cửa sổ hiện dải *"Định tuyến DNS đang tắt dù lần trước bạn để bật."* kèm lý do và nút **Bật lại**. Nút này bật như gạt công tắc bằng tay (có hộp thoại hỏi thay proxy nếu cần). Bấm **×** để ẩn dải tới khi danh sách tính năng còn thiếu đổi.
 
+## Nhớ cấu hình theo mạng
+
+Khi một cấu hình cho Steam đi qua được (sau **Tìm cấu hình hợp mạng**, hoặc một lần **Kiểm tra** đạt), LunaDNS nhớ nó cho mạng bạn đang dùng, nhận theo router. Lần sau quay lại mạng đó, app tự chuyển sang cấu hình đã lưu. Ở mạng chưa gặp, app Kiểm tra ngầm và, nếu Steam có vẻ bị chặn, hiện dải *"Mạng mới có vẻ chặn Steam."* kèm nút **Tìm cấu hình hợp mạng**. Việc này chỉ chạy khi ít nhất một trong hai công tắc đang bật.
+
+Khu Trạng thái hiện mạng đang dùng và mạng đó đã có cấu hình lưu hay chưa. Không gửi gì ra ngoài; hồ sơ nằm trong `profiles.json` cạnh `settings.json`. **Quên mạng này** ở khu Trạng thái và **Xoá mọi cấu hình theo mạng** ở khu Gỡ & dọn dùng để xoá chúng; Thoát & khôi phục giữ nguyên vì đây không phải thay đổi hệ thống. Bỏ ô **Nhớ cấu hình theo mạng** (dưới ô Tự bật lại) để tắt tính năng.
+
 ## Chế độ PUBG: chưa hỗ trợ
 
 LunaDNS hiện **không hỗ trợ PUBG**; giao diện không có công tắc hay ô kiểm tra nào cho PUBG. Nếu file hosts còn dòng `# LunaDNS` từ bản thử nghiệm cũ, "Tắt hết & khôi phục" hoặc `--cleanup` sẽ hoàn tác.

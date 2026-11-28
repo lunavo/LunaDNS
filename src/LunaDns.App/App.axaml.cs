@@ -47,7 +47,7 @@ internal sealed partial class App : Application, IDisposable
             Dispatcher.UIThread.UnhandledException += OnUnhandledException;
 
             var prompts = new DialogPrompts(() => ShowWindow());
-            _viewModel = new MainViewModel(Services, prompts, new SystemShell(), QuitAsync, ServiceInstaller());
+            _viewModel = new MainViewModel(Services, prompts, new SystemShell(), QuitAsync, ServiceInstaller(), PlatformInfo.CreateNetworkIdentity());
             _window = new MainWindow { DataContext = _viewModel };
             _window.PropertyChanged += OnWindowPropertyChanged;
             desktop.MainWindow = _window;

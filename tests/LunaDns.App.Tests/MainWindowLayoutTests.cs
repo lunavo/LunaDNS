@@ -27,7 +27,7 @@ public sealed class MainWindowLayoutTests
 
     [Theory]
     [InlineData("{Binding CheckCommand}", "ZoneCheck", "ZoneStatus")]
-    [InlineData("{Binding TuneCommand}", "ZoneCheck", "ZoneStatus")]
+    [InlineData("{Binding StopTuneCommand}", "ZoneCheck", "ZoneStatus")] // TuneCommand còn ở banner mạng chặn phía trên
     [InlineData("{Binding DiagnosticsCommand}", "ZoneCheck", "ZoneStatus")]
     [InlineData("{Binding HasAdvancedSettings}", "ZoneCheck", "ZoneStatus")]
     [InlineData("{Binding Features}", "ZoneStatus", "ZoneUpdate")]
@@ -37,6 +37,9 @@ public sealed class MainWindowLayoutTests
     [InlineData("{Binding DomainList.ToggleCommand}", "ZoneUpdate", "ZoneCleanup")]
     [InlineData("{Binding DisableAllCommand}", "ZoneCleanup", null)]
     [InlineData("{Binding UninstallAppCommand}", "ZoneCleanup", null)]
+    [InlineData("{Binding ClearNetworkProfilesCommand}", "ZoneCleanup", null)]
+    [InlineData("{Binding NetworkLine}", "ZoneStatus", "ZoneUpdate")]
+    [InlineData("{Binding ToggleRememberPerNetworkCommand}", "ZoneStatus", "ZoneUpdate")]
     [InlineData("Strings.UninstallHint}", "ZoneCleanup", null)]
     public void Control_sits_in_its_zone(string binding, string zone, string? nextZone)
     {

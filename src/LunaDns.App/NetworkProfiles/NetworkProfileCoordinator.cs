@@ -24,6 +24,9 @@ internal sealed partial class NetworkProfileCoordinator(NetworkProfileStore stor
 
     public event Action? Changed;
 
+    /// <summary>Mạng hiện tại đã có hồ sơ: hiện nút Quên mạng này.</summary>
+    public bool HasProfile => Network is { } net && store.Find(net.Id.Value) is not null;
+
     public string StatusLine
     {
         get
@@ -120,6 +123,8 @@ internal sealed partial class NetworkProfileCoordinator(NetworkProfileStore stor
     public async Task OnCheckCompletedAsync(IReadOnlyList<ProbeResult> results)
     {
         if (Network is not { } net || !host.RememberPerNetwork) return;
+        // Kiểm tra của người dùng đã trả lời cho mạng này: hết bận thì không Kiểm tra ngầm lại (lúc mở app hai việc trùng nhau).
+        _handled = net.Id;
         await RecordAsync(net, results);
         Changed?.Invoke();
     }
