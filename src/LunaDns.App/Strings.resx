@@ -269,4 +269,14 @@
   <data name="CloseButton" xml:space="preserve"><value>Đóng</value></data>
   <data name="ProbeCustomSummaryFormat" xml:space="preserve"><value>{0} tên miền giúp được, {1} tên miền LunaDNS không giúp được</value></data>
   <data name="ProbeCustomHint" xml:space="preserve"><value>Tuỳ chỉnh chỉ kiểm 5 tên miền đầu đang bật. Kiểm từng tên miền trong hộp thoại Sửa….</value></data>
+  <data name="NetworkSavedFormat" xml:space="preserve"><value>Mạng: {0} — có cấu hình đã lưu ({1})</value></data>
+  <data name="NetworkNotSavedFormat" xml:space="preserve"><value>Mạng: {0} — chưa có cấu hình đã lưu</value></data>
+  <data name="NetworkAppliedFormat" xml:space="preserve"><value>Mạng: {0} — đã dùng cấu hình đã lưu ({1})</value></data>
+  <data name="NetworkBlockedBanner" xml:space="preserve"><value>Mạng mới có vẻ chặn Steam.</value></data>
+  <data name="ForgetNetwork" xml:space="preserve"><value>Quên mạng này</value></data>
+  <data name="RememberPerNetworkSwitch" xml:space="preserve"><value>Nhớ cấu hình theo mạng</value></data>
+  <data name="RememberPerNetworkHint" xml:space="preserve"><value>Lưu cấu hình đã chạy được cho từng mạng (nhận theo router) và tự dùng lại khi quay lại mạng đó.</value></data>
+  <data name="ClearNetworkProfiles" xml:space="preserve"><value>Xoá mọi cấu hình theo mạng</value></data>
+  <data name="ClearNetworkProfilesTitle" xml:space="preserve"><value>Xoá cấu hình theo mạng?</value></data>
+  <data name="ClearNetworkProfilesText" xml:space="preserve"><value>LunaDNS sẽ quên cấu hình đã lưu của mọi mạng. Cài đặt đang dùng giữ nguyên.</value></data>
 </root>

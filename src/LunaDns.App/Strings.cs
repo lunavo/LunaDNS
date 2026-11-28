@@ -61,6 +61,16 @@ internal static class Strings
     public static string TuneNoChange => Get(nameof(TuneNoChange));
     public static string TuneDohFailed => Get(nameof(TuneDohFailed));
     public static string TuneNothingWorkedFormat => Get(nameof(TuneNothingWorkedFormat));
+    public static string NetworkSavedFormat => Get(nameof(NetworkSavedFormat));
+    public static string NetworkNotSavedFormat => Get(nameof(NetworkNotSavedFormat));
+    public static string NetworkAppliedFormat => Get(nameof(NetworkAppliedFormat));
+    public static string NetworkBlockedBanner => Get(nameof(NetworkBlockedBanner));
+    public static string ForgetNetwork => Get(nameof(ForgetNetwork));
+    public static string RememberPerNetworkSwitch => Get(nameof(RememberPerNetworkSwitch));
+    public static string RememberPerNetworkHint => Get(nameof(RememberPerNetworkHint));
+    public static string ClearNetworkProfiles => Get(nameof(ClearNetworkProfiles));
+    public static string ClearNetworkProfilesTitle => Get(nameof(ClearNetworkProfilesTitle));
+    public static string ClearNetworkProfilesText => Get(nameof(ClearNetworkProfilesText));
     public static string TuneCancelled => Get(nameof(TuneCancelled));
     public static string TuneFoundNotAppliedFormat => Get(nameof(TuneFoundNotAppliedFormat));
     public static string SettingsSaveFailedFormat => Get(nameof(SettingsSaveFailedFormat));

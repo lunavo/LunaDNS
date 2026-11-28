@@ -16,7 +16,7 @@ internal sealed class ProbeRunner(Func<AppSettings> settings, ILoggerFactory log
         var prober = new Prober(
             new SystemHostResolver(loggerFactory.CreateLogger<SystemHostResolver>()),
             new DohHostResolver(doh),
-            new TlsProbe(current.Tuning().Split, loggerFactory.CreateLogger<TlsProbe>()),
+            new TlsProbe(current.Tuning().Split, current.Tuning().SplitDelay, loggerFactory.CreateLogger<TlsProbe>()),
             logger: loggerFactory.CreateLogger<Prober>());
         return await prober.RunAsync(hosts, cancellationToken);
     }
