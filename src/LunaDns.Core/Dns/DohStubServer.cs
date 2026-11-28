@@ -78,7 +78,29 @@ public sealed partial class DohStubServer : IAsyncDisposable
         // Cố ý không Dispose _stop và _tcpSlots: gói và kết nối đang xử lý dở vẫn đọc token và trả slot.
     }
 
+    /// <summary>Cổng 0: UDP lấy cổng trống bất kỳ nhưng TCP cùng số có thể đang bị chiếm, nên thử cổng khác vài lần.</summary>
+    private const int EphemeralBindAttempts = 8;
+
     private void Bind(IPEndPoint endPoint)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                BindOnce(endPoint);
+                return;
+            }
+            catch (DnsStubException ex) when (endPoint.Port == 0 && ex.Error == DnsStubError.PortInUse && attempt < EphemeralBindAttempts)
+            {
+                _udp?.Dispose();
+                _tcp?.Dispose();
+                _udp = null;
+                _tcp = null;
+            }
+        }
+    }
+
+    private void BindOnce(IPEndPoint endPoint)
     {
         _udp = new Socket(endPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp) { ExclusiveAddressUse = true };
         BindOrThrow(_udp, endPoint);
