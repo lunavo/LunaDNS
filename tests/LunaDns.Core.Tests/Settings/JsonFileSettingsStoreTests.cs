@@ -187,4 +187,20 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         Assert.False(new JsonFileSettingsStore(path).Load().DomainListUpdates);
         Assert.Empty(Directory.GetFiles(_dir, "settings.json.corrupt-*"));
     }
+
+    [Fact]
+    public void OldFileWithoutRememberPerNetwork_DefaultsToTrue()
+    {
+        var path = PathOf("settings.json");
+        File.WriteAllText(path, """{ "AutoResume": false }""");
+        Assert.True(new JsonFileSettingsStore(path).Load().RememberPerNetwork);
+    }
+
+    [Fact]
+    public void RememberPerNetworkFalse_RoundTrips()
+    {
+        var store = new JsonFileSettingsStore(PathOf("settings.json"));
+        store.Save(new AppSettings { RememberPerNetwork = false });
+        Assert.False(store.Load().RememberPerNetwork);
+    }
 }

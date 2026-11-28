@@ -9,6 +9,7 @@ namespace LunaDns.Core.Settings;
 [JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(DomainSelection))]
 [JsonSerializable(typeof(CustomDoh))]
+[JsonSerializable(typeof(List<NetworkProfile>))]
 internal sealed partial class SettingsJsonContext : JsonSerializerContext
 {
 }

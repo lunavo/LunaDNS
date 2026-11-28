@@ -31,10 +31,11 @@ public sealed class JsonFileSettingsStore(string path)
             var listUpdates = HasProperty(bytes, nameof(AppSettings.DomainListUpdates)) ? loaded.DomainListUpdates : true;
             // F1: file cũ không có công tắc Tự bật lại thì coi như bật; "Wanted": null (sửa tay) thì coi như chưa muốn gì.
             var autoResume = HasProperty(bytes, nameof(AppSettings.AutoResume)) ? loaded.AutoResume : true;
+            var perNetwork = HasProperty(bytes, nameof(AppSettings.RememberPerNetwork)) ? loaded.RememberPerNetwork : true;
 #pragma warning disable CA1508 // như Domains: JSON null ghi đè giá trị mặc định.
             var wanted = loaded.Wanted ?? WantedFeatures.None;
 #pragma warning restore CA1508
-            return loaded with { Domains = domains, CustomDoh = custom, DomainListUpdates = listUpdates, AutoResume = autoResume, Wanted = wanted };
+            return loaded with { Domains = domains, CustomDoh = custom, DomainListUpdates = listUpdates, AutoResume = autoResume, RememberPerNetwork = perNetwork, Wanted = wanted };
         }
         catch (JsonException)
         {

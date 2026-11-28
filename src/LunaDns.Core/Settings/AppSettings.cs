@@ -42,6 +42,9 @@ public sealed record AppSettings
     /// <summary>F1: công tắc "Tự bật lại". Mặc định bật; tắt thì vẫn nhớ <see cref="Wanted"/> để giao diện đề nghị bật lại.</summary>
     public bool AutoResume { get; init; } = true;
 
+    /// <summary>Hồ sơ theo mạng: lưu và tự áp tổ hợp đã chạy được cho từng mạng. Tắt thì giữ hồ sơ, không áp, không lưu.</summary>
+    public bool RememberPerNetwork { get; init; } = true;
+
     /// <summary>F1: tính năng người dùng để bật lần cuối. Chỉ FeatureResumer đổi trường này.</summary>
     public WantedFeatures? Wanted { get; init; } = WantedFeatures.None;
 
