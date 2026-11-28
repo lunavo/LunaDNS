@@ -122,7 +122,10 @@ internal sealed partial class NetworkProfileCoordinator(NetworkProfileStore stor
 
     public async Task OnCheckCompletedAsync(IReadOnlyList<ProbeResult> results)
     {
+        ArgumentNullException.ThrowIfNull(results);
         if (Network is not { } net || !host.RememberPerNetwork) return;
+        // Người dùng bỏ nhóm Steam ở khu Tên miền: lần Kiểm tra này không nói gì về Steam, không được coi là bị chặn.
+        if (!results.Any(r => ProbeTargets.Steam.Contains(r.Host, StringComparer.OrdinalIgnoreCase))) return;
         // Kiểm tra của người dùng đã trả lời cho mạng này: hết bận thì không Kiểm tra ngầm lại (lúc mở app hai việc trùng nhau).
         _handled = net.Id;
         await RecordAsync(net, results);

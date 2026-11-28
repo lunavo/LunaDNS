@@ -43,7 +43,15 @@ internal sealed class NetworkWatcher(INetworkIdentity identity, TimeProvider tim
 
     private void Check()
     {
-        var now = identity.Current();
+        NetworkSnapshot? now;
+        try
+        {
+            now = identity.Current();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return; // chạy trên luồng timer: exception lọt ra sẽ làm sập app; lần poll sau đọc lại
+        }
         lock (_gate)
         {
             if (_disposed || now?.Id == Current?.Id) return;

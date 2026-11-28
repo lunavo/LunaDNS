@@ -168,6 +168,16 @@ public sealed class NetworkProfileCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task ManualCheckWithoutSteam_IsIgnored()
+    {
+        Save(Home, DohProvider.Google, Mid);
+        await _coordinator.OnNetworkChangedAsync(Home);
+        await _coordinator.OnCheckCompletedAsync([new ProbeResult("www.reddit.com", ProbeVerdict.Unreachable, [], [], false)]);
+        Assert.False(_store.Find(Home.Id.Value)!.Stale);
+        Assert.False(_coordinator.ShowBlocked);
+    }
+
+    [Fact]
     public async Task TuneSucceeded_SavesForCurrentNetwork_Forget_Clear()
     {
         await _coordinator.OnNetworkChangedAsync(null);

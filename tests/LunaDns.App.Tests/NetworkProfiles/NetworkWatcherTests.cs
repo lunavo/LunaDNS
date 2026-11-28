@@ -13,7 +13,34 @@ public class NetworkWatcherTests
     {
         public NetworkSnapshot? Value { get; set; }
         public int Calls { get; private set; }
-        public NetworkSnapshot? Current() { Calls++; return Value; }
+        public Exception? Throw { get; set; }
+
+        public NetworkSnapshot? Current()
+        {
+            Calls++;
+            if (Throw is { } ex) throw ex;
+            return Value;
+        }
+    }
+
+    [Fact]
+    public void IdentityThrows_OnTimer_NoEvent_RecoversNextPoll()
+    {
+        var identity = new FakeIdentity { Value = Net("aa:bb:cc:01:02:03") };
+        var time = new FakeTimeProvider();
+        using var watcher = new NetworkWatcher(identity, time);
+        var seen = new List<NetworkSnapshot?>();
+        watcher.Changed += seen.Add;
+        watcher.Start();
+        identity.Value = Net("aa:bb:cc:09:09:09");
+        identity.Throw = new InvalidOperationException();
+        watcher.Poke();
+        time.Advance(NetworkWatcher.Settle);
+        Assert.Empty(seen);
+        identity.Throw = null;
+        watcher.Poke();
+        time.Advance(NetworkWatcher.Settle);
+        Assert.Equal([identity.Value], seen);
     }
 
     [Fact]
